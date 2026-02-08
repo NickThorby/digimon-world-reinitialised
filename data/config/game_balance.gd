@@ -2,6 +2,8 @@ class_name GameBalance
 extends Resource
 ## Tunable game balance settings. Edit the .tres file to adjust values.
 
+# --- Core ---
+
 @export var attribute_advantage_multiplier: float = 1.5
 @export var attribute_disadvantage_multiplier: float = 0.5
 @export var damage_variance_min: float = 0.85
@@ -14,3 +16,40 @@ extends Resource
 @export var max_tv: int = 500
 @export var personality_modifier: float = 0.1
 @export var overexertion_damage_multiplier: float = 0.25
+
+# --- Field effect durations ---
+
+@export var default_weather_duration: int = 5
+@export var default_terrain_duration: int = 5
+@export var default_global_effect_duration: int = 5
+@export var default_side_effect_duration: int = 5
+
+# --- Status durations ---
+
+@export var sleep_min_turns: int = 1
+@export var sleep_max_turns: int = 3
+@export var freeze_min_turns: int = 1
+@export var freeze_max_turns: int = 3
+@export var confusion_min_turns: int = 2
+@export var confusion_max_turns: int = 5
+@export var encore_duration: int = 3
+@export var taunt_duration: int = 3
+@export var disable_duration: int = 4
+@export var perish_countdown: int = 3
+
+# --- Protection ---
+
+@export var protection_fail_escalation: float = 0.5
+
+# --- Decoy ---
+
+@export var decoy_hp_cost_percent: float = 0.25
+
+# --- Critical hits ---
+
+@export var crit_damage_multiplier: float = 1.5
+
+# --- Multi-side battle ---
+
+@export var max_sides: int = 4
+@export var max_slots_per_side: int = 3

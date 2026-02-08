@@ -138,23 +138,33 @@ var technique_class_labels: Dictionary = {
 }
 
 enum Targeting {
-	SELF,
-	SINGLE_TARGET,
-	SINGLE_OTHER,
-	SINGLE_SIDE,
-	SINGLE_SIDE_OR_ALLY,
-	ALL,
-	ALL_OTHER,
+	SELF,               ## User only
+	SINGLE_TARGET,      ## Any one Digimon (ally or foe)
+	SINGLE_OTHER,       ## Any one Digimon except user
+	SINGLE_ALLY,        ## One ally on same side (not self)
+	SINGLE_FOE,         ## One Digimon on any foe side
+	ALL_ALLIES,         ## All Digimon on user's side (incl. self)
+	ALL_OTHER_ALLIES,   ## All allies on user's side except self
+	ALL_FOES,           ## All Digimon on all foe sides
+	ALL,                ## Every Digimon on the field
+	ALL_OTHER,          ## Every Digimon except user
+	SINGLE_SIDE,        ## An entire side (for hazards, side effects)
+	FIELD,              ## Entire field (weather, terrain, global)
 }
 
 var targeting_labels: Dictionary = {
 	Targeting.SELF: tr("targeting.self"),
 	Targeting.SINGLE_TARGET: tr("targeting.single_target"),
 	Targeting.SINGLE_OTHER: tr("targeting.single_other"),
-	Targeting.SINGLE_SIDE: tr("targeting.single_side"),
-	Targeting.SINGLE_SIDE_OR_ALLY: tr("targeting.single_side_or_ally"),
+	Targeting.SINGLE_ALLY: tr("targeting.single_ally"),
+	Targeting.SINGLE_FOE: tr("targeting.single_foe"),
+	Targeting.ALL_ALLIES: tr("targeting.all_allies"),
+	Targeting.ALL_OTHER_ALLIES: tr("targeting.all_other_allies"),
+	Targeting.ALL_FOES: tr("targeting.all_foes"),
 	Targeting.ALL: tr("targeting.all"),
 	Targeting.ALL_OTHER: tr("targeting.all_other"),
+	Targeting.SINGLE_SIDE: tr("targeting.single_side"),
+	Targeting.FIELD: tr("targeting.field"),
 }
 
 enum Priority {
@@ -196,6 +206,7 @@ enum BrickType {
 	POSITION_CONTROL,
 	TURN_ECONOMY,
 	CHARGE_REQUIREMENT,
+	SYNERGY,
 	REQUIREMENT,
 	CONDITIONAL,
 	PROTECTION,
@@ -227,6 +238,7 @@ var brick_type_labels: Dictionary = {
 	BrickType.POSITION_CONTROL: tr("brick_type.position_control"),
 	BrickType.TURN_ECONOMY: tr("brick_type.turn_economy"),
 	BrickType.CHARGE_REQUIREMENT: tr("brick_type.charge_requirement"),
+	BrickType.SYNERGY: tr("brick_type.synergy"),
 	BrickType.REQUIREMENT: tr("brick_type.requirement"),
 	BrickType.CONDITIONAL: tr("brick_type.conditional"),
 	BrickType.PROTECTION: tr("brick_type.protection"),
@@ -243,26 +255,42 @@ var brick_type_labels: Dictionary = {
 	BrickType.TURN_ORDER: tr("brick_type.turn_order"),
 }
 
-enum TechniqueTag {
-	SOUND,
-	WIND,
-	EXPLOSIVE,
-	CONTACT,
-	PUNCH,
-	KICK,
-	BITE,
-	BEAM,
+enum TechniqueFlag {
+	CONTACT,        ## Makes physical contact
+	SOUND,          ## Sound-based, may bypass shields
+	PUNCH,          ## Punch-based, boosted by fist abilities
+	KICK,           ## Kick-based
+	BITE,           ## Bite-based, boosted by jaw abilities
+	BLADE,          ## Slashing/blade-based
+	BEAM,           ## Beam/ray-based
+	EXPLOSIVE,      ## Explosive, may hit semi-invulnerable
+	BULLET,         ## Projectile-based
+	POWDER,         ## Powder/spore, blocked by certain abilities
+	WIND,           ## Wind-based
+	FLYING,         ## Aerial, blocked by grounding field
+	GROUNDABLE,        ## Affected by grounding field
+	DEFROST,        ## Thaws frozen user before executing
+	REFLECTABLE,    ## Can be reflected by technique reflection
+	SNATCHABLE,     ## Can be snatched
 }
 
-var technique_tag_labels: Dictionary = {
-	TechniqueTag.SOUND: tr("technique_tag.sound"),
-	TechniqueTag.WIND: tr("technique_tag.wind"),
-	TechniqueTag.EXPLOSIVE: tr("technique_tag.explosive"),
-	TechniqueTag.CONTACT: tr("technique_tag.contact"),
-	TechniqueTag.PUNCH: tr("technique_tag.punch"),
-	TechniqueTag.KICK: tr("technique_tag.kick"),
-	TechniqueTag.BITE: tr("technique_tag.bite"),
-	TechniqueTag.BEAM: tr("technique_tag.beam"),
+var technique_flag_labels: Dictionary = {
+	TechniqueFlag.CONTACT: tr("technique_flag.contact"),
+	TechniqueFlag.SOUND: tr("technique_flag.sound"),
+	TechniqueFlag.PUNCH: tr("technique_flag.punch"),
+	TechniqueFlag.KICK: tr("technique_flag.kick"),
+	TechniqueFlag.BITE: tr("technique_flag.bite"),
+	TechniqueFlag.BLADE: tr("technique_flag.blade"),
+	TechniqueFlag.BEAM: tr("technique_flag.beam"),
+	TechniqueFlag.EXPLOSIVE: tr("technique_flag.explosive"),
+	TechniqueFlag.BULLET: tr("technique_flag.bullet"),
+	TechniqueFlag.POWDER: tr("technique_flag.powder"),
+	TechniqueFlag.WIND: tr("technique_flag.wind"),
+	TechniqueFlag.FLYING: tr("technique_flag.flying"),
+	TechniqueFlag.GROUNDABLE: tr("technique_flag.groundable"),
+	TechniqueFlag.DEFROST: tr("technique_flag.defrost"),
+	TechniqueFlag.REFLECTABLE: tr("technique_flag.reflectable"),
+	TechniqueFlag.SNATCHABLE: tr("technique_flag.snatchable"),
 }
 
 # --- Abilities ---
@@ -332,6 +360,7 @@ var stack_limit_labels: Dictionary = {
 # --- Status ---
 
 enum StatusCondition {
+	# Negative (17)
 	ASLEEP,
 	BURNED,
 	FROSTBITTEN,
@@ -344,8 +373,15 @@ enum StatusCondition {
 	BLINDED,
 	PARALYSED,
 	BLEEDING,
+	ENCORED,
+	TAUNTED,
+	DISABLED,
+	PERISHING,
+	SEEDED,
+	# Positive (2)
 	REGENERATING,
 	VITALISED,
+	# Neutral (2)
 	NULLIFIED,
 	REVERSED,
 }
@@ -363,6 +399,11 @@ var status_condition_labels: Dictionary = {
 	StatusCondition.BLINDED: tr("status_condition.blinded"),
 	StatusCondition.PARALYSED: tr("status_condition.paralysed"),
 	StatusCondition.BLEEDING: tr("status_condition.bleeding"),
+	StatusCondition.ENCORED: tr("status_condition.encored"),
+	StatusCondition.TAUNTED: tr("status_condition.taunted"),
+	StatusCondition.DISABLED: tr("status_condition.disabled"),
+	StatusCondition.PERISHING: tr("status_condition.perishing"),
+	StatusCondition.SEEDED: tr("status_condition.seeded"),
 	StatusCondition.REGENERATING: tr("status_condition.regenerating"),
 	StatusCondition.VITALISED: tr("status_condition.vitalised"),
 	StatusCondition.NULLIFIED: tr("status_condition.nullified"),
@@ -379,6 +420,75 @@ var status_category_labels: Dictionary = {
 	StatusCategory.NEGATIVE: tr("status_category.negative"),
 	StatusCategory.POSITIVE: tr("status_category.positive"),
 	StatusCategory.NEUTRAL: tr("status_category.neutral"),
+}
+
+# --- Battle ---
+
+## Battle-only stats (includes accuracy/evasion which are stage-modifiable but not permanent).
+enum BattleStat {
+	HP,
+	ATTACK,
+	DEFENCE,
+	SPECIAL_ATTACK,
+	SPECIAL_DEFENCE,
+	SPEED,
+	ENERGY,
+	ACCURACY,
+	EVASION,
+}
+
+var battle_stat_labels: Dictionary = {
+	BattleStat.HP: tr("battle_stat.hp"),
+	BattleStat.ATTACK: tr("battle_stat.attack"),
+	BattleStat.DEFENCE: tr("battle_stat.defence"),
+	BattleStat.SPECIAL_ATTACK: tr("battle_stat.special_attack"),
+	BattleStat.SPECIAL_DEFENCE: tr("battle_stat.special_defence"),
+	BattleStat.SPEED: tr("battle_stat.speed"),
+	BattleStat.ENERGY: tr("battle_stat.energy"),
+	BattleStat.ACCURACY: tr("battle_stat.accuracy"),
+	BattleStat.EVASION: tr("battle_stat.evasion"),
+}
+
+## Within-brick targeting (distinct from technique-level Targeting).
+enum BrickTarget {
+	SELF,
+	TARGET,
+	ALL_FOES,
+	ALL_ALLIES,
+	ALL,
+	ATTACKER,
+	FIELD,
+}
+
+var brick_target_labels: Dictionary = {
+	BrickTarget.SELF: tr("brick_target.self"),
+	BrickTarget.TARGET: tr("brick_target.target"),
+	BrickTarget.ALL_FOES: tr("brick_target.all_foes"),
+	BrickTarget.ALL_ALLIES: tr("brick_target.all_allies"),
+	BrickTarget.ALL: tr("brick_target.all"),
+	BrickTarget.ATTACKER: tr("brick_target.attacker"),
+	BrickTarget.FIELD: tr("brick_target.field"),
+}
+
+## Battle counters for scaling effects.
+enum BattleCounter {
+	TIMES_HIT_THIS_BATTLE,
+	ALLIES_FAINTED_THIS_BATTLE,
+	FOES_FAINTED_THIS_BATTLE,
+	USER_STAT_STAGES_TOTAL,
+	TARGET_STAT_STAGES_TOTAL,
+	TURNS_ON_FIELD,
+	CONSECUTIVE_USES,
+}
+
+var battle_counter_labels: Dictionary = {
+	BattleCounter.TIMES_HIT_THIS_BATTLE: tr("battle_counter.times_hit_this_battle"),
+	BattleCounter.ALLIES_FAINTED_THIS_BATTLE: tr("battle_counter.allies_fainted_this_battle"),
+	BattleCounter.FOES_FAINTED_THIS_BATTLE: tr("battle_counter.foes_fainted_this_battle"),
+	BattleCounter.USER_STAT_STAGES_TOTAL: tr("battle_counter.user_stat_stages_total"),
+	BattleCounter.TARGET_STAT_STAGES_TOTAL: tr("battle_counter.target_stat_stages_total"),
+	BattleCounter.TURNS_ON_FIELD: tr("battle_counter.turns_on_field"),
+	BattleCounter.CONSECUTIVE_USES: tr("battle_counter.consecutive_uses"),
 }
 
 # --- Evolution ---
@@ -464,3 +574,59 @@ const PRIORITY_SPEED_MULTIPLIERS: Dictionary = {
 	Priority.HIGH: 1.5,
 	Priority.VERY_HIGH: 2.0,
 }
+
+## Dex brick stat abbreviation to game BattleStat mapping.
+const BRICK_STAT_MAP: Dictionary = {
+	"hp": BattleStat.HP,
+	"atk": BattleStat.ATTACK,
+	"def": BattleStat.DEFENCE,
+	"spa": BattleStat.SPECIAL_ATTACK,
+	"spd": BattleStat.SPECIAL_DEFENCE,
+	"spe": BattleStat.SPEED,
+	"energy": BattleStat.ENERGY,
+	"accuracy": BattleStat.ACCURACY,
+	"evasion": BattleStat.EVASION,
+}
+
+## Crit stage to crit chance mapping.
+const CRIT_STAGE_RATES: Dictionary = {
+	0: 1.0 / 24.0,
+	1: 1.0 / 8.0,
+	2: 1.0 / 2.0,
+	3: 1.0,
+}
+
+const CRIT_DAMAGE_MULTIPLIER: float = 1.5
+
+## Battle field constant arrays.
+const WEATHER_TYPES: Array[StringName] = [
+	&"sun", &"rain", &"sandstorm", &"hail", &"snow", &"fog",
+]
+
+const TERRAIN_TYPES: Array[StringName] = [
+	&"flooded", &"blooming",
+]
+
+const HAZARD_TYPES: Array[StringName] = [
+	&"entry_damage", &"entry_stat_reduction",
+]
+
+const GLOBAL_EFFECT_TYPES: Array[StringName] = [
+	&"grounding_field", &"speed_inversion", &"gear_suppression", &"defence_swap",
+]
+
+const SIDE_EFFECT_TYPES: Array[StringName] = [
+	&"physical_barrier", &"special_barrier", &"dual_barrier",
+	&"stat_drop_immunity", &"status_immunity", &"speed_boost",
+	&"crit_immunity", &"spread_protection", &"priority_protection",
+	&"first_turn_protection",
+]
+
+const SHIELD_TYPES: Array[StringName] = [
+	&"hp_decoy", &"intact_form_guard", &"endure", &"full_hp_guard",
+	&"last_stand", &"negate_one_physical",
+]
+
+const SEMI_INVULNERABLE_STATES: Array[StringName] = [
+	&"sky", &"underground", &"underwater", &"shadow", &"intangible",
+]

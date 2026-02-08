@@ -15,6 +15,7 @@
 ## Key Terminology
 
 - **"Techniques"** (not "Attacks") — what Digimon use in battle. The digimon-dex calls these "attacks" in its database, but in this game they are always "techniques". The field mapping is: dex `Attack` -> game `TechniqueData`, dex `attack_class` -> game `technique_class`.
+- **"Technique Flags"** (not "Technique Tags") — `TechniqueFlag` enum replaced the old `TechniqueTag`. `TechniqueData.flags` (not `.tags`).
 
 ## Key Conventions
 

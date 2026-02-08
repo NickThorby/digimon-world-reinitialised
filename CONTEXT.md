@@ -316,14 +316,14 @@ Mapped from digimon-dex `Attack` table (**"attack" in dex = "technique" in game*
 | `accuracy`             | `int`                     | Hit chance (100 = always hits)   |
 | `energy_cost`          | `int`                     | Energy to use                    |
 | `priority`             | `Registry.Priority`       | Priority tier                    |
-| `tags`                 | `Array[TechniqueTag]`     | Sound, Wind, Contact, etc.       |
+| `flags`                | `Array[TechniqueFlag]`    | Contact, Sound, Beam, etc.       |
 | `charge_required`      | `int`                     | Charges needed (0 = instant)     |
 | `charge_conditions`    | `Array[Dictionary]`       | How charges are gained           |
 | `bricks`               | `Array[Dictionary]`       | Modular effect definitions       |
 
-### Brick Types (28)
+### Brick Types (29)
 
-The brick system enables modular effect composition. Each brick is a dictionary with a `brick` type field:
+The brick system enables modular effect composition. Each brick is a dictionary with a `brick` type field. Full parameter schemas are in `addons/dex_importer/BRICK_CONTRACT.md`.
 
 | Brick Type           | Purpose                                          |
 |----------------------|--------------------------------------------------|
@@ -341,9 +341,10 @@ The brick system enables modular effect composition. Each brick is a dictionary 
 | `positionControl`    | Forces switches or traps targets                 |
 | `turnEconomy`        | Multi-turn, multi-hit, or delayed effects        |
 | `chargeRequirement`  | Requires a charge turn                           |
+| `synergy`            | Combo/followUp effects with partner techniques   |
 | `requirement`        | Move fails if condition not met                  |
 | `conditional`        | Bonus effects under certain conditions           |
-| `protection`         | Protects from attacks (Protect-like)             |
+| `protection`         | Protects from attacks (full protection)           |
 | `priorityOverride`   | Changes move priority conditionally              |
 | `typeModifier`       | Changes types/elements                           |
 | `flags`              | Move flags for ability interactions              |
@@ -351,37 +352,52 @@ The brick system enables modular effect composition. Each brick is a dictionary 
 | `resource`           | Interacts with held items                        |
 | `useRandomMove`      | Uses a random technique                          |
 | `transform`          | Transforms into target                           |
-| `shield`             | Creates protective shields (Substitute-like)     |
+| `shield`             | Creates protective shields (decoy-like)           |
 | `copyMove`           | Copies or mimics techniques                      |
 | `abilityManipulation`| Copies, swaps, or suppresses abilities           |
 | `turnOrder`          | Manipulates turn order                           |
 
-### Technique Tags
+### Technique Flags (16)
 
-Tags are metadata on techniques that interact with abilities and status effects:
+Flags are metadata on techniques that interact with abilities and status effects:
 
-| Tag       | Description                                      |
-|-----------|--------------------------------------------------|
-| Sound     | Sound-based — may bypass substitutes             |
-| Wind      | Wind-based — interacts with airborne states      |
-| Explosive | Explosion — may hit semi-invulnerable targets    |
-| Contact   | Makes physical contact — triggers contact abilities |
-| Punch     | Punch-based — boosted by fist-related abilities  |
-| Kick      | Kick-based                                       |
-| Bite      | Bite-based — boosted by jaw-related abilities    |
-| Beam      | Beam-based                                       |
+| Flag        | Description                                          |
+|-------------|------------------------------------------------------|
+| Contact     | Makes physical contact — triggers contact abilities  |
+| Sound       | Sound-based — may bypass decoys                      |
+| Punch       | Punch-based — boosted by fist-related abilities      |
+| Kick        | Kick-based                                           |
+| Bite        | Bite-based — boosted by jaw-related abilities        |
+| Blade       | Slashing/blade-based                                 |
+| Beam        | Beam/ray-based                                       |
+| Explosive   | Explosion — may hit semi-invulnerable targets        |
+| Bullet      | Projectile-based                                     |
+| Powder      | Powder/spore — blocked by certain abilities          |
+| Wind        | Wind-based — interacts with airborne states          |
+| Flying      | Aerial — blocked by grounding field                  |
+| Gravity     | Affected by grounding field                          |
+| Defrost     | Thaws frozen user before executing                   |
+| Reflectable | Can be reflected by technique reflection              |
+| Snatchable  | Can be snatched                                      |
 
-### Targeting
+### Targeting (12)
 
-| Value              | Description                              |
-|--------------------|------------------------------------------|
-| Self               | Targets the user only                    |
-| Single Target      | One target (ally or foe)                 |
-| Single Other       | One target that isn't the user           |
-| Single Side        | One side of the field                    |
-| Single Side or Ally| One side or a specific ally              |
-| All                | All Digimon on the field                 |
-| All Other          | All Digimon except the user              |
+Multi-side semantics: "Foe" = any side on a different team. "Ally" = same side. In FFA, every other side is a foe.
+
+| Value            | Description                                          |
+|------------------|------------------------------------------------------|
+| Self             | User only                                            |
+| Single Target    | Any one Digimon (ally or foe)                        |
+| Single Other     | Any one Digimon except user                          |
+| Single Ally      | One ally on same side (not self)                     |
+| Single Foe       | One Digimon on any foe side                          |
+| All Allies       | All Digimon on user's side (incl. self)              |
+| All Other Allies | All allies on user's side except self                |
+| All Foes         | All Digimon on all foe sides                         |
+| All              | Every Digimon on the field                           |
+| All Other        | Every Digimon except user                            |
+| Single Side      | An entire side (for hazards, side effects)           |
+| Field            | Entire field (weather, terrain, global)              |
 
 ---
 
@@ -459,7 +475,7 @@ Some thematic overrides still apply:
 - **Frostbitten** removes Burned
 - Applying **Frostbitten** to an already Frostbitten Digimon upgrades to **Frozen**
 
-### Full Status Table
+### Full Status Table (21)
 
 | Status       | Category | Mechanics                                              |
 |--------------|----------|--------------------------------------------------------|
@@ -467,22 +483,35 @@ Some thematic overrides still apply:
 | Burned       | Negative | Fire DoT. Physical ATK reduced.                       |
 | Frostbitten  | Negative | Ice DoT. Special ATK reduced.                         |
 | Frozen       | Negative | Cannot act. Thaws after 1-3 turns or fire hit.        |
-| Exhausted    | Negative | SPD halved. Energy regen halved.                      |
+| Exhausted    | Negative | +50% energy cost on techniques.                       |
 | Poisoned     | Negative | DoT (escalating or fixed).                            |
-| Dazed        | Negative | Accuracy reduced. May fail to act.                    |
+| Dazed        | Negative | Equipped gear effects disabled.                       |
 | Trapped      | Negative | Cannot switch out.                                    |
-| Confused     | Negative | May hit self instead of target.                       |
+| Confused     | Negative | Uses random technique. Duration 2-5 turns.            |
 | Blinded      | Negative | Accuracy significantly reduced.                       |
 | Paralysed    | Negative | SPD reduced. May fail to act.                         |
-| Bleeding     | Negative | DoT. Damage increases with physical actions.          |
+| Bleeding     | Negative | -1/8 HP when using a technique. Removed by resting.   |
+| Encored      | Negative | Must repeat last technique for duration.              |
+| Taunted      | Negative | Can only use damaging techniques for duration.        |
+| Disabled     | Negative | One specific technique unusable for duration.         |
+| Perishing    | Negative | Faints when countdown reaches 0 (default 3 turns).   |
+| Seeded       | Negative | Loses 1/8 HP/turn, seeder gains it.                  |
 | Regenerating | Positive | Restores HP each turn.                                |
-| Vitalised    | Positive | Immune to negative status conditions.                 |
+| Vitalised    | Positive | -50% energy cost on techniques.                       |
 | Nullified    | Neutral  | Ability is suppressed.                                |
 | Reversed     | Neutral  | Stat changes are inverted.                            |
 
 ### Element-Based Immunities
 
-*Note: Since Digimon don't have elemental types, these immunities will be implemented through specific abilities or resistance thresholds rather than innate type immunity.*
+Status immunities are tied to resistance thresholds (resistance ≤ 0.5):
+
+| Resistance Profile     | Immune To                  |
+|------------------------|----------------------------|
+| Fire resistance ≤ 0.5  | Burned                     |
+| Ice resistance ≤ 0.5   | Frostbitten, Frozen        |
+| Dark resistance ≤ 0.5  | Poisoned                   |
+
+Specific abilities may also grant status immunities regardless of resistance values.
 
 ---
 
@@ -511,7 +540,7 @@ Some thematic overrides still apply:
 
 - **Stackable** — multiple global effects simultaneously
 - Affect the entire field (both sides)
-- Examples: speed reversal (trick room), gravity (prevents airborne), etc.
+- Examples: speed inversion, grounding field (prevents airborne), etc.
 
 ---
 
@@ -561,11 +590,15 @@ Player display preferences, persisted to `user://settings.cfg`:
 
 Central enum registry containing all game enums and constants:
 
-**Enums**: Attribute, Element, Stat, EvolutionLevel, TechniqueClass, Targeting, Priority, BrickType, TechniqueTag, AbilityTrigger, StackLimit, StatusCondition, StatusCategory, EvolutionType, ItemCategory, GearSlot
+**Enums**: Attribute, Element, Stat, EvolutionLevel, TechniqueClass, Targeting, Priority, BrickType, TechniqueFlag, AbilityTrigger, StackLimit, StatusCondition, StatusCategory, BattleStat, BrickTarget, BattleCounter, EvolutionType, ItemCategory, GearSlot
 
 **Constants**:
 - `STAT_STAGE_MULTIPLIERS`: Dictionary mapping stage (-6 to +6) to multiplier
 - `PRIORITY_SPEED_MULTIPLIERS`: Dictionary mapping priority tier to speed multiplier
+- `BRICK_STAT_MAP`: Dictionary mapping dex stat abbreviations to BattleStat enum
+- `CRIT_STAGE_RATES`: Dictionary mapping crit stage (0-3) to crit chance
+- `CRIT_DAMAGE_MULTIPLIER`: float (1.5)
+- `WEATHER_TYPES`, `TERRAIN_TYPES`, `HAZARD_TYPES`, `GLOBAL_EFFECT_TYPES`, `SIDE_EFFECT_TYPES`, `SHIELD_TYPES`, `SEMI_INVULNERABLE_STATES`: Constant arrays of valid battle effect names
 
 Each enum has a corresponding `_labels` dictionary using `tr()` for localisation.
 
@@ -703,6 +736,109 @@ static func from_dict(data: Dictionary) -> DigimonState:
 - Encounters trigger in designated zones
 - Encounter rate and available Digimon vary by area
 - Transitions to the single battle scene with encounter data
+
+---
+
+## 18. Multi-Side Battle Architecture
+
+### Field → Side → Slot Hierarchy
+
+The battle state uses a three-level hierarchy modelled after Pokemon Showdown's architecture:
+
+```
+BattleState
+├── format: BattleFormat { side_count, slots_per_side, team_assignments, party_size }
+├── field: FieldState
+│   ├── weather: { key, duration, setter_side }
+│   ├── terrain: { key, duration, setter_side }
+│   └── global_effects: Array[{ key, duration }]
+├── sides: Array[SideState]  (2-4)
+│   ├── team_index: int
+│   ├── side_effects: Array[{ key, duration }]
+│   ├── hazards: Array[{ key, layers }]
+│   └── slots: Array[SlotState]  (1-3)
+│       └── digimon: BattleDigimonState
+├── action_queue: Array[BattleAction]
+└── turn_number: int
+```
+
+### Side and Team Model
+
+A "side" = one tamer's field presence. A "team" = a group of allied sides. Sides with the same `team_assignments` value are allies; different values are foes.
+
+| Format | side_count | slots_per_side | team_assignments | Description |
+|---|---|---|---|---|
+| Singles 1v1 | 2 | 1 | [0, 1] | Standard single battle |
+| Doubles 2v2 (1 tamer each) | 2 | 2 | [0, 1] | Each tamer controls 2 slots |
+| Doubles 2v2 (2 tamers per team) | 4 | 1 | [0, 0, 1, 1] | 4 tamers, 2 per team |
+| Triples 3v3 | 2 | 3 | [0, 1] | Each tamer controls 3 slots |
+| 3-player FFA | 3 | 1 | [0, 1, 2] | Every tamer for themselves |
+| 4-player FFA | 4 | 1 | [0, 1, 2, 3] | Every tamer for themselves |
+| 2v1 Boss | 2 | varies | [0, 1] | Boss side has fewer but stronger Digimon |
+
+### Effect Scope Rules
+
+| Effect Type | Scope | Example |
+|---|---|---|
+| Weather, terrain | Whole field (all sides) | Rain affects everyone |
+| Global effects | Whole field (all sides) | Speed inversion affects everyone |
+| Side effects | Per-side (one tamer) | Physical barrier protects only that tamer's Digimon |
+| Hazards | Per-side (one tamer) | Entry damage affects only that tamer's switch-ins |
+| Targeting "all foes" | All slots on all foe-team sides | Hits every enemy Digimon on field |
+| Targeting "all allies" | All slots on all allied-team sides | Hits every ally including self |
+
+No adjacency restrictions — all targets are reachable regardless of slot position.
+
+### Technique Execution Pipeline
+
+1. **Pre-execution**: Check requirements, energy, taunt/disable/encore
+2. **Targeting**: Resolve Targeting enum to actual slots
+3. **Per-target**: Accuracy → Base power → Crit check → Damage calc → Modifiers → Apply
+4. **Secondary effects**: Status, stat changes from bricks
+5. **Self-effects**: Recoil, self stat changes, healing, switch-out
+6. **Post-execution**: Contact ability triggers, item consumption, faint checks
+
+### Event System
+
+Abilities, status conditions, field effects, and gear register event handlers. The engine calls `run_event(event_type, context)` at each pipeline stage. Handlers are priority-sorted and can modify, block, or relay data.
+
+---
+
+## 19. Battle Constants
+
+### Configurable via GameBalance
+
+| Constant | Default | Description |
+|---|---|---|
+| `default_weather_duration` | 5 | Turns weather lasts |
+| `default_terrain_duration` | 5 | Turns terrain lasts |
+| `default_global_effect_duration` | 5 | Turns global effects last |
+| `default_side_effect_duration` | 5 | Turns side effects last |
+| `sleep_min_turns` / `sleep_max_turns` | 1 / 3 | Sleep duration range |
+| `freeze_min_turns` / `freeze_max_turns` | 1 / 3 | Freeze duration range |
+| `confusion_min_turns` / `confusion_max_turns` | 2 / 5 | Confusion duration range |
+| `encore_duration` | 3 | Encore status duration |
+| `taunt_duration` | 3 | Taunt status duration |
+| `disable_duration` | 4 | Disable status duration |
+| `perish_countdown` | 3 | Perishing countdown |
+| `protection_fail_escalation` | 0.5 | Protection fail chance per consecutive use |
+| `decoy_hp_cost_percent` | 0.25 | HP cost to create decoy |
+| `crit_damage_multiplier` | 1.5 | Critical hit damage multiplier |
+| `max_sides` | 4 | Maximum sides in a battle |
+| `max_slots_per_side` | 3 | Maximum active Digimon per side |
+
+### Hardcoded in Registry
+
+| Constant | Values |
+|---|---|
+| `CRIT_STAGE_RATES` | 0: 1/24, 1: 1/8, 2: 1/2, 3: 1/1 |
+| `WEATHER_TYPES` | sun, rain, sandstorm, hail, snow, fog |
+| `TERRAIN_TYPES` | flooded, blooming |
+| `HAZARD_TYPES` | entry_damage, entry_stat_reduction |
+| `GLOBAL_EFFECT_TYPES` | grounding_field, speed_inversion, gear_suppression, defence_swap |
+| `SIDE_EFFECT_TYPES` | physical_barrier, special_barrier, dual_barrier, stat_drop_immunity, status_immunity, speed_boost, crit_immunity, spread_protection, priority_protection, first_turn_protection |
+| `SHIELD_TYPES` | hp_decoy, intact_form_guard, endure, full_hp_guard, last_stand, negate_one_physical |
+| `SEMI_INVULNERABLE_STATES` | sky, underground, underwater, shadow, intangible |
 
 ---
 

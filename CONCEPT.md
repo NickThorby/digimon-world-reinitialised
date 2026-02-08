@@ -91,7 +91,7 @@ Techniques have a priority tier that determines turn order before speed is consi
 
 | Tier      | Speed Multiplier | Description                          |
 |-----------|------------------|--------------------------------------|
-| Maximum   | Moves first      | Always goes first (e.g., Protect)    |
+| Maximum   | Moves first      | Always goes first (e.g., full protection) |
 | Instant   | Moves first      | Near-guaranteed first action         |
 | Very High | 2.0x             | Significantly faster                 |
 | High      | 1.5x             | Faster than normal                   |
@@ -123,13 +123,13 @@ Some powerful techniques require charges before they can be used:
 - **Persistence**: Charges persist through Digimon switches
 - **Reset**: Charges reset when the technique is used or when the battle ends
 
-### Technique Tags
+### Technique Flags
 
-Techniques can have tags that interact with abilities and status effects:
+Techniques can have flags that interact with abilities and status effects:
 
-**Sound, Wind, Explosive, Contact, Punch, Kick, Bite, Beam**
+**Contact, Sound, Punch, Kick, Bite, Blade, Beam, Explosive, Bullet, Powder, Wind, Flying, Gravity, Defrost, Reflectable, Snatchable**
 
-For example, a Sound-tagged technique might bypass certain shields, or a Contact-tagged technique might trigger a thorns-like ability.
+For example, a Sound-flagged technique might bypass certain shields, a Contact-flagged technique might trigger a thorns-like ability, or a Powder-flagged technique is blocked by overcoat-style abilities.
 
 ---
 
@@ -190,27 +190,32 @@ There is **no stacking limit** — multiple different status conditions can be a
 
 ### Negative Status Conditions
 
-| Status      | Effect                                                          |
-|-------------|-----------------------------------------------------------------|
-| Asleep      | Cannot act. Wakes after 1-3 turns or when hit.                 |
-| Burned      | Takes fire damage each turn. Physical attack reduced.           |
-| Frostbitten | Takes ice damage each turn. Special attack reduced.             |
-| Frozen      | Cannot act. Thaws after 1-3 turns or when hit by fire.          |
-| Exhausted   | Speed halved. Energy regeneration halved.                       |
-| Poisoned    | Takes damage each turn (escalating or fixed).                   |
-| Dazed       | Accuracy reduced. May fail to act.                              |
-| Trapped     | Cannot switch out.                                              |
-| Confused    | May hit self instead of target.                                 |
-| Blinded     | Accuracy significantly reduced.                                 |
-| Paralysed   | Speed reduced. May fail to act.                                 |
-| Bleeding    | Takes damage each turn. Damage increases with physical actions. |
+| Status      | Effect                                                                |
+|-------------|-----------------------------------------------------------------------|
+| Asleep      | Cannot act. Wakes after 1-3 turns or when hit.                       |
+| Burned      | Takes fire damage each turn. Physical attack reduced.                 |
+| Frostbitten | Takes ice damage each turn. Special attack reduced.                   |
+| Frozen      | Cannot act. Thaws after 1-3 turns or when hit by fire.                |
+| Exhausted   | +50% energy cost on techniques.                                       |
+| Poisoned    | Takes damage each turn (escalating or fixed).                         |
+| Dazed       | Equipped gear effects disabled.                                       |
+| Trapped     | Cannot switch out.                                                    |
+| Confused    | Uses random technique. Duration-based (2-5 turns).                    |
+| Blinded     | Accuracy significantly reduced.                                       |
+| Paralysed   | Speed reduced. May fail to act.                                       |
+| Bleeding    | -1/8 HP when using a technique. Removed by resting.                   |
+| Encored     | Must repeat last technique for duration.                              |
+| Taunted     | Can only use damaging techniques for duration.                        |
+| Disabled    | One specific technique is unusable for duration.                      |
+| Perishing   | Faints when countdown reaches 0 (default 3 turns).                   |
+| Seeded      | Loses 1/8 HP per turn; the seeder gains it.                          |
 
 ### Positive Status Conditions
 
 | Status       | Effect                                    |
 |--------------|-------------------------------------------|
 | Regenerating | Restores HP each turn.                    |
-| Vitalised    | Immune to negative status conditions.     |
+| Vitalised    | -50% energy cost on techniques.           |
 
 ### Neutral Status Conditions
 
@@ -228,11 +233,15 @@ Some status conditions override others thematically:
 
 ### Element Immunities
 
-- Fire-element Digimon are immune to Burned
-- Ice-element Digimon are immune to Frostbitten and Frozen
-- Miasma/Metal-element Digimon are immune to Poisoned
+Since Digimon have resistances rather than elemental types, status immunities are tied to resistance thresholds:
 
-*Note: "Element immunities" here refers to future consideration — since Digimon don't currently have elemental types, this will be tied to specific abilities or resistances instead.*
+| Resistance Profile     | Immune To                  |
+|------------------------|----------------------------|
+| Fire resistance ≤ 0.5  | Burned                     |
+| Ice resistance ≤ 0.5   | Frostbitten, Frozen        |
+| Dark resistance ≤ 0.5  | Poisoned                   |
+
+*Note: Specific abilities may also grant status immunities regardless of resistance values.*
 
 ---
 
@@ -254,13 +263,13 @@ Some status conditions override others thematically:
 
 - **Stackable** — multiple hazards can exist on each side of the field
 - Entry hazards trigger when a Digimon switches in
-- Examples: spikes, toxic spikes, stealth rocks equivalent
+- Examples: entry damage (flat or element-scaled, stackable), entry stat reduction
 
 ### Field Effects
 
 - **Stackable** — multiple global effects can be active simultaneously
 - Affect the entire field (both sides)
-- Examples: gravity, trick room equivalent
+- Examples: grounding field, speed inversion
 
 ---
 

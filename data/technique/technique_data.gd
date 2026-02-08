@@ -17,7 +17,7 @@ extends Resource
 @export var energy_cost: int = 10
 @export var priority: Registry.Priority = Registry.Priority.NORMAL
 
-@export var tags: Array[Registry.TechniqueTag] = []
+@export var flags: Array[Registry.TechniqueFlag] = []
 
 ## Number of charges required before use (0 = no charge needed).
 @export var charge_required: int = 0
