@@ -342,18 +342,18 @@ The brick system enables modular effect composition. Each brick is a dictionary 
 | `turnEconomy`        | Multi-turn, multi-hit, or delayed effects        |
 | `chargeRequirement`  | Requires a charge turn                           |
 | `synergy`            | Combo/followUp effects with partner techniques   |
-| `requirement`        | Move fails if condition not met                  |
+| `requirement`        | Technique fails if condition not met             |
 | `conditional`        | Bonus effects under certain conditions           |
 | `protection`         | Protects from attacks (full protection)           |
-| `priorityOverride`   | Changes move priority conditionally              |
+| `priorityOverride`   | Changes technique priority conditionally         |
 | `typeModifier`       | Changes types/elements                           |
-| `flags`              | Move flags for ability interactions              |
+| `flags`              | Technique flags for ability interactions         |
 | `criticalHit`        | Modifies critical hit rate                       |
 | `resource`           | Interacts with held items                        |
-| `useRandomMove`      | Uses a random technique                          |
+| `useRandomTechnique` | Uses a random technique                          |
 | `transform`          | Transforms into target                           |
 | `shield`             | Creates protective shields (decoy-like)           |
-| `copyMove`           | Copies or mimics techniques                      |
+| `copyTechnique`      | Copies or mimics techniques                      |
 | `abilityManipulation`| Copies, swaps, or suppresses abilities           |
 | `turnOrder`          | Manipulates turn order                           |
 
@@ -433,8 +433,8 @@ Only **one ability is active** at a time, stored as `active_ability_slot` on Dig
 | `ON_EXIT`          | When Digimon leaves the field              |
 | `ON_TURN_START`    | At the start of the Digimon's turn         |
 | `ON_TURN_END`      | At the end of the Digimon's turn           |
-| `ON_BEFORE_ATTACK` | Before the Digimon uses a technique        |
-| `ON_AFTER_ATTACK`  | After the Digimon uses a technique         |
+| `ON_BEFORE_TECHNIQUE` | Before the Digimon uses a technique     |
+| `ON_AFTER_TECHNIQUE`  | After the Digimon uses a technique      |
 | `ON_BEFORE_HIT`    | Before being hit by a technique            |
 | `ON_AFTER_HIT`     | After being hit by a technique             |
 | `ON_DEAL_DAMAGE`   | When dealing damage                        |

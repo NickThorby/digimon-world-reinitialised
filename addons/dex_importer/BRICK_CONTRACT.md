@@ -356,11 +356,11 @@ The `flags` brick is how the dex attaches technique flags to a technique. During
 | `removeItem` | `bool` | No | Destroy target's gear |
 | `giveItem` | `String` | No | Give specific item key |
 
-### 24. `useRandomMove`
+### 24. `useRandomTechnique`
 
 | Key | Type | Required | Description |
 |---|---|---|---|
-| `brick` | `"useRandomMove"` | Yes | Discriminator |
+| `brick` | `"useRandomTechnique"` | Yes | Discriminator |
 | `source` | `String` | Yes | `allTechniques`, `userKnown`, `userKnownExceptThis`, `targetKnown` |
 | `excludeTechniques` | `Array[String]` | No | Technique keys to exclude |
 | `onlyDamaging` | `bool` | No | Only damaging techniques |
@@ -389,11 +389,11 @@ The `flags` brick is how the dex attaches technique flags to a technique. During
 | `breakOnHit` | `bool` | No | Breaks after one hit |
 | `oncePerBattle` | `bool` | No | Only activates once |
 
-### 27. `copyMove`
+### 27. `copyTechnique`
 
 | Key | Type | Required | Description |
 |---|---|---|---|
-| `brick` | `"copyMove"` | Yes | Discriminator |
+| `brick` | `"copyTechnique"` | Yes | Discriminator |
 | `source` | `String` | Yes | `lastUsedByTarget`, `lastUsedByAny`, `lastUsedOnUser`, `randomFromTarget` |
 | `permanent` | `bool` | No | Permanently learn |
 | `replaceSlot` | `int` | No | Replace technique slot (0-3) |
