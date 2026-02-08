@@ -42,6 +42,7 @@ At runtime, look up resources via Atlas: `Atlas.abilities[ability_slot_1_key]`.
 
 | Autoload      | Purpose                                  |
 |---------------|------------------------------------------|
+| Settings      | Display preferences (persists to cfg)    |
 | Registry      | Central enum registry + game constants   |
 | Atlas         | Data resource loader (all .tres files)   |
 | Game          | Game lifecycle (new/load/save/quit)      |
@@ -111,11 +112,18 @@ Each personality boosts one stat by +10% and reduces another by -10%. When both 
 
 ### Display Name Resolution
 
-```
-custom_name > dub_name > jp_name
-```
+Name resolution is controlled by two settings in the `Settings` autoload:
 
-If `custom_name` is set, use it. Otherwise fall back to `dub_name`, then `jp_name`.
+- **Display Preference** (`JAPANESE` or `DUB`, default: `DUB`) — selects the base name tradition
+- **Use Game Names** (`true` or `false`, default: `true`) — enables game-specific custom overrides
+
+Resolution logic (applies to `DigimonData.display_name` and `TechniqueData.display_name`):
+
+1. If `use_game_names` is ON and `custom_name != ""` → return `custom_name`
+2. If preference is `JAPANESE` → return `jp_name`
+3. If preference is `DUB` → return `dub_name` (fallback to `jp_name` if empty)
+
+Evolution level labels follow `display_preference` only (no game name override). Use `Registry.get_evolution_level_label(level)` or `Registry.evolution_level_labels[level]`.
 
 ---
 
@@ -158,18 +166,20 @@ Each Digimon has individual resistance values per element (stored in `DigimonDat
 
 ### Evolution Levels (10)
 
-| Value | Name            |
-|-------|-----------------|
-| 1     | Baby I          |
-| 2     | Baby II         |
-| 3     | Child           |
-| 4     | Adult           |
-| 5     | Perfect         |
-| 6     | Ultimate        |
-| 7     | Super Ultimate  |
-| 8     | Armor           |
-| 9     | Hybrid          |
-| 10    | Unknown         |
+Labels depend on `Settings.display_preference` (Japanese vs Dub):
+
+| Value | Japanese        | Dub             |
+|-------|-----------------|-----------------|
+| 1     | Baby I          | Fresh           |
+| 2     | Baby II         | In-Training     |
+| 3     | Child           | Rookie          |
+| 4     | Adult           | Champion        |
+| 5     | Perfect         | Ultimate        |
+| 6     | Ultimate        | Mega            |
+| 7     | Super Ultimate  | Ultra           |
+| 8     | Armor           | Armor           |
+| 9     | Hybrid          | Hybrid          |
+| 10    | Unknown         | Unknown         |
 
 ### Evolution Types (7)
 
@@ -538,6 +548,14 @@ Instead of capture balls, players scan wild Digimon:
 ---
 
 ## 13. Autoloads
+
+### Settings (`autoload/settings.gd`)
+
+Player display preferences, persisted to `user://settings.cfg`:
+- `display_preference: DisplayPreference` — `JAPANESE` or `DUB` (default: `DUB`)
+- `use_game_names: bool` — enable game-specific custom names (default: `true`)
+- Signals: `display_preference_changed`, `use_game_names_changed`
+- Auto-saves on change, auto-loads on `_ready()`
 
 ### Registry (`autoload/registry.gd`)
 

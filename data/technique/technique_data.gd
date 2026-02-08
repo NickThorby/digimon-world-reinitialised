@@ -28,11 +28,13 @@ extends Resource
 @export var bricks: Array[Dictionary] = []
 
 
-## Returns the best available display name: custom > dub > jp.
+## Returns the display name based on player preference settings.
 var display_name: String:
 	get:
-		if custom_name != "":
+		if Settings.use_game_names and custom_name != "":
 			return custom_name
+		if Settings.display_preference == Settings.DisplayPreference.JAPANESE:
+			return jp_name
 		if dub_name != "":
 			return dub_name
 		return jp_name

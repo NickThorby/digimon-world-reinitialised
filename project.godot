@@ -17,6 +17,7 @@ run/main_scene="res://scenes/main/main.tscn"
 
 [autoload]
 
+Settings="*res://autoload/settings.gd"
 Registry="*res://autoload/registry.gd"
 Atlas="*res://autoload/atlas.gd"
 Game="*res://autoload/game.gd"

@@ -84,18 +84,44 @@ enum EvolutionLevel {
 	UNKNOWN = 10,
 }
 
-var evolution_level_labels: Dictionary = {
-	EvolutionLevel.BABY_I: tr("evolution_level.baby_i"),
-	EvolutionLevel.BABY_II: tr("evolution_level.baby_ii"),
-	EvolutionLevel.CHILD: tr("evolution_level.child"),
-	EvolutionLevel.ADULT: tr("evolution_level.adult"),
-	EvolutionLevel.PERFECT: tr("evolution_level.perfect"),
-	EvolutionLevel.ULTIMATE: tr("evolution_level.ultimate"),
-	EvolutionLevel.SUPER_ULTIMATE: tr("evolution_level.super_ultimate"),
-	EvolutionLevel.ARMOR: tr("evolution_level.armor"),
-	EvolutionLevel.HYBRID: tr("evolution_level.hybrid"),
-	EvolutionLevel.UNKNOWN: tr("evolution_level.unknown"),
+var _evolution_level_jp_labels: Dictionary = {
+	EvolutionLevel.BABY_I: tr("Baby I"),
+	EvolutionLevel.BABY_II: tr("Baby II"),
+	EvolutionLevel.CHILD: tr("Child"),
+	EvolutionLevel.ADULT: tr("Adult"),
+	EvolutionLevel.PERFECT: tr("Perfect"),
+	EvolutionLevel.ULTIMATE: tr("Ultimate"),
+	EvolutionLevel.SUPER_ULTIMATE: tr("Super Ultimate"),
+	EvolutionLevel.ARMOR: tr("Armor"),
+	EvolutionLevel.HYBRID: tr("Hybrid"),
+	EvolutionLevel.UNKNOWN: tr("Unknown"),
 }
+
+var _evolution_level_dub_labels: Dictionary = {
+	EvolutionLevel.BABY_I: tr("Fresh"),
+	EvolutionLevel.BABY_II: tr("In-Training"),
+	EvolutionLevel.CHILD: tr("Rookie"),
+	EvolutionLevel.ADULT: tr("Champion"),
+	EvolutionLevel.PERFECT: tr("Ultimate"),
+	EvolutionLevel.ULTIMATE: tr("Mega"),
+	EvolutionLevel.SUPER_ULTIMATE: tr("Ultra"),
+	EvolutionLevel.ARMOR: tr("Armor"),
+	EvolutionLevel.HYBRID: tr("Hybrid"),
+	EvolutionLevel.UNKNOWN: tr("Unknown"),
+}
+
+## Returns the label for a single evolution level based on display preference.
+func get_evolution_level_label(level: EvolutionLevel) -> String:
+	if Settings.display_preference == Settings.DisplayPreference.JAPANESE:
+		return _evolution_level_jp_labels.get(level, "Unknown")
+	return _evolution_level_dub_labels.get(level, "Unknown")
+
+## Returns the full evolution level labels dictionary based on display preference.
+var evolution_level_labels: Dictionary:
+	get:
+		if Settings.display_preference == Settings.DisplayPreference.JAPANESE:
+			return _evolution_level_jp_labels
+		return _evolution_level_dub_labels
 
 # --- Techniques ---
 
