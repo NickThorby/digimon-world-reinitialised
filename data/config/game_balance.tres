@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="GameBalance" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/config/game_balance.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+attribute_advantage_multiplier = 1.5
+attribute_disadvantage_multiplier = 0.5
+damage_variance_min = 0.85
+damage_variance_max = 1.0
+max_party_size = 3
+max_equipped_techniques = 4
+energy_regen_per_turn = 0.05
+energy_regen_on_rest = 0.25
+max_iv = 50
+max_tv = 500
+personality_modifier = 0.1
+overexertion_damage_multiplier = 0.25

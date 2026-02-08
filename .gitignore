@@ -1,0 +1,13 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+
+# IDE
+.vscode/
+
+# OS
+.DS_Store
+
+# Project-specific
+TODO.md
+FEATURE.md
