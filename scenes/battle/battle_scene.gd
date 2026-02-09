@@ -203,8 +203,7 @@ func _execute_turn() -> void:
 
 
 func _needs_forced_switch() -> bool:
-	for side_idx: int in _player_sides:
-		var side: SideState = _battle.sides[side_idx]
+	for side: SideState in _battle.sides:
 		for slot: SlotState in side.slots:
 			if slot.digimon != null and slot.digimon.is_fainted and _has_alive_reserve(side):
 				return true
@@ -218,12 +217,19 @@ func _has_alive_reserve(side: SideState) -> bool:
 	return false
 
 
+func _first_alive_reserve_index(side: SideState) -> int:
+	for i: int in side.party.size():
+		if side.party[i].current_hp > 0:
+			return i
+	return -1
+
+
 func _prompt_forced_switch() -> void:
 	# Find first player slot needing replacement
 	for side_idx: int in _player_sides:
 		var side: SideState = _battle.sides[side_idx]
 		for slot: SlotState in side.slots:
-			if slot.digimon != null and slot.digimon.is_fainted and side.party.size() > 0:
+			if slot.digimon != null and slot.digimon.is_fainted and _has_alive_reserve(side):
 				_current_input_side = side_idx
 				_current_input_slot = slot.slot_index
 				_message_box.show_prompt("Choose a replacement!")
@@ -237,15 +243,27 @@ func _prompt_forced_switch() -> void:
 		if side.side_index in _player_sides:
 			continue
 		for slot: SlotState in side.slots:
-			if slot.digimon != null and slot.digimon.is_fainted and side.party.size() > 0:
-				# AI auto-picks first available
+			if slot.digimon != null and slot.digimon.is_fainted and _has_alive_reserve(side):
+				var ph: Node = _get_battlefield_placeholder(
+					side.side_index, slot.slot_index
+				)
+				var out_dur: float = _anim_switch_out(ph)
+				if out_dur > 0.0:
+					await get_tree().create_timer(out_dur).timeout
+
+				var reserve_idx: int = _first_alive_reserve_index(side)
 				var switch_action := BattleAction.new()
 				switch_action.action_type = BattleAction.ActionType.SWITCH
 				switch_action.user_side = side.side_index
 				switch_action.user_slot = slot.slot_index
-				switch_action.switch_to_party_index = 0
+				switch_action.switch_to_party_index = reserve_idx
 				_engine._resolve_switch(switch_action)
 				_update_placeholder(side.side_index, slot.slot_index)
+
+				ph = _get_battlefield_placeholder(side.side_index, slot.slot_index)
+				var in_dur: float = _anim_switch_in(ph)
+				if in_dur > 0.0:
+					await get_tree().create_timer(in_dur).timeout
 
 	# After all forced switches, return to input
 	if not _battle.is_battle_over:
@@ -307,12 +325,19 @@ func _replay_events() -> void:
 			&"digimon_switched":
 				var side_idx: int = int(event["side_index"])
 				var slot_idx: int = int(event["slot_index"])
+				var placeholder: Node = _get_battlefield_placeholder(side_idx, slot_idx)
+				var out_dur: float = _anim_switch_out(placeholder)
+				if out_dur > 0.0:
+					await get_tree().create_timer(out_dur).timeout
 				_update_panel_from_snapshot(
 					side_idx, slot_idx,
 					event.get("snapshot", {}) as Dictionary,
 				)
 				_update_placeholder(side_idx, slot_idx)
-				await get_tree().create_timer(0.3).timeout
+				placeholder = _get_battlefield_placeholder(side_idx, slot_idx)
+				var in_dur: float = _anim_switch_in(placeholder)
+				if in_dur > 0.0:
+					await get_tree().create_timer(in_dur).timeout
 
 			&"status_applied", &"status_removed":
 				_update_panel_from_snapshot(
@@ -404,6 +429,29 @@ func _anim_status_tint(placeholder: Node) -> float:
 	tween.tween_property(ctrl, "modulate", Color(1.2, 1.2, 0.4), 0.1)
 	tween.tween_property(ctrl, "modulate", Color.WHITE, 0.2)
 	return 0.3
+
+
+## Switch out: shrink sprite to nothing.
+func _anim_switch_out(placeholder: Node) -> float:
+	if placeholder is not Control:
+		return 0.0
+	var ctrl: Control = placeholder as Control
+	ctrl.pivot_offset = ctrl.size / 2.0
+	var tween: Tween = create_tween()
+	tween.tween_property(ctrl, "scale", Vector2.ZERO, 0.25)
+	return 0.25
+
+
+## Switch in: grow sprite from nothing to full size.
+func _anim_switch_in(placeholder: Node) -> float:
+	if placeholder is not Control:
+		return 0.0
+	var ctrl: Control = placeholder as Control
+	ctrl.pivot_offset = ctrl.size / 2.0
+	ctrl.scale = Vector2.ZERO
+	var tween: Tween = create_tween()
+	tween.tween_property(ctrl, "scale", Vector2.ONE, 0.25)
+	return 0.25
 
 
 func _get_battlefield_placeholder(side_index: int, slot_index: int) -> Node:
@@ -516,7 +564,14 @@ func _on_target_back() -> void:
 
 func _on_switch_chosen(party_index: int) -> void:
 	if _phase == BattlePhase.SWITCHING:
-		# Forced switch
+		# Forced switch — animate out, swap, animate in
+		var ph: Node = _get_battlefield_placeholder(
+			_current_input_side, _current_input_slot
+		)
+		var out_dur: float = _anim_switch_out(ph)
+		if out_dur > 0.0:
+			await get_tree().create_timer(out_dur).timeout
+
 		var switch_action := BattleAction.new()
 		switch_action.action_type = BattleAction.ActionType.SWITCH
 		switch_action.user_side = _current_input_side
@@ -525,6 +580,11 @@ func _on_switch_chosen(party_index: int) -> void:
 		_engine._resolve_switch(switch_action)
 		_update_all_panels()
 		_update_placeholder(_current_input_side, _current_input_slot)
+
+		ph = _get_battlefield_placeholder(_current_input_side, _current_input_slot)
+		var in_dur: float = _anim_switch_in(ph)
+		if in_dur > 0.0:
+			await get_tree().create_timer(in_dur).timeout
 
 		# Check for more forced switches
 		if _needs_forced_switch():
