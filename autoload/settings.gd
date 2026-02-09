@@ -107,6 +107,8 @@ func _ready() -> void:
 
 
 func _apply_window_scale() -> void:
+	if OS.has_feature("editor"):
+		return
 	var factor: float = WINDOW_SCALE_VALUES.get(window_scale, 1.0)
 	var new_size := Vector2i(
 		roundi(_BASE_RESOLUTION.x * factor),

@@ -442,9 +442,10 @@ func _on_sprite_gui_input(
 
 	var key: String = "%d_%d" % [side_index, slot_index]
 	if _valid_target_map.has(key):
+		var callback: Callable = _on_target_click
 		exit_targeting_mode()
-		if _on_target_click.is_valid():
-			_on_target_click.call(side_index, slot_index)
+		if callback.is_valid():
+			callback.call(side_index, slot_index)
 
 
 ## --- Active Digimon Bounce ---
