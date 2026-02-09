@@ -9,6 +9,8 @@ script = ExtResource("1")
 [node name="Grid" type="GridContainer" parent="."]
 layout_mode = 2
 columns = 3
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
 
 [node name="TechniqueButton" type="Button" parent="Grid" unique_name_in_owner=true]
 layout_mode = 2

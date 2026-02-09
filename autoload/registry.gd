@@ -696,6 +696,46 @@ const VOLATILE_STATUSES: Array[StatusCondition] = [
 	StatusCondition.REVERSED,
 ]
 
+## Element enum -> icon texture for UI display.
+const ELEMENT_ICONS: Dictionary = {
+	Element.NULL_ELEMENT: preload("res://assets/icons/elements/null-icon.png"),
+	Element.FIRE: preload("res://assets/icons/elements/fire-icon.png"),
+	Element.WATER: preload("res://assets/icons/elements/water-icon.png"),
+	Element.AIR: preload("res://assets/icons/elements/air-icon.png"),
+	Element.EARTH: preload("res://assets/icons/elements/earth-icon.png"),
+	Element.ICE: preload("res://assets/icons/elements/ice-icon.png"),
+	Element.LIGHTNING: preload("res://assets/icons/elements/lightning-icon.png"),
+	Element.PLANT: preload("res://assets/icons/elements/plant-icon.png"),
+	Element.METAL: preload("res://assets/icons/elements/metal-icon.png"),
+	Element.DARK: preload("res://assets/icons/elements/dark-icon.png"),
+	Element.LIGHT: preload("res://assets/icons/elements/light-icon.png"),
+}
+
+## Attribute enum -> icon texture for UI display.
+const ATTRIBUTE_ICONS: Dictionary = {
+	Attribute.VACCINE: preload("res://assets/icons/attributes/vaccine-icon.png"),
+	Attribute.VIRUS: preload("res://assets/icons/attributes/virus-icon.png"),
+	Attribute.DATA: preload("res://assets/icons/attributes/data-icon.png"),
+	Attribute.FREE: preload("res://assets/icons/attributes/free-icon.png"),
+	Attribute.VARIABLE: preload("res://assets/icons/attributes/variable-icon.png"),
+	Attribute.UNKNOWN: preload("res://assets/icons/attributes/unknown-icon.png"),
+}
+
+## Element key (StringName) -> Element enum for icon lookup from technique data.
+const ELEMENT_KEY_MAP: Dictionary = {
+	&"null": Element.NULL_ELEMENT,
+	&"fire": Element.FIRE,
+	&"water": Element.WATER,
+	&"air": Element.AIR,
+	&"earth": Element.EARTH,
+	&"ice": Element.ICE,
+	&"lightning": Element.LIGHTNING,
+	&"plant": Element.PLANT,
+	&"metal": Element.METAL,
+	&"dark": Element.DARK,
+	&"light": Element.LIGHT,
+}
+
 const DEX_PRIORITY_MAP: Dictionary = {
 	-4: Priority.MINIMUM,
 	-3: Priority.NEGATIVE,

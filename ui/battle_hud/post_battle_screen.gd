@@ -7,7 +7,7 @@ signal continue_pressed
 
 @onready var _outcome_label: Label = $Panel/VBox/OutcomeLabel
 @onready var _turn_count_label: Label = $Panel/VBox/TurnCountLabel
-@onready var _xp_container: VBoxContainer = $Panel/VBox/XPContainer
+@onready var _xp_container: VBoxContainer = $Panel/VBox/ScrollContainer/XPContainer
 @onready var _continue_button: Button = $Panel/VBox/ContinueButton
 
 

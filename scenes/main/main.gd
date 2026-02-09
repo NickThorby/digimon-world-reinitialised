@@ -1,4 +1,4 @@
-extends Node2D
+extends Control
 ## Entry point scene. Redirects to appropriate screen on load.
 
 const BATTLE_BUILDER_PATH := "res://scenes/battle/battle_builder.tscn"

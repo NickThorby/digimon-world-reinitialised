@@ -11,13 +11,14 @@ const TEAM_SAVE_POPUP_SCENE := preload("res://ui/components/team_save_popup.tscn
 @onready var _team_list: VBoxContainer = $MarginContainer/VBox/HSplit/LeftPanel/TeamList
 @onready var _add_digimon_button: Button = $MarginContainer/VBox/HSplit/LeftPanel/AddDigimonButton
 @onready var _controller_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/ControllerRow/ControllerOption
-@onready var _wild_toggle: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/WildToggle
-@onready var _xp_toggle: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/XPToggle
+@onready var _wild_toggle: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/WildRow/WildToggle
+@onready var _xp_toggle: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/XPRow/XPToggle
 @onready var _launch_button: Button = $MarginContainer/VBox/HSplit/RightPanel/LaunchColumn/LaunchButton
 @onready var _back_button: Button = $MarginContainer/VBox/HeaderBar/BackButton
 @onready var _save_team_button: Button = $MarginContainer/VBox/HSplit/LeftPanel/TeamButtonRow/SaveTeamButton
 @onready var _load_team_button: Button = $MarginContainer/VBox/HSplit/LeftPanel/TeamButtonRow/LoadTeamButton
 @onready var _validation_label: RichTextLabel = $MarginContainer/VBox/HSplit/RightPanel/LaunchColumn/ValidationLabel
+@onready var _side_label: Label = $MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/SideLabel
 
 var _config: BattleConfig = BattleConfig.new()
 var _current_side: int = 0
@@ -238,6 +239,9 @@ func _update_controller_display() -> void:
 
 	var is_wild: bool = _config.side_configs[_current_side].get("is_wild", false)
 	_wild_toggle.button_pressed = is_wild
+
+	# Update side label
+	_side_label.text = "Side %d Settings" % (_current_side + 1)
 
 
 func _on_slot_edit(index: int) -> void:

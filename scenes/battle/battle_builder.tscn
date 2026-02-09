@@ -1,13 +1,22 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scenes/battle/battle_builder.gd" id="1"]
+[ext_resource type="Theme" path="res://ui/theme/game_theme.tres" id="2"]
 
 [node name="BattleBuilder" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+theme = ExtResource("2")
 script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.035, 0.035, 0.043, 1)
 
 [node name="MarginContainer" type="MarginContainer" parent="."]
 layout_mode = 1
@@ -27,13 +36,19 @@ layout_mode = 2
 
 [node name="BackButton" type="Button" parent="MarginContainer/VBox/HeaderBar" unique_name_in_owner=true]
 layout_mode = 2
+custom_minimum_size = Vector2(80, 0)
 text = "Back"
 
 [node name="Title" type="Label" parent="MarginContainer/VBox/HeaderBar"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 20
 text = "Battle Builder"
 horizontal_alignment = 1
+
+[node name="HeaderSpacer" type="Control" parent="MarginContainer/VBox/HeaderBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(80, 0)
 
 [node name="HSplit" type="HSplitContainer" parent="MarginContainer/VBox"]
 layout_mode = 2
@@ -60,21 +75,28 @@ layout_mode = 2
 
 [node name="SaveTeamButton" type="Button" parent="MarginContainer/VBox/HSplit/LeftPanel/TeamButtonRow" unique_name_in_owner=true]
 layout_mode = 2
+size_flags_horizontal = 3
 text = "Save Team"
 
 [node name="LoadTeamButton" type="Button" parent="MarginContainer/VBox/HSplit/LeftPanel/TeamButtonRow" unique_name_in_owner=true]
 layout_mode = 2
+size_flags_horizontal = 3
 text = "Load Team"
 
 [node name="RightPanel" type="HBoxContainer" parent="MarginContainer/VBox/HSplit"]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 0
+size_flags_vertical = 3
 custom_minimum_size = Vector2(500, 0)
 
 [node name="SettingsColumn" type="VBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel"]
 layout_mode = 2
 size_flags_horizontal = 3
+
+[node name="GlobalLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Battle Settings"
 
 [node name="FormatRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn"]
 layout_mode = 2
@@ -86,6 +108,25 @@ text = "Format:"
 [node name="FormatOption" type="OptionButton" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/FormatRow" unique_name_in_owner=true]
 layout_mode = 2
 size_flags_horizontal = 3
+
+[node name="XPRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn"]
+layout_mode = 2
+
+[node name="XPLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/XPRow"]
+layout_mode = 2
+text = "XP Enabled:"
+
+[node name="XPToggle" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/XPRow" unique_name_in_owner=true]
+layout_mode = 2
+button_pressed = true
+
+[node name="SettingsSeparator" type="HSeparator" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn"]
+layout_mode = 2
+
+[node name="SideLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn" unique_name_in_owner=true]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Side 1 Settings"
 
 [node name="ControllerRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn"]
 layout_mode = 2
@@ -102,14 +143,15 @@ popup/item_0/text = "Player"
 popup/item_1/text = "AI"
 popup/item_1/id = 1
 
-[node name="WildToggle" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn" unique_name_in_owner=true]
+[node name="WildRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn"]
 layout_mode = 2
-text = "Wild Battle"
 
-[node name="XPToggle" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn" unique_name_in_owner=true]
+[node name="WildLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/WildRow"]
 layout_mode = 2
-button_pressed = true
-text = "XP Enabled"
+text = "Wild Battle:"
+
+[node name="WildToggle" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/WildRow" unique_name_in_owner=true]
+layout_mode = 2
 
 [node name="VSeparator" type="VSeparator" parent="MarginContainer/VBox/HSplit/RightPanel"]
 layout_mode = 2
@@ -120,6 +162,7 @@ size_flags_horizontal = 3
 
 [node name="LaunchButton" type="Button" parent="MarginContainer/VBox/HSplit/RightPanel/LaunchColumn" unique_name_in_owner=true]
 layout_mode = 2
+custom_minimum_size = Vector2(0, 40)
 text = "Launch Battle"
 
 [node name="ValidationLabel" type="RichTextLabel" parent="MarginContainer/VBox/HSplit/RightPanel/LaunchColumn" unique_name_in_owner=true]

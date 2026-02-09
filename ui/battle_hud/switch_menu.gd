@@ -6,7 +6,7 @@ extends PanelContainer
 signal switch_chosen(party_index: int)
 signal back_pressed
 
-@onready var _member_container: VBoxContainer = $VBox/MemberContainer
+@onready var _member_container: VBoxContainer = $VBox/ScrollContainer/MemberContainer
 @onready var _back_button: Button = $VBox/BackButton
 
 

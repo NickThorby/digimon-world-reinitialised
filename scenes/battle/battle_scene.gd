@@ -20,7 +20,7 @@ enum BattlePhase {
 @onready var _switch_menu: SwitchMenu = $BattleHUD/SwitchMenu
 @onready var _target_selector: TargetSelector = $BattleHUD/TargetSelector
 @onready var _message_box: BattleMessageBox = $BattleHUD/BattleMessageBox
-@onready var _post_battle_screen: PostBattleScreen = $PostBattleScreen
+@onready var _post_battle_screen: PostBattleScreen = $BattleHUD/PostBattleScreen
 @onready var _turn_label: Label = $BattleHUD/TopBar/TurnLabel
 @onready var _near_side: HBoxContainer = $BattleField/NearSide
 @onready var _far_side: HBoxContainer = $BattleField/FarSide
@@ -1011,8 +1011,8 @@ func _setup_battlefield_placeholders() -> void:
 
 		for slot: SlotState in side.slots:
 			var vbox := VBoxContainer.new()
-			var min_w: float = 64.0 if is_multi else 72.0
-			vbox.custom_minimum_size = Vector2(min_w, 72)
+			var min_w: float = 64.0 if is_multi else 80.0
+			vbox.custom_minimum_size = Vector2(min_w, 80)
 			vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 			# Try sprite first, fall back to ColorRect

@@ -14,8 +14,13 @@ layout_mode = 2
 text = "Select Replacement"
 horizontal_alignment = 1
 
-[node name="MemberContainer" type="VBoxContainer" parent="VBox" unique_name_in_owner=true]
+[node name="ScrollContainer" type="ScrollContainer" parent="VBox"]
 layout_mode = 2
+size_flags_vertical = 3
+
+[node name="MemberContainer" type="VBoxContainer" parent="VBox/ScrollContainer" unique_name_in_owner=true]
+layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
 
 [node name="BackButton" type="Button" parent="VBox" unique_name_in_owner=true]

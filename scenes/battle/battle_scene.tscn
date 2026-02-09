@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scenes/battle/battle_scene.gd" id="1"]
 [ext_resource type="PackedScene" path="res://ui/battle_hud/action_menu.tscn" id="2"]
@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" path="res://ui/battle_hud/target_selector.tscn" id="5"]
 [ext_resource type="PackedScene" path="res://ui/battle_hud/battle_message_box.tscn" id="6"]
 [ext_resource type="PackedScene" path="res://ui/battle_hud/post_battle_screen.tscn" id="7"]
+[ext_resource type="Theme" path="res://ui/theme/game_theme.tres" id="8"]
 
 [node name="BattleScene" type="Node2D"]
 script = ExtResource("1")
@@ -22,35 +23,44 @@ alignment = 1
 [node name="BattleHUD" type="CanvasLayer" parent="."]
 
 [node name="TopBar" type="HBoxContainer" parent="BattleHUD"]
+anchors_preset = 0
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 0.3
+anchor_bottom = 0.0
 offset_left = 10.0
 offset_top = 10.0
-offset_right = 300.0
-offset_bottom = 40.0
+offset_right = 0.0
+offset_bottom = 50.0
+theme = ExtResource("8")
 
 [node name="TurnLabel" type="Label" parent="BattleHUD/TopBar" unique_name_in_owner=true]
 layout_mode = 2
+theme_override_font_sizes/font_size = 20
 text = "Turn 0"
 
 [node name="FoePanels" type="HBoxContainer" parent="BattleHUD" unique_name_in_owner=true]
-anchor_left = 1.0
+anchor_left = 0.4
 anchor_top = 0.0
 anchor_right = 1.0
 anchor_bottom = 0.0
-offset_left = -580.0
+offset_left = 0.0
 offset_top = 10.0
 offset_right = -10.0
-offset_bottom = 140.0
+offset_bottom = 150.0
 alignment = 2
+theme = ExtResource("8")
 
 [node name="AllyPanels" type="HBoxContainer" parent="BattleHUD" unique_name_in_owner=true]
 anchor_left = 0.0
 anchor_top = 1.0
-anchor_right = 0.0
+anchor_right = 0.4
 anchor_bottom = 1.0
 offset_left = 10.0
 offset_top = -280.0
-offset_right = 500.0
+offset_right = 0.0
 offset_bottom = -140.0
+theme = ExtResource("8")
 
 [node name="BattleMessageBox" parent="BattleHUD" unique_name_in_owner=true instance=ExtResource("6")]
 anchor_left = 0.0
@@ -61,6 +71,7 @@ offset_left = 10.0
 offset_top = -130.0
 offset_right = -420.0
 offset_bottom = -10.0
+theme = ExtResource("8")
 
 [node name="ActionMenu" parent="BattleHUD" unique_name_in_owner=true instance=ExtResource("2")]
 anchor_left = 1.0
@@ -71,6 +82,7 @@ offset_left = -410.0
 offset_top = -130.0
 offset_right = -10.0
 offset_bottom = -10.0
+theme = ExtResource("8")
 
 [node name="TechniqueMenu" parent="BattleHUD" unique_name_in_owner=true instance=ExtResource("3")]
 visible = false
@@ -82,6 +94,7 @@ offset_left = -410.0
 offset_top = -400.0
 offset_right = -10.0
 offset_bottom = -10.0
+theme = ExtResource("8")
 
 [node name="SwitchMenu" parent="BattleHUD" unique_name_in_owner=true instance=ExtResource("4")]
 visible = false
@@ -93,6 +106,7 @@ offset_left = -410.0
 offset_top = -400.0
 offset_right = -10.0
 offset_bottom = -10.0
+theme = ExtResource("8")
 
 [node name="TargetSelector" parent="BattleHUD" unique_name_in_owner=true instance=ExtResource("5")]
 
@@ -102,11 +116,13 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -170.0
-offset_top = -170.0
+offset_left = -200.0
+offset_top = -180.0
 offset_right = -10.0
 offset_bottom = -140.0
 text = "Back"
+theme = ExtResource("8")
 
-[node name="PostBattleScreen" parent="." unique_name_in_owner=true instance=ExtResource("7")]
+[node name="PostBattleScreen" parent="BattleHUD" unique_name_in_owner=true instance=ExtResource("7")]
 visible = false
+theme = ExtResource("8")
