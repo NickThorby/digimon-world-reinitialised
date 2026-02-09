@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scenes/battle/battle_scene.gd" id="1"]
 [ext_resource type="PackedScene" path="res://ui/battle_hud/action_menu.tscn" id="2"]
@@ -8,9 +8,21 @@
 [ext_resource type="PackedScene" path="res://ui/battle_hud/battle_message_box.tscn" id="6"]
 [ext_resource type="PackedScene" path="res://ui/battle_hud/post_battle_screen.tscn" id="7"]
 [ext_resource type="Theme" path="res://ui/theme/game_theme.tres" id="8"]
+[ext_resource type="Script" path="res://scenes/battle/battle_event_replay.gd" id="9"]
+[ext_resource type="Script" path="res://scenes/battle/battlefield_display.gd" id="10"]
+[ext_resource type="Script" path="res://scenes/battle/battle_input_manager.gd" id="11"]
 
 [node name="BattleScene" type="Node2D"]
 script = ExtResource("1")
+
+[node name="EventReplay" type="Node" parent="." unique_name_in_owner=true]
+script = ExtResource("9")
+
+[node name="BattlefieldDisplay" type="Node" parent="." unique_name_in_owner=true]
+script = ExtResource("10")
+
+[node name="InputManager" type="Node" parent="." unique_name_in_owner=true]
+script = ExtResource("11")
 
 [node name="BattleField" type="Node2D" parent="."]
 

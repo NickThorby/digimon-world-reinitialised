@@ -43,11 +43,15 @@ func execute_turn(actions: Array[BattleAction]) -> void:
 	_battle.turn_number += 1
 	turn_started.emit(_battle.turn_number)
 
-	# Increment turns on field for all active Digimon
+	# Reset per-turn ability trigger counters and increment turns on field
 	for digimon: BattleDigimonState in _battle.get_active_digimon():
+		digimon.reset_turn_trigger_count()
 		digimon.volatiles["turns_on_field"] = int(
 			digimon.volatiles.get("turns_on_field", 0)
 		) + 1
+
+	# Fire ON_TURN_START abilities
+	_fire_ability_trigger(Registry.AbilityTrigger.ON_TURN_START)
 
 	# Sort actions
 	var sorted: Array[BattleAction] = ActionSorter.sort_actions(actions, _battle)
@@ -76,9 +80,6 @@ func execute_turn(actions: Array[BattleAction]) -> void:
 		# Clear fainted slots with no reserve
 		_clear_fainted_no_reserve()
 
-		# Check for faints after each action
-		_check_faints()
-
 		if _battle.check_end_conditions():
 			break
 
@@ -94,6 +95,27 @@ func execute_turn(actions: Array[BattleAction]) -> void:
 
 ## Resolve a single action by type.
 func _resolve_action(action: BattleAction) -> Array[Dictionary]:
+	# Pre-action status checks for technique actions
+	if action.action_type == BattleAction.ActionType.TECHNIQUE:
+		var user: BattleDigimonState = _battle.get_digimon_at(
+			action.user_side, action.user_slot,
+		)
+		if user != null:
+			# Confusion: 50% chance to use a random equipped technique
+			if user.has_status(&"confused"):
+				battle_message.emit("%s is confused!" % _get_digimon_name(user))
+				if _battle.rng.randf() < 0.5 and user.equipped_technique_keys.size() > 0:
+					var rand_idx: int = _battle.rng.randi() \
+						% user.equipped_technique_keys.size()
+					action.technique_key = user.equipped_technique_keys[rand_idx]
+
+			# Encored: force the encored technique
+			var encore_key: StringName = user.volatiles.get(
+				"encore_technique_key", &"",
+			) as StringName
+			if encore_key != &"":
+				action.technique_key = encore_key
+
 	match action.action_type:
 		BattleAction.ActionType.TECHNIQUE:
 			return _resolve_technique(action)
@@ -128,8 +150,22 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 		action.user_side, action.user_slot, technique.technique_class
 	)
 
+	# Bleeding deals self-damage when using a technique
+	if user.has_status(&"bleeding"):
+		var bleed_dmg: int = maxi(user.max_hp / 8, 1)
+		var actual_bleed: int = user.apply_damage(bleed_dmg)
+		battle_message.emit("%s is bleeding!" % _get_digimon_name(user))
+		damage_dealt.emit(user.side_index, user.slot_index, actual_bleed, &"bleeding")
+		if user.is_fainted:
+			_handle_faint(user, null)
+			return [{"bleeding_faint": true}]
+
 	# Spend energy — handle overexertion
 	var energy_cost: int = technique.energy_cost
+	if user.has_status(&"exhausted"):
+		energy_cost = ceili(float(energy_cost) * 1.5)
+	if user.has_status(&"vitalised"):
+		energy_cost = maxi(floori(float(energy_cost) * 0.5), 0)
 	var overexertion_damage: int = 0
 
 	if energy_cost > user.current_energy:
@@ -148,11 +184,16 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 		damage_dealt.emit(user.side_index, user.slot_index, actual_self_damage, &"overexertion")
 
 		if user.is_fainted:
-			digimon_fainted.emit(user.side_index, user.slot_index)
+			_handle_faint(user, null)
 			return [{"overexertion_faint": true}]
 	else:
 		user.spend_energy(energy_cost)
 		energy_spent.emit(user.side_index, user.slot_index, energy_cost)
+
+	# Fire ON_BEFORE_TECHNIQUE abilities
+	_fire_ability_trigger(Registry.AbilityTrigger.ON_BEFORE_TECHNIQUE, {
+		"subject": user, "technique": technique,
+	})
 
 	# Resolve targets
 	var targets: Array[BattleDigimonState] = _resolve_targets(
@@ -167,8 +208,11 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 
 		# Accuracy check (0 = always hits)
 		if technique.accuracy > 0:
+			var effective_accuracy: float = _calculate_accuracy(
+				technique.accuracy, user, target,
+			)
 			var hit_roll: float = _battle.rng.randf() * 100.0
-			if hit_roll > float(technique.accuracy):
+			if hit_roll > effective_accuracy:
 				battle_message.emit("It missed %s!" % _get_digimon_name(target))
 				all_results.append({"missed": true})
 				continue
@@ -179,11 +223,15 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 		)
 
 		# Emit signals for results
+		var dealt_damage: bool = false
 		for brick_result: Dictionary in brick_results:
 			if brick_result.get("damage", 0) > 0:
 				var dmg: int = int(brick_result["damage"])
-				var eff: StringName = brick_result.get("effectiveness", &"neutral") as StringName
+				var eff: StringName = brick_result.get(
+					"effectiveness", &"neutral",
+				) as StringName
 				damage_dealt.emit(target.side_index, target.slot_index, dmg, eff)
+				dealt_damage = true
 
 				# Track participation
 				if user.source_state != null and target.source_state != null:
@@ -203,44 +251,73 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 						battle_message.emit("It had no effect.")
 
 			if brick_result.get("applied", false):
-				var status_key: StringName = brick_result.get("status", &"") as StringName
+				var status_key: StringName = brick_result.get(
+					"status", &"",
+				) as StringName
 				if status_key != &"":
 					status_applied.emit(
-						target.side_index, target.slot_index, status_key
+						target.side_index, target.slot_index, status_key,
 					)
 					battle_message.emit("%s was afflicted with %s!" % [
 						_get_digimon_name(target), str(status_key),
 					])
+					# Fire ON_STATUS_APPLIED for the target
+					_fire_ability_trigger(
+						Registry.AbilityTrigger.ON_STATUS_APPLIED,
+						{"subject": target, "status_key": status_key},
+					)
 
 			# Stat modifier results from technique bricks
 			var tech_stat_changes: Variant = brick_result.get("stat_changes")
 			if tech_stat_changes is Array:
 				for change: Dictionary in tech_stat_changes:
-					var sc_target: BattleDigimonState = change.get("target") as BattleDigimonState
+					var sc_target: BattleDigimonState = change.get(
+						"target",
+					) as BattleDigimonState
 					if sc_target == null:
 						sc_target = target
-					var sc_key: StringName = change.get("stat_key", &"") as StringName
+					var sc_key: StringName = change.get(
+						"stat_key", &"",
+					) as StringName
 					var sc_actual: int = int(change.get("actual", 0))
-					stat_changed.emit(sc_target.side_index, sc_target.slot_index, sc_key, sc_actual)
+					stat_changed.emit(
+						sc_target.side_index, sc_target.slot_index,
+						sc_key, sc_actual,
+					)
 					_emit_stat_change_message(
-						_get_digimon_name(sc_target), sc_key, int(change.get("stages", 0)), sc_actual
+						_get_digimon_name(sc_target), sc_key,
+						int(change.get("stages", 0)), sc_actual,
 					)
 
 		all_results.append_array(brick_results)
 
+		# Fire damage-related ability triggers
+		if dealt_damage:
+			_fire_ability_trigger(Registry.AbilityTrigger.ON_DEAL_DAMAGE, {
+				"subject": user, "target": target, "technique": technique,
+			})
+			_fire_ability_trigger(Registry.AbilityTrigger.ON_TAKE_DAMAGE, {
+				"subject": target, "attacker": user, "technique": technique,
+			})
+
 		# Check target faint
 		if target.check_faint():
-			battle_message.emit("%s fainted!" % _get_digimon_name(target))
-			digimon_fainted.emit(target.side_index, target.slot_index)
+			_handle_faint(target, user)
 
-			# Track foe fainted counter
-			if _battle.are_foes(user.side_index, target.side_index):
-				user.counters["foes_fainted"] = int(user.counters.get("foes_fainted", 0)) + 1
+	# Fire ON_AFTER_TECHNIQUE abilities
+	_fire_ability_trigger(Registry.AbilityTrigger.ON_AFTER_TECHNIQUE, {
+		"subject": user, "technique": technique,
+	})
 
 	# Update volatiles
 	user.volatiles["last_technique_key"] = action.technique_key
 
 	return all_results
+
+
+## Resolve a forced switch action (public API for battle_scene.gd).
+func resolve_forced_switch(action: BattleAction) -> Array[Dictionary]:
+	return _resolve_switch(action)
 
 
 ## Resolve a switch action.
@@ -279,7 +356,9 @@ func _resolve_switch(action: BattleAction) -> Array[Dictionary]:
 	digimon_switched.emit(action.user_side, action.user_slot, new_battle_mon)
 
 	# Fire ON_ENTRY abilities for the incoming Digimon
-	_fire_on_entry_abilities(new_battle_mon)
+	_fire_ability_trigger(
+		Registry.AbilityTrigger.ON_ENTRY, {"subject": new_battle_mon},
+	)
 
 	return [{"switched": true}]
 
@@ -340,60 +419,124 @@ func _resolve_item(_action: BattleAction) -> Array[Dictionary]:
 ## Fire ON_ENTRY abilities for all starting Digimon.
 func start_battle() -> void:
 	for digimon: BattleDigimonState in _battle.get_active_digimon():
-		_fire_on_entry_abilities(digimon)
+		_fire_ability_trigger(Registry.AbilityTrigger.ON_ENTRY, {"subject": digimon})
 
 
-## Fire ON_ENTRY ability for a single Digimon.
-func _fire_on_entry_abilities(digimon: BattleDigimonState) -> void:
-	if digimon.ability_key == &"":
-		return
+## Centralised ability trigger dispatcher. Checks all active Digimon (or just
+## context["subject"]) for abilities matching the given trigger, respects stack
+## limits and nullified status, then executes the ability's bricks.
+func _fire_ability_trigger(
+	trigger: Registry.AbilityTrigger, context: Dictionary = {},
+) -> Array[Dictionary]:
+	var all_results: Array[Dictionary] = []
+	var subjects: Array[BattleDigimonState] = []
 
-	var ability: AbilityData = Atlas.abilities.get(digimon.ability_key) as AbilityData
-	if ability == null:
-		return
-	if ability.trigger != Registry.AbilityTrigger.ON_ENTRY:
-		return
+	if context.has("subject"):
+		var subject: BattleDigimonState = context["subject"] as BattleDigimonState
+		if subject != null:
+			subjects.append(subject)
+	else:
+		subjects = _battle.get_active_digimon()
 
-	battle_message.emit("%s's %s!" % [_get_digimon_name(digimon), ability.name])
+	for digimon: BattleDigimonState in subjects:
+		if digimon.is_fainted or digimon.ability_key == &"":
+			continue
 
-	for brick: Dictionary in ability.bricks:
-		var targets: Array[BattleDigimonState] = _resolve_ability_targets(digimon, brick)
-		for target: BattleDigimonState in targets:
-			if target.is_fainted:
-				continue
-			var result: Dictionary = BrickExecutor.execute_brick(
-				brick, digimon, target, null, _battle,
+		var ability: AbilityData = Atlas.abilities.get(
+			digimon.ability_key
+		) as AbilityData
+		if ability == null:
+			continue
+		if ability.trigger != trigger:
+			continue
+		if not digimon.can_trigger_ability(ability.stack_limit):
+			continue
+		if not _check_trigger_condition(digimon, ability.trigger_condition, context):
+			continue
+
+		digimon.record_ability_trigger(ability.stack_limit)
+		battle_message.emit(
+			"%s's %s!" % [_get_digimon_name(digimon), ability.name]
+		)
+
+		for brick: Dictionary in ability.bricks:
+			var targets: Array[BattleDigimonState] = _resolve_ability_targets(
+				digimon, brick,
+			)
+			for target: BattleDigimonState in targets:
+				if target.is_fainted:
+					continue
+				var result: Dictionary = BrickExecutor.execute_brick(
+					brick, digimon, target, null, _battle,
+				)
+				_process_ability_result(result, digimon, target)
+				all_results.append(result)
+
+	return all_results
+
+
+## Process a single ability brick result — emit signals for stat changes and
+## status effects so the UI event queue picks them up.
+func _process_ability_result(
+	result: Dictionary,
+	_user: BattleDigimonState,
+	target: BattleDigimonState,
+) -> void:
+	var sc_changes: Variant = result.get("stat_changes")
+	if sc_changes is Array:
+		for change: Dictionary in sc_changes:
+			var sc_target: BattleDigimonState = change.get(
+				"target"
+			) as BattleDigimonState
+			if sc_target == null:
+				sc_target = target
+			var sc_key: StringName = change.get("stat_key", &"") as StringName
+			var sc_actual: int = int(change.get("actual", 0))
+			stat_changed.emit(
+				sc_target.side_index, sc_target.slot_index, sc_key, sc_actual,
+			)
+			_emit_stat_change_message(
+				_get_digimon_name(sc_target), sc_key,
+				int(change.get("stages", 0)), sc_actual,
 			)
 
-			# Handle stat modifier results
-			var sc_changes: Variant = result.get("stat_changes")
-			if sc_changes is Array:
-				for change: Dictionary in sc_changes:
-					var sc_target: BattleDigimonState = change.get(
-						"target"
-					) as BattleDigimonState
-					if sc_target == null:
-						sc_target = target
-					var sc_key: StringName = change.get("stat_key", &"") as StringName
-					var sc_actual: int = int(change.get("actual", 0))
-					stat_changed.emit(
-						sc_target.side_index, sc_target.slot_index, sc_key, sc_actual
-					)
-					_emit_stat_change_message(
-						_get_digimon_name(sc_target), sc_key,
-						int(change.get("stages", 0)), sc_actual,
-					)
+	if result.get("applied", false):
+		var status_key: StringName = result.get("status", &"") as StringName
+		if status_key != &"":
+			status_applied.emit(
+				target.side_index, target.slot_index, status_key,
+			)
+			battle_message.emit("%s was afflicted with %s!" % [
+				_get_digimon_name(target), str(status_key),
+			])
 
-			# Handle status effect results
-			if result.get("applied", false):
-				var status_key: StringName = result.get("status", &"") as StringName
-				if status_key != &"":
-					status_applied.emit(
-						target.side_index, target.slot_index, status_key
-					)
-					battle_message.emit("%s was afflicted with %s!" % [
-						_get_digimon_name(target), str(status_key),
-					])
+	if result.get("damage", 0) > 0:
+		var dmg: int = int(result["damage"])
+		var eff: StringName = result.get("effectiveness", &"neutral") as StringName
+		damage_dealt.emit(target.side_index, target.slot_index, dmg, eff)
+
+	if result.get("healing", 0) > 0:
+		var heal: int = int(result["healing"])
+		hp_restored.emit(target.side_index, target.slot_index, heal)
+
+
+## Check whether an ability's trigger_condition is met.
+func _check_trigger_condition(
+	digimon: BattleDigimonState,
+	condition: Dictionary,
+	_context: Dictionary,
+) -> bool:
+	if condition.is_empty():
+		return true
+	var cond_type: String = condition.get("type", "")
+	match cond_type:
+		"below":
+			var threshold: float = float(condition.get("hp_percent", 100)) / 100.0
+			return float(digimon.current_hp) / float(maxi(digimon.max_hp, 1)) < threshold
+		"above":
+			var threshold: float = float(condition.get("hp_percent", 0)) / 100.0
+			return float(digimon.current_hp) / float(maxi(digimon.max_hp, 1)) > threshold
+	return true
 
 
 ## Resolve ability brick targets from brick-level target field.
@@ -502,16 +645,28 @@ func _pre_execution_check(user: BattleDigimonState, technique: TechniqueData) ->
 			battle_message.emit("%s is paralysed and can't move!" % _get_digimon_name(user))
 			return false
 
-	# Check confusion (use random technique instead)
-	if user.has_status(&"confused"):
-		battle_message.emit("%s is confused!" % _get_digimon_name(user))
-		# 33% chance to hurt itself
-		if _battle.rng.randf() < 0.33:
-			var self_damage: int = maxi(user.get_effective_stat(&"attack") / 8, 1)
-			user.apply_damage(self_damage)
-			battle_message.emit("%s hurt itself in confusion!" % _get_digimon_name(user))
-			damage_dealt.emit(user.side_index, user.slot_index, self_damage, &"confusion")
+	# Taunted: block STATUS-class techniques
+	if user.has_status(&"taunted"):
+		if technique.technique_class == Registry.TechniqueClass.STATUS:
+			battle_message.emit(
+				"%s can't use %s — it's taunted!" % [
+					_get_digimon_name(user), technique.display_name,
+				]
+			)
 			return false
+
+	# Encored: force the encored technique (handled by swapping in _resolve_action)
+	# Disabled: block the disabled technique
+	var disabled_key: StringName = user.volatiles.get(
+		"disabled_technique_key", &"",
+	) as StringName
+	if disabled_key != &"" and technique.key == disabled_key:
+		battle_message.emit(
+			"%s can't use %s — it's disabled!" % [
+				_get_digimon_name(user), technique.display_name,
+			]
+		)
+		return false
 
 	return true
 
@@ -596,8 +751,7 @@ func _end_of_turn() -> void:
 	for digimon: BattleDigimonState in _battle.get_active_digimon():
 		_tick_status_conditions(digimon)
 		if digimon.check_faint():
-			battle_message.emit("%s fainted!" % _get_digimon_name(digimon))
-			digimon_fainted.emit(digimon.side_index, digimon.slot_index)
+			_handle_faint(digimon, null)
 
 	_clear_fainted_no_reserve()
 
@@ -606,9 +760,11 @@ func _end_of_turn() -> void:
 	if expired.get("weather", false):
 		battle_message.emit("The weather returned to normal.")
 		weather_changed.emit({})
+		_fire_ability_trigger(Registry.AbilityTrigger.ON_WEATHER_CHANGE)
 	if expired.get("terrain", false):
 		battle_message.emit("The terrain returned to normal.")
 		terrain_changed.emit({})
+		_fire_ability_trigger(Registry.AbilityTrigger.ON_TERRAIN_CHANGE)
 
 	# 3. Side effect ticks
 	for side: SideState in _battle.sides:
@@ -619,8 +775,12 @@ func _end_of_turn() -> void:
 	for digimon: BattleDigimonState in _battle.get_active_digimon():
 		var amount: int = maxi(floori(float(digimon.max_energy) * regen_pct), 1)
 		digimon.restore_energy(amount)
+		energy_restored.emit(digimon.side_index, digimon.slot_index, amount)
 
-	# 5. Check end conditions
+	# 5. Fire ON_TURN_END abilities
+	_fire_ability_trigger(Registry.AbilityTrigger.ON_TURN_END)
+
+	# 6. Check end conditions
 	_battle.check_end_conditions()
 
 
@@ -660,6 +820,17 @@ func _tick_status_conditions(digimon: BattleDigimonState) -> void:
 					"%s had its energy drained by the seed!" % _get_digimon_name(digimon)
 				)
 				damage_dealt.emit(digimon.side_index, digimon.slot_index, dot, &"seeded")
+				# Heal the seeder
+				var seeder_side: int = int(status.get("seeder_side", -1))
+				var seeder_slot: int = int(status.get("seeder_slot", -1))
+				if seeder_side >= 0 and seeder_slot >= 0:
+					var seeder: BattleDigimonState = _battle.get_digimon_at(
+						seeder_side, seeder_slot,
+					)
+					if seeder != null and not seeder.is_fainted:
+						var healed: int = seeder.restore_hp(dot)
+						if healed > 0:
+							hp_restored.emit(seeder.side_index, seeder.slot_index, healed)
 			"regenerating":
 				var heal: int = maxi(digimon.max_hp / 16, 1)
 				digimon.restore_hp(heal)
@@ -692,13 +863,47 @@ func _tick_status_conditions(digimon: BattleDigimonState) -> void:
 		status_removed.emit(digimon.side_index, digimon.slot_index, key)
 
 
-## Check all slots for faints.
-func _check_faints() -> void:
-	for side: SideState in _battle.sides:
-		for slot: SlotState in side.slots:
-			if slot.digimon != null and slot.digimon.check_faint():
-				# Faint already handled by individual action resolution
-				pass
+## Handle a Digimon fainting — emit signal, update counters, fire faint triggers.
+func _handle_faint(
+	fainted: BattleDigimonState, killer: BattleDigimonState,
+) -> void:
+	battle_message.emit("%s fainted!" % _get_digimon_name(fainted))
+	digimon_fainted.emit(fainted.side_index, fainted.slot_index)
+
+	# Update foe/ally faint counters for all active Digimon
+	for digimon: BattleDigimonState in _battle.get_active_digimon():
+		if digimon == fainted:
+			continue
+		if _battle.are_foes(digimon.side_index, fainted.side_index):
+			digimon.counters["foes_fainted"] = \
+				int(digimon.counters.get("foes_fainted", 0)) + 1
+		elif _battle.are_allies(digimon.side_index, fainted.side_index):
+			digimon.counters["allies_fainted"] = \
+				int(digimon.counters.get("allies_fainted", 0)) + 1
+
+	# Track killer's foe faint for XP (also handled by counter above)
+	if killer != null and _battle.are_foes(killer.side_index, fainted.side_index):
+		# Track participation
+		if killer.source_state != null and fainted.source_state != null:
+			var foe_key: StringName = fainted.source_state.key
+			if foe_key not in killer.participated_against:
+				killer.participated_against.append(foe_key)
+
+	# Fire faint ability triggers
+	_fire_ability_trigger(
+		Registry.AbilityTrigger.ON_FAINT, {"subject": fainted},
+	)
+	for digimon: BattleDigimonState in _battle.get_active_digimon():
+		if digimon == fainted:
+			continue
+		if _battle.are_foes(digimon.side_index, fainted.side_index):
+			_fire_ability_trigger(
+				Registry.AbilityTrigger.ON_FOE_FAINT, {"subject": digimon},
+			)
+		elif _battle.are_allies(digimon.side_index, fainted.side_index):
+			_fire_ability_trigger(
+				Registry.AbilityTrigger.ON_ALLY_FAINT, {"subject": digimon},
+			)
 
 
 ## Retarget a technique action if the original target has fainted.
@@ -776,6 +981,21 @@ func _clear_fainted_no_reserve() -> void:
 		for slot: SlotState in side.slots:
 			if slot.digimon != null and slot.digimon.is_fainted:
 				slot.digimon = null
+
+
+## Calculate effective accuracy factoring user accuracy stage, target evasion stage,
+## and the blinded status condition.
+func _calculate_accuracy(
+	base_accuracy: int, user: BattleDigimonState, target: BattleDigimonState,
+) -> float:
+	var acc_stage: int = user.stat_stages.get(&"accuracy", 0)
+	var eva_stage: int = target.stat_stages.get(&"evasion", 0)
+	var acc_mult: float = Registry.STAT_STAGE_MULTIPLIERS.get(acc_stage, 1.0)
+	var eva_mult: float = Registry.STAT_STAGE_MULTIPLIERS.get(eva_stage, 1.0)
+	var effective: float = float(base_accuracy) * acc_mult / eva_mult
+	if user.has_status(&"blinded"):
+		effective *= 0.5
+	return effective
 
 
 ## Get display name for a BattleDigimonState.

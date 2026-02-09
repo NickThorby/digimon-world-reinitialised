@@ -40,5 +40,7 @@ var effective_speed: float = 0.0
 ## Random tiebreaker for speed ties (set at queue time).
 var speed_tiebreaker: float = 0.0
 
-## Whether this action was cancelled (e.g., user fainted before acting).
+## Whether this action was cancelled before resolution. Set when the actor cannot
+## act (e.g., fainted before their turn) or by ability interactions (e.g., flinch,
+## Fake Out). The engine skips cancelled actions in execute_turn().
 var is_cancelled: bool = false

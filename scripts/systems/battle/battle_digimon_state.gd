@@ -66,6 +66,13 @@ var ability_key: StringName = &""
 var equipped_gear_key: StringName = &""
 var equipped_consumable_key: StringName = &""
 
+## Ability trigger counters for stack limit enforcement.
+var ability_trigger_counts: Dictionary = {
+	"per_turn": 0,
+	"per_switch": 0,
+	"per_battle": 0,
+}
+
 ## Whether this Digimon has fainted.
 var is_fainted: bool = false
 
@@ -76,11 +83,67 @@ var xp_earned: int = 0
 var participated_against: Array[StringName] = []
 
 
-## Get a stat value with stages applied.
+## Get a stat value with stages and status modifiers applied.
 func get_effective_stat(stat_key: StringName) -> int:
 	var base: int = base_stats.get(stat_key, 0)
 	var stage: int = stat_stages.get(stat_key, 0)
-	return StatCalculator.apply_stat_stage(base, stage)
+	var staged: int = StatCalculator.apply_stat_stage(base, stage)
+	return _apply_status_stat_modifiers(staged, stat_key)
+
+
+## Apply status-based stat reductions (burned halves attack, etc.).
+func _apply_status_stat_modifiers(value: int, stat_key: StringName) -> int:
+	var result: float = float(value)
+	if stat_key == &"attack" and has_status(&"burned"):
+		result *= 0.5
+	if stat_key == &"special_attack" and has_status(&"frostbitten"):
+		result *= 0.5
+	if stat_key == &"speed" and has_status(&"paralysed"):
+		result *= 0.5
+	return maxi(floori(result), 1)
+
+
+## Check whether this Digimon's ability can trigger given its stack limit.
+func can_trigger_ability(stack_limit: Registry.StackLimit) -> bool:
+	if has_status(&"nullified"):
+		return false
+	match stack_limit:
+		Registry.StackLimit.UNLIMITED:
+			return true
+		Registry.StackLimit.ONCE_PER_TURN:
+			return ability_trigger_counts.get("per_turn", 0) < 1
+		Registry.StackLimit.ONCE_PER_SWITCH:
+			return ability_trigger_counts.get("per_switch", 0) < 1
+		Registry.StackLimit.ONCE_PER_BATTLE:
+			return ability_trigger_counts.get("per_battle", 0) < 1
+		Registry.StackLimit.FIRST_ONLY:
+			return ability_trigger_counts.get("per_battle", 0) < 1 \
+				and ability_trigger_counts.get("per_switch", 0) < 1
+	return true
+
+
+## Record that this Digimon's ability triggered.
+func record_ability_trigger(stack_limit: Registry.StackLimit) -> void:
+	match stack_limit:
+		Registry.StackLimit.ONCE_PER_TURN:
+			ability_trigger_counts["per_turn"] = \
+				int(ability_trigger_counts.get("per_turn", 0)) + 1
+		Registry.StackLimit.ONCE_PER_SWITCH:
+			ability_trigger_counts["per_switch"] = \
+				int(ability_trigger_counts.get("per_switch", 0)) + 1
+		Registry.StackLimit.ONCE_PER_BATTLE:
+			ability_trigger_counts["per_battle"] = \
+				int(ability_trigger_counts.get("per_battle", 0)) + 1
+		Registry.StackLimit.FIRST_ONLY:
+			ability_trigger_counts["per_battle"] = \
+				int(ability_trigger_counts.get("per_battle", 0)) + 1
+			ability_trigger_counts["per_switch"] = \
+				int(ability_trigger_counts.get("per_switch", 0)) + 1
+
+
+## Reset the per-turn ability trigger counter (called at turn start).
+func reset_turn_trigger_count() -> void:
+	ability_trigger_counts["per_turn"] = 0
 
 
 ## Get effective speed considering priority tier.
@@ -142,6 +205,8 @@ func reset_volatiles() -> void:
 	# Reset stat stages
 	for key: StringName in stat_stages:
 		stat_stages[key] = 0
+	# Reset per-switch ability trigger counter
+	ability_trigger_counts["per_switch"] = 0
 
 
 ## Add a status condition. Returns true if successfully applied.

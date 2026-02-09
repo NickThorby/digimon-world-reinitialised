@@ -19,6 +19,7 @@ static func calculate_damage(
 	target: BattleDigimonState,
 	technique: TechniqueData,
 	rng: RandomNumberGenerator,
+	crit_bonus: int = 0,
 ) -> DamageResult:
 	var result := DamageResult.new()
 	var balance: GameBalance = _get_balance()
@@ -65,7 +66,7 @@ static func calculate_damage(
 
 	# Critical hit
 	var crit: float = 1.0
-	if roll_critical(0, rng):
+	if roll_critical(crit_bonus, rng):
 		crit = balance.crit_damage_multiplier if balance else 1.5
 		result.was_critical = true
 

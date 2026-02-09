@@ -58,8 +58,9 @@ static func _execute_damage(
 		push_warning("BrickExecutor: Unimplemented damage subtype '%s'" % subtype)
 		return {"handled": false, "subtype": subtype}
 
+	var crit_bonus: int = _extract_crit_bonus(technique)
 	var damage_result: DamageResult = DamageCalculator.calculate_damage(
-		user, target, technique, battle.rng,
+		user, target, technique, battle.rng, crit_bonus,
 	)
 
 	var actual_damage: int = target.apply_damage(damage_result.final_damage)
@@ -109,6 +110,11 @@ static func _execute_status_effect(
 	var extra: Dictionary = {}
 	if brick.has("extra"):
 		extra = brick["extra"] as Dictionary
+
+	# Inject seeder info for seeded status
+	if status_key == &"seeded":
+		extra["seeder_side"] = user.side_index
+		extra["seeder_slot"] = user.slot_index
 
 	var applied: bool = actual_target.add_status(status_key, duration, extra)
 
@@ -178,6 +184,16 @@ static func _execute_stat_modifier(
 		"handled": true,
 		"stat_changes": stat_changes,
 	}
+
+
+## Extract crit stage bonus from a technique's criticalHit brick (if any).
+static func _extract_crit_bonus(technique: TechniqueData) -> int:
+	if technique == null:
+		return 0
+	for brick: Dictionary in technique.bricks:
+		if brick.get("brick", "") == "criticalHit":
+			return int(brick.get("stages", 0))
+	return 0
 
 
 ## Apply status override rules (Burned removes Frostbitten/Frozen, etc.).
