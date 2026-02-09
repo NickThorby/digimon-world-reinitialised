@@ -120,7 +120,7 @@ func _on_save_team() -> void:
 		return
 
 	var team := BuilderTeamState.new()
-	team.name = "Side %d Team" % _current_side
+	team.name = "Side %d Team" % (_current_side + 1)
 	for member: Variant in party:
 		if member is DigimonState:
 			team.members.append(member as DigimonState)
@@ -154,11 +154,13 @@ func _on_load_team() -> void:
 	_show_validation_message("Loaded team '%s' (%d members)" % [team.name, team.members.size()])
 
 
-func _open_picker() -> void:
+func _open_picker(existing: DigimonState = null) -> void:
 	var picker: DigimonPickerPopup = PICKER_POPUP_SCENE.instantiate() as DigimonPickerPopup
 	add_child(picker)
 	picker.digimon_confirmed.connect(_on_digimon_picked)
 	picker.cancelled.connect(func() -> void: picker.queue_free())
+	if existing != null:
+		picker.prepopulate(existing)
 	picker.popup_centered()
 
 
@@ -187,7 +189,7 @@ func _update_side_selector() -> void:
 	_side_selector.clear()
 	for i: int in _config.side_count:
 		var team_idx: int = _config.team_assignments[i] if i < _config.team_assignments.size() else i
-		_side_selector.add_item("Side %d (Team %d)" % [i, team_idx])
+		_side_selector.add_item("Side %d (Team %d)" % [i + 1, team_idx + 1])
 	if _current_side >= _config.side_count:
 		_current_side = 0
 	_side_selector.selected = _current_side
@@ -227,7 +229,9 @@ func _update_controller_display() -> void:
 
 func _on_slot_edit(index: int) -> void:
 	_editing_index = index
-	_open_picker()
+	var party: Array = _config.side_configs[_current_side].get("party", [])
+	var existing: DigimonState = party[index] as DigimonState if index < party.size() else null
+	_open_picker(existing)
 
 
 func _on_slot_remove(index: int) -> void:

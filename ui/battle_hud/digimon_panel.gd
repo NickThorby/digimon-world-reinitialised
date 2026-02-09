@@ -58,6 +58,31 @@ func update_from_battle_digimon(digimon: BattleDigimonState) -> void:
 	_animate_energy(float(digimon.current_energy))
 
 
+## Update the panel from a snapshot dictionary captured at signal time.
+func update_from_snapshot(snapshot: Dictionary) -> void:
+	_name_label.text = snapshot.get("name", "???") as String
+	_level_label.text = "Lv. %d" % int(snapshot.get("level", 1))
+
+	var max_hp: int = int(snapshot.get("max_hp", 1))
+	var current_hp: int = int(snapshot.get("current_hp", 0))
+	_hp_bar.max_value = max_hp
+	_hp_label.text = "%d / %d" % [current_hp, max_hp]
+
+	var max_energy: int = int(snapshot.get("max_energy", 1))
+	var current_energy: int = int(snapshot.get("current_energy", 0))
+	_energy_bar.max_value = max_energy
+	_energy_label.text = "%d / %d" % [current_energy, max_energy]
+
+	var statuses: Array[String] = []
+	var status_conditions: Array = snapshot.get("status_conditions", []) as Array
+	for status: Dictionary in status_conditions:
+		statuses.append(str(status.get("key", "")).capitalize())
+	_status_label.text = " ".join(statuses) if statuses.size() > 0 else ""
+
+	_animate_hp(float(current_hp))
+	_animate_energy(float(current_energy))
+
+
 func _animate_hp(target_value: float) -> void:
 	if _hp_tween != null:
 		_hp_tween.kill()

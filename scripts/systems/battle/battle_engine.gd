@@ -16,6 +16,9 @@ signal damage_dealt(side_index: int, slot_index: int, amount: int, effectiveness
 signal energy_spent(side_index: int, slot_index: int, amount: int)
 signal hp_restored(side_index: int, slot_index: int, amount: int)
 signal battle_message(text: String)
+signal technique_animation_requested(
+	user_side: int, user_slot: int, technique_class: Registry.TechniqueClass
+)
 signal turn_started(turn_number: int)
 signal turn_ended(turn_number: int)
 signal battle_ended(result: BattleResult)
@@ -111,6 +114,9 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 		return []
 
 	battle_message.emit("%s used %s!" % [_get_digimon_name(user), technique.display_name])
+	technique_animation_requested.emit(
+		action.user_side, action.user_slot, technique.technique_class
+	)
 
 	# Spend energy — handle overexertion
 	var energy_cost: int = technique.energy_cost

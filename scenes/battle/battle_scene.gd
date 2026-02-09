@@ -19,7 +19,7 @@ enum BattlePhase {
 @onready var _technique_menu: TechniqueMenu = $BattleHUD/TechniqueMenu
 @onready var _switch_menu: SwitchMenu = $BattleHUD/SwitchMenu
 @onready var _target_selector: TargetSelector = $BattleHUD/TargetSelector
-@onready var _battle_log: BattleLog = $BattleHUD/BattleLog
+@onready var _message_box: BattleMessageBox = $BattleHUD/BattleMessageBox
 @onready var _post_battle_screen: PostBattleScreen = $PostBattleScreen
 @onready var _turn_label: Label = $BattleHUD/TopBar/TurnLabel
 @onready var _near_side: HBoxContainer = $BattleField/NearSide
@@ -50,7 +50,7 @@ func _ready() -> void:
 	var config: BattleConfig = Game.battle_config
 	if config == null:
 		push_error("BattleScene: No battle config set!")
-		_battle_log.add_message("Error: No battle configuration found.")
+		_message_box.show_prompt("Error: No battle configuration found.")
 		return
 
 	# Create battle state
@@ -85,12 +85,13 @@ func _ready() -> void:
 	_action_menu.set_run_visible(is_wild)
 
 	# Start input phase
-	_battle_log.add_message("Battle start!")
+	await _message_box.show_message("Battle start!")
 	_start_input_phase()
 
 
 func _connect_engine_signals() -> void:
 	_engine.battle_message.connect(_on_battle_message)
+	_engine.technique_animation_requested.connect(_on_technique_animation_requested)
 	_engine.damage_dealt.connect(_on_damage_dealt)
 	_engine.energy_spent.connect(_on_energy_spent)
 	_engine.hp_restored.connect(_on_hp_restored)
@@ -159,7 +160,7 @@ func _advance_input() -> void:
 		return
 
 	var digimon_name: String = digimon.data.display_name if digimon.data else "???"
-	_battle_log.add_message("What will %s do?" % digimon_name)
+	_message_box.show_prompt("What will %s do?" % digimon_name)
 
 	# Check if switch is possible
 	var side: SideState = _battle.sides[_current_input_side]
@@ -205,8 +206,15 @@ func _needs_forced_switch() -> bool:
 	for side_idx: int in _player_sides:
 		var side: SideState = _battle.sides[side_idx]
 		for slot: SlotState in side.slots:
-			if slot.digimon != null and slot.digimon.is_fainted and side.party.size() > 0:
+			if slot.digimon != null and slot.digimon.is_fainted and _has_alive_reserve(side):
 				return true
+	return false
+
+
+func _has_alive_reserve(side: SideState) -> bool:
+	for digimon: DigimonState in side.party:
+		if digimon.current_hp > 0:
+			return true
 	return false
 
 
@@ -218,7 +226,7 @@ func _prompt_forced_switch() -> void:
 			if slot.digimon != null and slot.digimon.is_fainted and side.party.size() > 0:
 				_current_input_side = side_idx
 				_current_input_slot = slot.slot_index
-				_battle_log.add_message("Choose a replacement!")
+				_message_box.show_prompt("Choose a replacement!")
 				_switch_menu.populate(side.party)
 				_hide_all_menus()
 				_switch_menu.visible = true
@@ -237,6 +245,7 @@ func _prompt_forced_switch() -> void:
 				switch_action.user_slot = slot.slot_index
 				switch_action.switch_to_party_index = 0
 				_engine._resolve_switch(switch_action)
+				_update_placeholder(side.side_index, slot.slot_index)
 
 	# After all forced switches, return to input
 	if not _battle.is_battle_over:
@@ -248,59 +257,67 @@ func _prompt_forced_switch() -> void:
 
 func _replay_events() -> void:
 	for event: Dictionary in _event_queue:
+		if not is_inside_tree():
+			return
 		var event_type: StringName = event.get("type", &"") as StringName
 
 		match event_type:
 			&"battle_message":
-				_battle_log.add_message(event["text"] as String)
-				await get_tree().create_timer(0.4).timeout
+				await _message_box.show_message(event["text"] as String)
+
+			&"technique_animation":
+				var duration: float = await _play_attack_animation(
+					int(event["user_side"]),
+					int(event["user_slot"]),
+					event["technique_class"] as Registry.TechniqueClass,
+				)
+				if duration > 0.0:
+					await get_tree().create_timer(duration).timeout
 
 			&"action_resolved":
-				var action: BattleAction = event.get("action") as BattleAction
-				if action != null and action.action_type == BattleAction.ActionType.TECHNIQUE:
-					var tech: TechniqueData = Atlas.techniques.get(
-						action.technique_key
-					) as TechniqueData
-					if tech != null:
-						var duration: float = await _play_attack_animation(
-							action.user_side, action.user_slot, tech.technique_class
-						)
-						if duration > 0.0:
-							await get_tree().create_timer(duration).timeout
+				pass  # Animation moved to technique_animation event
 
 			&"damage_dealt":
-				_update_panel(
-					int(event["side_index"]), int(event["slot_index"])
+				_update_panel_from_snapshot(
+					int(event["side_index"]), int(event["slot_index"]),
+					event.get("snapshot", {}) as Dictionary,
 				)
 				await get_tree().create_timer(0.4).timeout
 
 			&"energy_spent":
-				_update_panel(
-					int(event["side_index"]), int(event["slot_index"])
+				_update_panel_from_snapshot(
+					int(event["side_index"]), int(event["slot_index"]),
+					event.get("snapshot", {}) as Dictionary,
 				)
 
 			&"hp_restored":
-				_update_panel(
-					int(event["side_index"]), int(event["slot_index"])
+				_update_panel_from_snapshot(
+					int(event["side_index"]), int(event["slot_index"]),
+					event.get("snapshot", {}) as Dictionary,
 				)
 				await get_tree().create_timer(0.3).timeout
 
 			&"digimon_fainted":
-				_update_panel(
-					int(event["side_index"]), int(event["slot_index"])
+				_update_panel_from_snapshot(
+					int(event["side_index"]), int(event["slot_index"]),
+					event.get("snapshot", {}) as Dictionary,
 				)
 				await get_tree().create_timer(0.5).timeout
 
 			&"digimon_switched":
 				var side_idx: int = int(event["side_index"])
 				var slot_idx: int = int(event["slot_index"])
-				_update_panel(side_idx, slot_idx)
+				_update_panel_from_snapshot(
+					side_idx, slot_idx,
+					event.get("snapshot", {}) as Dictionary,
+				)
 				_update_placeholder(side_idx, slot_idx)
 				await get_tree().create_timer(0.3).timeout
 
 			&"status_applied", &"status_removed":
-				_update_panel(
-					int(event["side_index"]), int(event["slot_index"])
+				_update_panel_from_snapshot(
+					int(event["side_index"]), int(event["slot_index"]),
+					event.get("snapshot", {}) as Dictionary,
 				)
 
 			&"turn_started":
@@ -436,7 +453,7 @@ func _on_action_chosen(action_type: BattleAction.ActionType) -> void:
 			_advance_input()
 
 		BattleAction.ActionType.ITEM:
-			_battle_log.add_message("Items are not yet available.")
+			_message_box.show_prompt("Items are not yet available.")
 
 
 func _on_technique_chosen(technique_key: StringName) -> void:
@@ -507,6 +524,7 @@ func _on_switch_chosen(party_index: int) -> void:
 		switch_action.switch_to_party_index = party_index
 		_engine._resolve_switch(switch_action)
 		_update_all_panels()
+		_update_placeholder(_current_input_side, _current_input_slot)
 
 		# Check for more forced switches
 		if _needs_forced_switch():
@@ -540,8 +558,40 @@ func _on_continue_pressed() -> void:
 ## --- Engine Signal Handlers (Queue Events) ---
 
 
+## Capture a digimon's current values for deferred panel updates.
+func _snapshot_digimon(side_index: int, slot_index: int) -> Dictionary:
+	var digimon: BattleDigimonState = _battle.get_digimon_at(side_index, slot_index)
+	if digimon == null:
+		return {}
+	var name: String = "???"
+	if digimon.source_state != null and digimon.source_state.nickname != "":
+		name = digimon.source_state.nickname
+	elif digimon.data != null:
+		name = digimon.data.display_name
+	return {
+		"name": name,
+		"level": digimon.source_state.level if digimon.source_state else 1,
+		"current_hp": digimon.current_hp,
+		"max_hp": digimon.max_hp,
+		"current_energy": digimon.current_energy,
+		"max_energy": digimon.max_energy,
+		"status_conditions": digimon.status_conditions.duplicate(true),
+	}
+
+
 func _on_battle_message(text: String) -> void:
 	_event_queue.append({"type": &"battle_message", "text": text})
+
+
+func _on_technique_animation_requested(
+	user_side: int, user_slot: int, technique_class: Registry.TechniqueClass
+) -> void:
+	_event_queue.append({
+		"type": &"technique_animation",
+		"user_side": user_side,
+		"user_slot": user_slot,
+		"technique_class": technique_class,
+	})
 
 
 func _on_action_resolved(action: BattleAction, results: Array[Dictionary]) -> void:
@@ -562,6 +612,7 @@ func _on_damage_dealt(
 		"type": &"damage_dealt",
 		"side_index": side_index,
 		"slot_index": slot_index,
+		"snapshot": _snapshot_digimon(side_index, slot_index),
 	})
 
 
@@ -570,6 +621,7 @@ func _on_energy_spent(side_index: int, slot_index: int, _amount: int) -> void:
 		"type": &"energy_spent",
 		"side_index": side_index,
 		"slot_index": slot_index,
+		"snapshot": _snapshot_digimon(side_index, slot_index),
 	})
 
 
@@ -578,6 +630,7 @@ func _on_hp_restored(side_index: int, slot_index: int, _amount: int) -> void:
 		"type": &"hp_restored",
 		"side_index": side_index,
 		"slot_index": slot_index,
+		"snapshot": _snapshot_digimon(side_index, slot_index),
 	})
 
 
@@ -586,6 +639,7 @@ func _on_digimon_fainted(side_index: int, slot_index: int) -> void:
 		"type": &"digimon_fainted",
 		"side_index": side_index,
 		"slot_index": slot_index,
+		"snapshot": _snapshot_digimon(side_index, slot_index),
 	})
 
 
@@ -598,6 +652,7 @@ func _on_digimon_switched(
 		"type": &"digimon_switched",
 		"side_index": side_index,
 		"slot_index": slot_index,
+		"snapshot": _snapshot_digimon(side_index, slot_index),
 	})
 
 
@@ -610,6 +665,7 @@ func _on_status_applied(
 		"type": &"status_applied",
 		"side_index": side_index,
 		"slot_index": slot_index,
+		"snapshot": _snapshot_digimon(side_index, slot_index),
 	})
 
 
@@ -622,6 +678,7 @@ func _on_status_removed(
 		"type": &"status_removed",
 		"side_index": side_index,
 		"slot_index": slot_index,
+		"snapshot": _snapshot_digimon(side_index, slot_index),
 	})
 
 
@@ -728,6 +785,27 @@ func _update_all_panels() -> void:
 	for side: SideState in _battle.sides:
 		for slot: SlotState in side.slots:
 			_update_panel(side.side_index, slot.slot_index)
+
+
+func _update_panel_from_snapshot(
+	side_index: int, slot_index: int, snapshot: Dictionary
+) -> void:
+	var key: String = "%d_%d" % [side_index, slot_index]
+	var panel: DigimonPanel = null
+
+	if _ally_panel_map.has(key):
+		panel = _ally_panel_map[key] as DigimonPanel
+	elif _foe_panel_map.has(key):
+		panel = _foe_panel_map[key] as DigimonPanel
+
+	if panel == null:
+		return
+
+	if snapshot.is_empty():
+		var digimon: BattleDigimonState = _battle.get_digimon_at(side_index, slot_index)
+		panel.update_from_battle_digimon(digimon)
+	else:
+		panel.update_from_snapshot(snapshot)
 
 
 func _update_panel(side_index: int, slot_index: int) -> void:

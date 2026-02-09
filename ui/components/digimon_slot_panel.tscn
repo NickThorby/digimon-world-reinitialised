@@ -9,6 +9,12 @@ script = ExtResource("1")
 [node name="HBox" type="HBoxContainer" parent="."]
 layout_mode = 2
 
+[node name="SpriteRect" type="TextureRect" parent="HBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(40, 40)
+expand_mode = 1
+stretch_mode = 5
+
 [node name="InfoVBox" type="VBoxContainer" parent="HBox"]
 layout_mode = 2
 size_flags_horizontal = 3

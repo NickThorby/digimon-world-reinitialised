@@ -5,7 +5,7 @@
 [ext_resource type="PackedScene" path="res://ui/battle_hud/technique_menu.tscn" id="3"]
 [ext_resource type="PackedScene" path="res://ui/battle_hud/switch_menu.tscn" id="4"]
 [ext_resource type="PackedScene" path="res://ui/battle_hud/target_selector.tscn" id="5"]
-[ext_resource type="PackedScene" path="res://ui/battle_hud/battle_log.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://ui/battle_hud/battle_message_box.tscn" id="6"]
 [ext_resource type="PackedScene" path="res://ui/battle_hud/post_battle_screen.tscn" id="7"]
 
 [node name="BattleScene" type="Node2D"]
@@ -79,7 +79,7 @@ offset_top = 400.0
 offset_right = 750.0
 offset_bottom = 670.0
 
-[node name="BattleLog" parent="BattleHUD" unique_name_in_owner=true instance=ExtResource("6")]
+[node name="BattleMessageBox" parent="BattleHUD" unique_name_in_owner=true instance=ExtResource("6")]
 offset_left = 10.0
 offset_top = 680.0
 offset_right = 1270.0

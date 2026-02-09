@@ -7,6 +7,7 @@ extends PanelContainer
 signal edit_pressed(index: int)
 signal remove_pressed(index: int)
 
+@onready var _sprite_rect: TextureRect = $HBox/SpriteRect
 @onready var _name_label: Label = $HBox/InfoVBox/TopRow/NameLabel
 @onready var _level_label: Label = $HBox/InfoVBox/TopRow/LevelLabel
 @onready var _element_label: Label = $HBox/InfoVBox/ElementLabel
@@ -33,6 +34,7 @@ func _update_display() -> void:
 		_name_label.text = tr("(Empty)")
 		_level_label.text = ""
 		_element_label.text = ""
+		_sprite_rect.texture = null
 		return
 
 	var data: DigimonData = Atlas.digimon.get(_digimon_state.key) as DigimonData
@@ -40,10 +42,12 @@ func _update_display() -> void:
 		_name_label.text = str(_digimon_state.key)
 		_level_label.text = "Lv. %d" % _digimon_state.level
 		_element_label.text = ""
+		_sprite_rect.texture = null
 		return
 
 	_name_label.text = data.display_name
 	_level_label.text = "Lv. %d" % _digimon_state.level
+	_sprite_rect.texture = data.sprite_texture
 	var elements: Array[String] = []
 	for element_key: StringName in data.element_traits:
 		elements.append(str(element_key).capitalize())

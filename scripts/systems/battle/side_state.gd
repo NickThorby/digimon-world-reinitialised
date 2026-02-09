@@ -87,8 +87,8 @@ func get_remaining_count() -> int:
 		if slot.digimon != null and not slot.digimon.is_fainted:
 			count += 1
 	for digimon: DigimonState in party:
-		# Reserve Digimon are always counted (HP checked separately if needed)
-		count += 1
+		if digimon.current_hp > 0:
+			count += 1
 	return count
 
 

@@ -108,7 +108,8 @@ var sprite_texture: Texture2D:
 ## Returns the display name based on player preference settings.
 var display_name: String:
 	get:
-		var settings: Node = Engine.get_singleton(&"Settings")
+		var tree: SceneTree = Engine.get_main_loop() as SceneTree
+		var settings: Node = tree.root.get_node_or_null("Settings") if tree else null
 		if settings and settings.use_game_names and custom_name != "":
 			return custom_name
 		if settings and settings.display_preference == _Settings.DisplayPreference.JAPANESE:

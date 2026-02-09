@@ -113,6 +113,20 @@ func _ready() -> void:
 	_clear_preview()
 
 
+## Prepopulate the picker with an existing DigimonState for editing.
+## Call after instantiation, before popup_centered().
+func prepopulate(state: DigimonState) -> void:
+	_selected_key = state.key
+	# Find and highlight species in list
+	for i: int in _filtered_keys.size():
+		if _filtered_keys[i] == state.key:
+			_species_list.select(i)
+			break
+	_update_preview()
+	_level_spinbox.value = state.level
+	_enter_config_stage(state)
+
+
 ## --- Stage Management ---
 
 
@@ -296,21 +310,30 @@ func _on_add_pressed() -> void:
 	_enter_config_stage()
 
 
-func _enter_config_stage() -> void:
+func _enter_config_stage(existing_state: DigimonState = null) -> void:
 	var data: DigimonData = Atlas.digimon.get(_selected_key) as DigimonData
 	if data == null:
 		return
 
 	_config_title.text = "Configure %s" % data.display_name
 
-	# Create pending state via factory
-	var level: int = int(_level_spinbox.value)
-	_pending_state = DigimonFactory.create_digimon(_selected_key, level)
-	if _pending_state == null:
-		return
+	if existing_state != null:
+		_pending_state = existing_state
+	else:
+		var level: int = int(_level_spinbox.value)
+		_pending_state = DigimonFactory.create_digimon(_selected_key, level)
+		if _pending_state == null:
+			return
 
 	# Populate ability options
 	_populate_abilities(data)
+
+	# Select ability matching existing state
+	if existing_state != null:
+		for i: int in _ability_option.item_count:
+			if _ability_option.get_item_metadata(i) as int == existing_state.active_ability_slot:
+				_ability_option.selected = i
+				break
 
 	# Build IV sliders
 	_build_stat_sliders(_iv_sliders, _iv_slider_map, _max_iv, _pending_state.ivs)
@@ -319,7 +342,10 @@ func _enter_config_stage() -> void:
 	_build_stat_sliders(_tv_sliders, _tv_slider_map, _max_tv, _pending_state.tvs)
 
 	# Populate techniques at current level
-	_populate_techniques()
+	var preselect: Array[StringName] = []
+	if existing_state != null:
+		preselect = existing_state.equipped_technique_keys
+	_populate_techniques(preselect)
 
 	_set_stage(Stage.CONFIGURE)
 
@@ -384,7 +410,7 @@ func _build_stat_sliders(
 		slider_map[stat_key] = {"slider": slider, "label": value_label}
 
 
-func _populate_techniques() -> void:
+func _populate_techniques(preselect_keys: Array[StringName] = []) -> void:
 	_technique_list.clear()
 
 	var data: DigimonData = Atlas.digimon.get(_selected_key) as DigimonData
@@ -405,8 +431,10 @@ func _populate_techniques() -> void:
 				tech_data.power,
 			]
 		_technique_list.add_item(label)
-		# Auto-select first techniques up to max
-		if i < _max_equipped:
+		if preselect_keys.size() > 0:
+			if tech_key in preselect_keys:
+				_technique_list.select(i, false)
+		elif i < _max_equipped:
 			_technique_list.select(i, false)
 
 
