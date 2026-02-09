@@ -100,6 +100,17 @@ const TECHNIQUE_FLAG_MAP: Dictionary = {
 	"snatchable": _Reg.TechniqueFlag.SNATCHABLE,
 }
 
+const GROWTH_RATE_MAP: Dictionary = {
+	"Erratic": _Reg.GrowthRate.ERRATIC,
+	"Fast": _Reg.GrowthRate.FAST,
+	"MediumFast": _Reg.GrowthRate.MEDIUM_FAST,
+	"Medium Fast": _Reg.GrowthRate.MEDIUM_FAST,
+	"MediumSlow": _Reg.GrowthRate.MEDIUM_SLOW,
+	"Medium Slow": _Reg.GrowthRate.MEDIUM_SLOW,
+	"Slow": _Reg.GrowthRate.SLOW,
+	"Fluctuating": _Reg.GrowthRate.FLUCTUATING,
+}
+
 const ELEMENT_NAME_MAP: Dictionary = {
 	"Null": &"null",
 	"Fire": &"fire",
@@ -286,6 +297,15 @@ func map_digimon(
 	digimon.base_special_defence = int(dex_data.get("special_defence", 0))
 	digimon.base_speed = int(dex_data.get("speed", 0))
 	digimon.bst = int(dex_data.get("bst", 0))
+
+	# Growth rate
+	var growth_rate_str: String = _str_or_empty(dex_data.get("growth_rate"))
+	digimon.growth_rate = GROWTH_RATE_MAP.get(
+		growth_rate_str, _Reg.GrowthRate.MEDIUM_FAST
+	)
+
+	# Base XP yield
+	digimon.base_xp_yield = int(dex_data.get("base_xp_yield", 50))
 
 	# Resistances: element name -> lowercase StringName key
 	var raw_resistances: Variant = dex_data.get("resistances", {})

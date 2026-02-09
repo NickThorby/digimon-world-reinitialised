@@ -57,3 +57,7 @@ extends Resource
 
 @export var max_sides: int = 4
 @export var max_slots_per_side: int = 3
+
+# --- Level ---
+
+@export var max_level: int = 100

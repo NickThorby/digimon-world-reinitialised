@@ -75,6 +75,8 @@ Mapped from digimon-dex `Digimon` table:
 | `ability_slot_1_key`      | `StringName`             | Standard ability slot 1            |
 | `ability_slot_2_key`      | `StringName`             | Standard ability slot 2            |
 | `ability_slot_3_key`      | `StringName`             | Hidden/secret ability              |
+| `growth_rate`             | `Registry.GrowthRate`    | XP growth rate curve               |
+| `base_xp_yield`           | `int`                    | Base XP when defeated              |
 
 Each `technique_entries` element: `{ "key": StringName, "requirements": Array[Dictionary] }`. Requirement types (OR logic — any met = learnable): `innate` (no fields), `level` (`level: int`), `tutor` (`text: String`), `item` (`text: String`). Helpers: `get_innate_technique_keys()`, `get_technique_keys_at_level(level)`, `get_all_technique_keys()`.
 
@@ -253,19 +255,21 @@ Requirements are dictionaries with a `type` field:
 | Negative  | Always last (before Minimum)             |
 | Minimum   | Always last                              |
 
-### Damage Formula
+### Damage Formula (TemTem-inspired)
 
 ```
-damage = power * (atk_stat / def_stat) * attribute_mult * element_mult * stab * personality * variance
+damage = ROUND((7 + level / 200) * power * (ATK / DEF) * modifier)
+modifier = attribute_mult * element_mult * stab * crit * variance
 ```
 
 Where:
+- `level` = user's level
 - `power` = technique base power
-- `atk_stat / def_stat` = ATK/DEF for Physical, SPATK/SPDEF for Special
+- `ATK / DEF` = ATK/DEF for Physical, SPATK/SPDEF for Special (with stat stages and personality applied)
 - `attribute_mult` = from attribute triangle (0.5, 1.0, or 1.5)
-- `element_mult` = target's resistance to technique's element
+- `element_mult` = target's resistance to technique's element (0.0-2.0)
 - `stab` = 1.5 if technique element is in user's `element_traits`, else 1.0 (configurable via `GameBalance.element_stab_multiplier`)
-- `personality` = personality modifier applied to relevant stat
+- `crit` = 1.5 if critical hit, else 1.0
 - `variance` = random factor between 0.85 and 1.0
 
 ### Physical vs Special vs Status

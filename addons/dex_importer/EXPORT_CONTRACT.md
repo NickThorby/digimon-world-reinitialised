@@ -206,6 +206,8 @@ Bulk export of the entire game-relevant dataset. No pagination. Single JSON resp
 | `traits` | `array` | Objects with `name` (string) and `category` (string). See Traits section. |
 | `techniques` | `array` | Objects with `game_id` and `requirements`. |
 | `abilities` | `array` | Objects with `game_id` and `slot` (1-3). |
+| `growth_rate` | `string?` | XP growth rate: `Erratic`, `Fast`, `MediumFast`, `MediumSlow`, `Slow`, `Fluctuating`. Default: `MediumFast`. |
+| `base_xp_yield` | `int?` | Base XP awarded when defeated. Default: `50`. |
 
 #### Technique Requirements (OR logic — any met = learnable)
 

@@ -49,6 +49,11 @@ const _Settings = preload("res://autoload/settings.gd")
 @export var ability_slot_2_key: StringName = &""
 @export var ability_slot_3_key: StringName = &""
 
+## XP growth rate curve for levelling.
+@export var growth_rate: _Reg.GrowthRate = _Reg.GrowthRate.MEDIUM_FAST
+## Base XP yield when this species is defeated.
+@export var base_xp_yield: int = 50
+
 
 ## Returns keys of techniques with an "innate" requirement.
 func get_innate_technique_keys() -> Array[StringName]:

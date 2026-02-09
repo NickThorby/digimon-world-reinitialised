@@ -7,6 +7,9 @@ const SCENE_MAIN_MENU := "res://scenes/main/main.tscn"
 ## The current game state (null if no game active).
 var state: GameState = null
 
+## Battle configuration for the next battle (set by builder, consumed by battle scene).
+var battle_config: BattleConfig = null
+
 
 ## Start a new game with fresh state.
 func new_game() -> void:

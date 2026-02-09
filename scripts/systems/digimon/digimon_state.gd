@@ -31,6 +31,9 @@ var equipped_consumable_key: StringName = &""
 ## Scan data percentage (0.0-1.0, for wild Digimon scanning progress).
 var scan_data: float = 0.0
 
+## Status conditions that persist outside battle. Each: { "key": StringName, ... }
+var status_conditions: Array[Dictionary] = []
+
 
 func to_dict() -> Dictionary:
 	return {
@@ -49,6 +52,7 @@ func to_dict() -> Dictionary:
 		"equipped_gear_key": equipped_gear_key,
 		"equipped_consumable_key": equipped_consumable_key,
 		"scan_data": scan_data,
+		"status_conditions": status_conditions.duplicate(true),
 	}
 
 
@@ -72,5 +76,8 @@ static func from_dict(data: Dictionary) -> DigimonState:
 		state.known_technique_keys.append(StringName(technique_key))
 	for technique_key: String in data.get("equipped_technique_keys", []):
 		state.equipped_technique_keys.append(StringName(technique_key))
+
+	for status_dict: Dictionary in data.get("status_conditions", []):
+		state.status_conditions.append(status_dict)
 
 	return state

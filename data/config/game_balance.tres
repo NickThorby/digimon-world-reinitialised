@@ -36,3 +36,4 @@ crit_damage_multiplier = 1.5
 element_stab_multiplier = 1.5
 max_sides = 4
 max_slots_per_side = 3
+max_level = 100

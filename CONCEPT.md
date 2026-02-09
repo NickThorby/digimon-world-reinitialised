@@ -57,7 +57,7 @@ Each Digimon has individual resistance values per element:
 - **1.5** — Weak
 - **2.0** — Very Weak
 
-**Key Design Note**: Digimon have **attributes** (Vaccine/Virus/Data) and individual **element resistances**, but they do NOT have an elemental "type". There is no STAB (Same-Type Attack Bonus) equivalent. This may be revisited later.
+**Key Design Note**: Digimon have **attributes** (Vaccine/Virus/Data) and individual **element resistances**. They also have **element traits** (via the trait system) which determine STAB (Same-Type Attack Bonus). When a Digimon's `element_traits` includes the technique's element, damage is multiplied by 1.5x (configurable via `GameBalance.element_stab_multiplier`).
 
 ### Technique Classification
 

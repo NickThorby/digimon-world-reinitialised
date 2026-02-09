@@ -637,6 +637,54 @@ const SEMI_INVULNERABLE_STATES: Array[StringName] = [
 ]
 
 ## Maps dex priority integers (-4 to 4) to game Priority enum values.
+## XP growth rate curves (Pokemon-style).
+enum GrowthRate {
+	ERRATIC,
+	FAST,
+	MEDIUM_FAST,
+	MEDIUM_SLOW,
+	SLOW,
+	FLUCTUATING,
+}
+
+var growth_rate_labels: Dictionary = {
+	GrowthRate.ERRATIC: tr("growth_rate.erratic"),
+	GrowthRate.FAST: tr("growth_rate.fast"),
+	GrowthRate.MEDIUM_FAST: tr("growth_rate.medium_fast"),
+	GrowthRate.MEDIUM_SLOW: tr("growth_rate.medium_slow"),
+	GrowthRate.SLOW: tr("growth_rate.slow"),
+	GrowthRate.FLUCTUATING: tr("growth_rate.fluctuating"),
+}
+
+## Persistent status conditions (survive battle, saved to disk).
+const PERSISTENT_STATUSES: Array[StatusCondition] = [
+	StatusCondition.ASLEEP,
+	StatusCondition.BURNED,
+	StatusCondition.FROSTBITTEN,
+	StatusCondition.FROZEN,
+	StatusCondition.POISONED,
+	StatusCondition.PARALYSED,
+	StatusCondition.BLINDED,
+	StatusCondition.EXHAUSTED,
+	StatusCondition.DAZED,
+]
+
+## Volatile status conditions (battle-only, reset on battle end).
+const VOLATILE_STATUSES: Array[StatusCondition] = [
+	StatusCondition.CONFUSED,
+	StatusCondition.TRAPPED,
+	StatusCondition.BLEEDING,
+	StatusCondition.ENCORED,
+	StatusCondition.TAUNTED,
+	StatusCondition.DISABLED,
+	StatusCondition.PERISHING,
+	StatusCondition.SEEDED,
+	StatusCondition.REGENERATING,
+	StatusCondition.VITALISED,
+	StatusCondition.NULLIFIED,
+	StatusCondition.REVERSED,
+]
+
 const DEX_PRIORITY_MAP: Dictionary = {
 	-4: Priority.MINIMUM,
 	-3: Priority.NEGATIVE,
