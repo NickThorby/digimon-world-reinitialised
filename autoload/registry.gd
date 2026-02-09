@@ -1,6 +1,9 @@
 extends Node
 ## Central enum registry and game constants.
 
+# Preload Settings script for enum access without autoload dependency.
+const _SettingsScript = preload("res://autoload/settings.gd")
+
 # --- Core ---
 
 enum Attribute {
@@ -112,14 +115,16 @@ var _evolution_level_dub_labels: Dictionary = {
 
 ## Returns the label for a single evolution level based on display preference.
 func get_evolution_level_label(level: EvolutionLevel) -> String:
-	if Settings.display_preference == Settings.DisplayPreference.JAPANESE:
+	var settings_node: Node = Engine.get_singleton("Settings")
+	if settings_node and settings_node.display_preference == _SettingsScript.DisplayPreference.JAPANESE:
 		return _evolution_level_jp_labels.get(level, "Unknown")
 	return _evolution_level_dub_labels.get(level, "Unknown")
 
 ## Returns the full evolution level labels dictionary based on display preference.
 var evolution_level_labels: Dictionary:
 	get:
-		if Settings.display_preference == Settings.DisplayPreference.JAPANESE:
+		var settings_node: Node = Engine.get_singleton("Settings")
+		if settings_node and settings_node.display_preference == _SettingsScript.DisplayPreference.JAPANESE:
 			return _evolution_level_jp_labels
 		return _evolution_level_dub_labels
 

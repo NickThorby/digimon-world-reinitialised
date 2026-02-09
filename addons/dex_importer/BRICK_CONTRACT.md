@@ -313,19 +313,31 @@
 | `condition` | `String` | Yes | Condition string |
 | `newPriority` | `int` | Yes | New priority (-4 to 4, mapped via DEX_PRIORITY_MAP) |
 
-### 20. `typeModifier`
+### 20. `elementModifier`
 
 | Key | Type | Required | Description |
 |---|---|---|---|
-| `brick` | `"typeModifier"` | Yes | Discriminator |
-| `changeUserType` | `String` | No | Change user's element resistances to element |
-| `changeTargetType` | `String` | No | Change target's resistances |
-| `addType` | `String` | No | Add element to user/target |
-| `removeType` | `String` | No | Remove element from user/target |
-| `changeTechniqueType` | `String` | No | Change technique's element |
-| `matchTargetType` | `bool` | No | Match technique element to target |
+| `brick` | `"elementModifier"` | Yes | Discriminator |
+| `type` | `String` | Yes | Modifier subtype (see values below) |
+| `element` | `String` | Conditional | Element name. Required for all types except `matchTargetWeakness`. |
+| `target` | `String` | Conditional | BrickTarget. Required for trait and resistance operations on a target. |
+| `value` | `float` | Conditional | Resistance multiplier. Required for `changeUserResistanceProfile` and `changeTargetResistanceProfile`. |
 
-*Note: Digimon have resistances not types. This brick modifies resistance profiles. Implementation details TBD.*
+**`type` values**:
+
+| Value | Description | Requires |
+|---|---|---|
+| `addElement` | Add element trait to target temporarily | `element`, `target` |
+| `removeElement` | Remove element trait from target temporarily | `element`, `target` |
+| `replaceElements` | Replace all element traits with one | `element`, `target` |
+| `changeTechniqueElement` | Change the technique's element for this use | `element` |
+| `matchTargetWeakness` | Set technique element to one the target is weak to | — |
+| `changeUserResistanceProfile` | Set user's resistance to `element` to `value` | `element`, `value` |
+| `changeTargetResistanceProfile` | Set target's resistance to `element` to `value` | `element`, `value` |
+
+**`value`** must be one of: `0.0` (immune), `0.5` (resistant), `1.0` (neutral), `1.5` (weak), `2.0` (very weak).
+
+*Element traits determine STAB and can be temporarily modified during battle. Resistance profile changes modify the multiplier for a specific element. All modifications last until switch-out or battle end unless otherwise specified. The `target` field uses BrickTarget values.*
 
 ### 21. `flags`
 
@@ -374,7 +386,8 @@ The `flags` brick is how the dex attaches technique flags to a technique. During
 | `copyStats` | `bool` | No | Copy base stats |
 | `copyTechniques` | `bool` | No | Copy known techniques |
 | `copyAbility` | `bool` | No | Copy ability |
-| `copyType` | `bool` | No | Copy element resistances |
+| `copyResistances` | `bool` | No | Copy resistance profile |
+| `copyElementTraits` | `bool` | No | Copy element traits (affects STAB) |
 | `copyAppearance` | `bool` | No | Copy sprite/visual |
 | `duration` | `int` | No | Null = until switch/battle end |
 
@@ -495,4 +508,4 @@ The importer converts camelCase identifiers to snake_case:
 
 ---
 
-*Last Updated: 2026-02-08*
+*Last Updated: 2026-02-09*

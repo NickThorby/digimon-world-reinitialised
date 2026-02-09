@@ -329,7 +329,7 @@ Order matters — techniques and abilities before Digimon (key references).
 | `jp_name` | `jp_name` | direct |
 | `dub_name` | `dub_name` | `""` if null |
 | `name` | `custom_name` | `""` if null |
-| `type` | `type_tag` | `""` if null |
+| `traits` | `size_trait`, `movement_traits`, `type_trait`, `element_traits` | Split by category, `_trait_to_key()` |
 | `level` | `level` | `1` if null |
 | `attribute` | `attribute` | name → `Registry.Attribute` enum |
 | `hp`..`speed` | `base_hp`..`base_speed` | direct |

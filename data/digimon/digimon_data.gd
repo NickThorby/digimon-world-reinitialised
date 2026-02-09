@@ -6,7 +6,15 @@ extends Resource
 @export var jp_name: String = ""
 @export var dub_name: String = ""
 @export var custom_name: String = ""
-@export var type_tag: String = ""
+
+## Size trait key (max 1). Empty if unset.
+@export var size_trait: StringName = &""
+## Movement trait keys (unlimited).
+@export var movement_traits: Array[StringName] = []
+## Type trait key (max 1). Empty if unset.
+@export var type_trait: StringName = &""
+## Element trait keys (unlimited). Used for STAB calculation.
+@export var element_traits: Array[StringName] = []
 
 @export var level: int = 1
 @export var attribute: Registry.Attribute = Registry.Attribute.NONE

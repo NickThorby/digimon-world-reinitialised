@@ -62,9 +62,12 @@ Mapped from digimon-dex `Digimon` table:
 | `jp_name`                 | `String`                 | Japanese name                      |
 | `dub_name`                | `String`                 | English dub name                   |
 | `custom_name`             | `String`                 | Optional custom override           |
+| `size_trait`              | `StringName`             | Size trait key (max 1)             |
+| `movement_traits`         | `Array[StringName]`      | Movement trait keys (unlimited)    |
+| `type_trait`              | `StringName`             | Type trait key (max 1)             |
+| `element_traits`          | `Array[StringName]`      | Element trait keys (for STAB)      |
 | `level`                   | `int`                    | Evolution level (1-10)             |
 | `attribute`               | `Registry.Attribute`     | Vaccine, Virus, Data, etc.         |
-| `type_tag`                | `String`                 | Descriptive tag (e.g., "Dragon")   |
 | `base_hp` through `base_speed` | `int`              | 7 base stat values                 |
 | `bst`                     | `int`                    | Base Stat Total                    |
 | `resistances`             | `Dictionary`             | Element key -> float multiplier    |
@@ -158,7 +161,24 @@ The attribute triangle affects damage calculation. Free, Variable, None, and Unk
 | 1.5        | Weak       |
 | 2.0        | Very Weak  |
 
-Each Digimon has individual resistance values per element (stored in `DigimonData.resistances`). Digimon do **NOT** have an elemental type — only attributes (Vaccine/Virus/Data) and per-element resistances. There is no STAB equivalent. This may be revisited later.
+Each Digimon has individual resistance values per element (stored in `DigimonData.resistances`).
+
+### Trait System
+
+Digimon have traits across 4 categories, stored as separate fields on DigimonData:
+
+| Category | Field | Cardinality | Values |
+|---|---|---|---|
+| Size | `size_trait` | Max 1 (`StringName`) | `tiny`, `small`, `medium`, `large`, `huge`, `gargantuan` |
+| Movement | `movement_traits` | Unlimited (`Array[StringName]`) | `aerial`, `aquatic`, `terrestrial` |
+| Type | `type_trait` | Max 1 (`StringName`) | `dragon`, `beast`, `humanoid`, etc. (38 values) |
+| Element | `element_traits` | Unlimited (`Array[StringName]`) | `null`, `fire`, `water`, `air`, `earth`, `ice`, `lightning`, `plant`, `metal`, `dark`, `light` |
+
+Trait keys are lowercase snake_case StringNames (e.g., `&"dragon"`, `&"fire"`, `&"royal_knight"`).
+
+### STAB (Same-Type Attack Bonus)
+
+When a Digimon's `element_traits` includes the technique's `element_key`, damage is multiplied by `element_stab_multiplier` (default 1.5, configurable in GameBalance). Element trait keys match element keys directly (both lowercase StringNames).
 
 ---
 
@@ -235,7 +255,7 @@ Requirements are dictionaries with a `type` field:
 ### Damage Formula
 
 ```
-damage = power * (atk_stat / def_stat) * attribute_mult * element_mult * personality * variance
+damage = power * (atk_stat / def_stat) * attribute_mult * element_mult * stab * personality * variance
 ```
 
 Where:
@@ -243,10 +263,9 @@ Where:
 - `atk_stat / def_stat` = ATK/DEF for Physical, SPATK/SPDEF for Special
 - `attribute_mult` = from attribute triangle (0.5, 1.0, or 1.5)
 - `element_mult` = target's resistance to technique's element
+- `stab` = 1.5 if technique element is in user's `element_traits`, else 1.0 (configurable via `GameBalance.element_stab_multiplier`)
 - `personality` = personality modifier applied to relevant stat
 - `variance` = random factor between 0.85 and 1.0
-
-**Note**: Digimon don't have elemental types, only attributes and resistances. No STAB. May be revisited.
 
 ### Physical vs Special vs Status
 
@@ -346,7 +365,7 @@ The brick system enables modular effect composition. Each brick is a dictionary 
 | `conditional`        | Bonus effects under certain conditions           |
 | `protection`         | Protects from attacks (full protection)           |
 | `priorityOverride`   | Changes technique priority conditionally         |
-| `typeModifier`       | Changes types/elements                           |
+| `elementModifier`    | Modifies element traits and resistance profiles  |
 | `flags`              | Technique flags for ability interactions         |
 | `criticalHit`        | Modifies critical hit rate                       |
 | `resource`           | Interacts with held items                        |
@@ -825,6 +844,7 @@ Abilities, status conditions, field effects, and gear register event handlers. T
 | `protection_fail_escalation` | 0.5 | Protection fail chance per consecutive use |
 | `decoy_hp_cost_percent` | 0.25 | HP cost to create decoy |
 | `crit_damage_multiplier` | 1.5 | Critical hit damage multiplier |
+| `element_stab_multiplier` | 1.5 | STAB bonus when technique element matches user's element traits |
 | `max_sides` | 4 | Maximum sides in a battle |
 | `max_slots_per_side` | 3 | Maximum active Digimon per side |
 
@@ -856,4 +876,4 @@ Abilities, status conditions, field effects, and gear register event handlers. T
 
 ---
 
-*Last Updated: 2026-02-08*
+*Last Updated: 2026-02-09*

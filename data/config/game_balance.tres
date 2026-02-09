@@ -33,5 +33,6 @@ perish_countdown = 3
 protection_fail_escalation = 0.5
 decoy_hp_cost_percent = 0.25
 crit_damage_multiplier = 1.5
+element_stab_multiplier = 1.5
 max_sides = 4
 max_slots_per_side = 3

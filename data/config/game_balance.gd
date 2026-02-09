@@ -49,6 +49,10 @@ extends Resource
 
 @export var crit_damage_multiplier: float = 1.5
 
+# --- STAB (Same-Type Attack Bonus) ---
+
+@export var element_stab_multiplier: float = 1.5
+
 # --- Multi-side battle ---
 
 @export var max_sides: int = 4

@@ -3,97 +3,101 @@ extends RefCounted
 ## Maps dex export JSON dictionaries to game Resource instances.
 ## Pure mapping — no I/O. All enum conversions happen here.
 
+# Preload registry script directly to access enums without autoload dependency.
+# This avoids compile-time issues when the plugin loads before autoloads are ready.
+const _Reg = preload("res://autoload/registry.gd")
+
 # --- Enum Mapping Dictionaries ---
 
 const ATTRIBUTE_MAP: Dictionary = {
-	"None": Registry.Attribute.NONE,
-	"Vaccine": Registry.Attribute.VACCINE,
-	"Virus": Registry.Attribute.VIRUS,
-	"Data": Registry.Attribute.DATA,
-	"Free": Registry.Attribute.FREE,
-	"Variable": Registry.Attribute.VARIABLE,
-	"Unknown": Registry.Attribute.UNKNOWN,
+	"None": _Reg.Attribute.NONE,
+	"Vaccine": _Reg.Attribute.VACCINE,
+	"Virus": _Reg.Attribute.VIRUS,
+	"Data": _Reg.Attribute.DATA,
+	"Free": _Reg.Attribute.FREE,
+	"Variable": _Reg.Attribute.VARIABLE,
+	"Unknown": _Reg.Attribute.UNKNOWN,
 }
 
 const TECHNIQUE_CLASS_MAP: Dictionary = {
-	"Physical": Registry.TechniqueClass.PHYSICAL,
-	"Special": Registry.TechniqueClass.SPECIAL,
-	"Status": Registry.TechniqueClass.STATUS,
+	"Physical": _Reg.TechniqueClass.PHYSICAL,
+	"Special": _Reg.TechniqueClass.SPECIAL,
+	"Status": _Reg.TechniqueClass.STATUS,
 }
 
 const TARGETING_MAP: Dictionary = {
-	"Self": Registry.Targeting.SELF,
-	"SingleTarget": Registry.Targeting.SINGLE_TARGET,
-	"SingleOther": Registry.Targeting.SINGLE_OTHER,
-	"SingleAlly": Registry.Targeting.SINGLE_ALLY,
-	"SingleFoe": Registry.Targeting.SINGLE_FOE,
-	"AllAllies": Registry.Targeting.ALL_ALLIES,
-	"AllOtherAllies": Registry.Targeting.ALL_OTHER_ALLIES,
-	"AllFoes": Registry.Targeting.ALL_FOES,
-	"All": Registry.Targeting.ALL,
-	"AllOther": Registry.Targeting.ALL_OTHER,
-	"SingleSide": Registry.Targeting.SINGLE_SIDE,
-	"Field": Registry.Targeting.FIELD,
+	"Self": _Reg.Targeting.SELF,
+	"SingleTarget": _Reg.Targeting.SINGLE_TARGET,
+	"SingleOther": _Reg.Targeting.SINGLE_OTHER,
+	"SingleAlly": _Reg.Targeting.SINGLE_ALLY,
+	"SingleFoe": _Reg.Targeting.SINGLE_FOE,
+	"AllAllies": _Reg.Targeting.ALL_ALLIES,
+	"AllOtherAllies": _Reg.Targeting.ALL_OTHER_ALLIES,
+	"AllFoes": _Reg.Targeting.ALL_FOES,
+	"All": _Reg.Targeting.ALL,
+	"AllOther": _Reg.Targeting.ALL_OTHER,
+	"SingleSide": _Reg.Targeting.SINGLE_SIDE,
+	"Field": _Reg.Targeting.FIELD,
 }
 
 const ABILITY_TRIGGER_MAP: Dictionary = {
-	"onEntry": Registry.AbilityTrigger.ON_ENTRY,
-	"onExit": Registry.AbilityTrigger.ON_EXIT,
-	"onTurnStart": Registry.AbilityTrigger.ON_TURN_START,
-	"onTurnEnd": Registry.AbilityTrigger.ON_TURN_END,
-	"onBeforeTechnique": Registry.AbilityTrigger.ON_BEFORE_TECHNIQUE,
-	"onAfterTechnique": Registry.AbilityTrigger.ON_AFTER_TECHNIQUE,
-	"onBeforeHit": Registry.AbilityTrigger.ON_BEFORE_HIT,
-	"onAfterHit": Registry.AbilityTrigger.ON_AFTER_HIT,
-	"onDealDamage": Registry.AbilityTrigger.ON_DEAL_DAMAGE,
-	"onTakeDamage": Registry.AbilityTrigger.ON_TAKE_DAMAGE,
-	"onFaint": Registry.AbilityTrigger.ON_FAINT,
-	"onAllyFaint": Registry.AbilityTrigger.ON_ALLY_FAINT,
-	"onFoeFaint": Registry.AbilityTrigger.ON_FOE_FAINT,
-	"onStatusApplied": Registry.AbilityTrigger.ON_STATUS_APPLIED,
-	"onStatusInflicted": Registry.AbilityTrigger.ON_STATUS_INFLICTED,
-	"onStatChange": Registry.AbilityTrigger.ON_STAT_CHANGE,
-	"onWeatherChange": Registry.AbilityTrigger.ON_WEATHER_CHANGE,
-	"onTerrainChange": Registry.AbilityTrigger.ON_TERRAIN_CHANGE,
-	"onHpThreshold": Registry.AbilityTrigger.ON_HP_THRESHOLD,
-	"continuous": Registry.AbilityTrigger.CONTINUOUS,
+	"onEntry": _Reg.AbilityTrigger.ON_ENTRY,
+	"onExit": _Reg.AbilityTrigger.ON_EXIT,
+	"onTurnStart": _Reg.AbilityTrigger.ON_TURN_START,
+	"onTurnEnd": _Reg.AbilityTrigger.ON_TURN_END,
+	"onBeforeTechnique": _Reg.AbilityTrigger.ON_BEFORE_TECHNIQUE,
+	"onAfterTechnique": _Reg.AbilityTrigger.ON_AFTER_TECHNIQUE,
+	"onBeforeHit": _Reg.AbilityTrigger.ON_BEFORE_HIT,
+	"onAfterHit": _Reg.AbilityTrigger.ON_AFTER_HIT,
+	"onDealDamage": _Reg.AbilityTrigger.ON_DEAL_DAMAGE,
+	"onTakeDamage": _Reg.AbilityTrigger.ON_TAKE_DAMAGE,
+	"onFaint": _Reg.AbilityTrigger.ON_FAINT,
+	"onAllyFaint": _Reg.AbilityTrigger.ON_ALLY_FAINT,
+	"onFoeFaint": _Reg.AbilityTrigger.ON_FOE_FAINT,
+	"onStatusApplied": _Reg.AbilityTrigger.ON_STATUS_APPLIED,
+	"onStatusInflicted": _Reg.AbilityTrigger.ON_STATUS_INFLICTED,
+	"onStatChange": _Reg.AbilityTrigger.ON_STAT_CHANGE,
+	"onWeatherChange": _Reg.AbilityTrigger.ON_WEATHER_CHANGE,
+	"onTerrainChange": _Reg.AbilityTrigger.ON_TERRAIN_CHANGE,
+	"onHpThreshold": _Reg.AbilityTrigger.ON_HP_THRESHOLD,
+	"continuous": _Reg.AbilityTrigger.CONTINUOUS,
 }
 
 const STACK_LIMIT_MAP: Dictionary = {
-	"unlimited": Registry.StackLimit.UNLIMITED,
-	"oncePerTurn": Registry.StackLimit.ONCE_PER_TURN,
-	"oncePerSwitch": Registry.StackLimit.ONCE_PER_SWITCH,
-	"oncePerBattle": Registry.StackLimit.ONCE_PER_BATTLE,
-	"firstOnly": Registry.StackLimit.FIRST_ONLY,
+	"unlimited": _Reg.StackLimit.UNLIMITED,
+	"oncePerTurn": _Reg.StackLimit.ONCE_PER_TURN,
+	"oncePerSwitch": _Reg.StackLimit.ONCE_PER_SWITCH,
+	"oncePerBattle": _Reg.StackLimit.ONCE_PER_BATTLE,
+	"firstOnly": _Reg.StackLimit.FIRST_ONLY,
 }
 
 const EVOLUTION_TYPE_MAP: Dictionary = {
-	"Standard": Registry.EvolutionType.STANDARD,
-	"Spirit": Registry.EvolutionType.SPIRIT,
-	"Armor": Registry.EvolutionType.ARMOR,
-	"Slide": Registry.EvolutionType.SLIDE,
-	"X-Antibody": Registry.EvolutionType.X_ANTIBODY,
-	"Jogress": Registry.EvolutionType.JOGRESS,
-	"Mode Change": Registry.EvolutionType.MODE_CHANGE,
+	"Standard": _Reg.EvolutionType.STANDARD,
+	"Spirit": _Reg.EvolutionType.SPIRIT,
+	"Armor": _Reg.EvolutionType.ARMOR,
+	"Slide": _Reg.EvolutionType.SLIDE,
+	"X-Antibody": _Reg.EvolutionType.X_ANTIBODY,
+	"Jogress": _Reg.EvolutionType.JOGRESS,
+	"Mode Change": _Reg.EvolutionType.MODE_CHANGE,
 }
 
 const TECHNIQUE_FLAG_MAP: Dictionary = {
-	"contact": Registry.TechniqueFlag.CONTACT,
-	"sound": Registry.TechniqueFlag.SOUND,
-	"punch": Registry.TechniqueFlag.PUNCH,
-	"kick": Registry.TechniqueFlag.KICK,
-	"bite": Registry.TechniqueFlag.BITE,
-	"blade": Registry.TechniqueFlag.BLADE,
-	"beam": Registry.TechniqueFlag.BEAM,
-	"explosive": Registry.TechniqueFlag.EXPLOSIVE,
-	"bullet": Registry.TechniqueFlag.BULLET,
-	"powder": Registry.TechniqueFlag.POWDER,
-	"wind": Registry.TechniqueFlag.WIND,
-	"flying": Registry.TechniqueFlag.FLYING,
-	"groundable": Registry.TechniqueFlag.GROUNDABLE,
-	"defrost": Registry.TechniqueFlag.DEFROST,
-	"reflectable": Registry.TechniqueFlag.REFLECTABLE,
-	"snatchable": Registry.TechniqueFlag.SNATCHABLE,
+	"contact": _Reg.TechniqueFlag.CONTACT,
+	"sound": _Reg.TechniqueFlag.SOUND,
+	"punch": _Reg.TechniqueFlag.PUNCH,
+	"kick": _Reg.TechniqueFlag.KICK,
+	"bite": _Reg.TechniqueFlag.BITE,
+	"blade": _Reg.TechniqueFlag.BLADE,
+	"beam": _Reg.TechniqueFlag.BEAM,
+	"explosive": _Reg.TechniqueFlag.EXPLOSIVE,
+	"bullet": _Reg.TechniqueFlag.BULLET,
+	"powder": _Reg.TechniqueFlag.POWDER,
+	"wind": _Reg.TechniqueFlag.WIND,
+	"flying": _Reg.TechniqueFlag.FLYING,
+	"groundable": _Reg.TechniqueFlag.GROUNDABLE,
+	"defrost": _Reg.TechniqueFlag.DEFROST,
+	"reflectable": _Reg.TechniqueFlag.REFLECTABLE,
+	"snatchable": _Reg.TechniqueFlag.SNATCHABLE,
 }
 
 const ELEMENT_NAME_MAP: Dictionary = {
@@ -127,11 +131,11 @@ func map_technique(dex_data: Dictionary, _validator: RefCounted) -> Resource:
 	# Enum mappings
 	var tech_class: String = _str_or_empty(dex_data.get("class"))
 	technique.technique_class = TECHNIQUE_CLASS_MAP.get(
-		tech_class, Registry.TechniqueClass.PHYSICAL
+		tech_class, _Reg.TechniqueClass.PHYSICAL
 	)
 
 	var targeting_str: String = _str_or_empty(dex_data.get("targeting"))
-	technique.targeting = TARGETING_MAP.get(targeting_str, Registry.Targeting.SINGLE_OTHER)
+	technique.targeting = TARGETING_MAP.get(targeting_str, _Reg.Targeting.SINGLE_OTHER)
 
 	# Element
 	var element: Variant = dex_data.get("element")
@@ -149,10 +153,10 @@ func map_technique(dex_data: Dictionary, _validator: RefCounted) -> Resource:
 
 	technique.energy_cost = int(dex_data.get("energy_cost", 10))
 
-	# Priority: int -> Registry.Priority via DEX_PRIORITY_MAP
+	# Priority: int -> _Reg.Priority via DEX_PRIORITY_MAP
 	var priority_int: int = int(dex_data.get("priority", 0))
-	technique.priority = Registry.DEX_PRIORITY_MAP.get(
-		priority_int, Registry.Priority.NORMAL
+	technique.priority = _Reg.DEX_PRIORITY_MAP.get(
+		priority_int, _Reg.Priority.NORMAL
 	)
 
 	# Bricks — store validated bricks as-is
@@ -180,11 +184,11 @@ func _extract_technique_fields(technique: TechniqueData, bricks: Array) -> void:
 			"flags":
 				var flag_values: Variant = b.get("flags", [])
 				if flag_values is Array:
-					var mapped_flags: Array[Registry.TechniqueFlag] = []
+					var mapped_flags: Array = []
 					for flag: Variant in (flag_values as Array):
 						if flag is String and TECHNIQUE_FLAG_MAP.has(flag as String):
 							mapped_flags.append(TECHNIQUE_FLAG_MAP[flag as String])
-					technique.flags = mapped_flags
+					technique.flags.assign(mapped_flags)
 			"chargeRequirement":
 				if b.has("turnsToCharge"):
 					technique.charge_required = int(b["turnsToCharge"])
@@ -222,13 +226,13 @@ func map_ability(dex_data: Dictionary, _validator: RefCounted) -> Resource:
 	# Trigger
 	var trigger_str: String = _str_or_empty(dex_data.get("trigger"))
 	ability.trigger = ABILITY_TRIGGER_MAP.get(
-		trigger_str, Registry.AbilityTrigger.CONTINUOUS
+		trigger_str, _Reg.AbilityTrigger.CONTINUOUS
 	)
 
 	# Stack limit
 	var stack_str: String = _str_or_empty(dex_data.get("stack_limit"))
 	ability.stack_limit = STACK_LIMIT_MAP.get(
-		stack_str, Registry.StackLimit.UNLIMITED
+		stack_str, _Reg.StackLimit.UNLIMITED
 	)
 
 	# Trigger condition
@@ -258,12 +262,11 @@ func map_digimon(
 	digimon.jp_name = _str_or_empty(dex_data.get("jp_name"))
 	digimon.dub_name = _str_or_empty(dex_data.get("dub_name"))
 	digimon.custom_name = _str_or_empty(dex_data.get("name"))
-	digimon.type_tag = _str_or_empty(dex_data.get("type"))
 	digimon.level = int(dex_data.get("level", 1))
 
 	# Attribute
 	var attr_str: String = _str_or_empty(dex_data.get("attribute"))
-	digimon.attribute = ATTRIBUTE_MAP.get(attr_str, Registry.Attribute.NONE)
+	digimon.attribute = ATTRIBUTE_MAP.get(attr_str, _Reg.Attribute.NONE)
 
 	# Base stats
 	digimon.base_hp = int(dex_data.get("hp", 0))
@@ -329,6 +332,28 @@ func map_digimon(
 				3:
 					digimon.ability_slot_3_key = ability_key
 
+	# Traits
+	var traits_arr: Variant = dex_data.get("traits", [])
+	if traits_arr is Array:
+		for trait_entry: Variant in (traits_arr as Array):
+			if trait_entry is not Dictionary:
+				continue
+			var entry: Dictionary = trait_entry as Dictionary
+			var trait_name: String = _str_or_empty(entry.get("name"))
+			var trait_category: String = _str_or_empty(entry.get("category"))
+			if trait_name.is_empty() or trait_category.is_empty():
+				continue
+			var trait_key: StringName = _trait_to_key(trait_name)
+			match trait_category:
+				"Size":
+					digimon.size_trait = trait_key
+				"Movement":
+					digimon.movement_traits.append(trait_key)
+				"Type":
+					digimon.type_trait = trait_key
+				"Element":
+					digimon.element_traits.append(trait_key)
+
 	return digimon
 
 
@@ -347,7 +372,7 @@ func map_evolution(dex_data: Dictionary) -> Resource:
 	# Evolution type
 	var type_str: String = _str_or_empty(dex_data.get("evolution_type"))
 	evolution.evolution_type = EVOLUTION_TYPE_MAP.get(
-		type_str, Registry.EvolutionType.STANDARD
+		type_str, _Reg.EvolutionType.STANDARD
 	)
 
 	# Requirements (AND logic, stored as-is)
@@ -372,6 +397,10 @@ func map_evolution(dex_data: Dictionary) -> Resource:
 
 
 # --- Utilities ---
+
+func _trait_to_key(trait_name: String) -> StringName:
+	return StringName(trait_name.replace(" ", "_").to_lower())
+
 
 func _str_or_empty(value: Variant) -> String:
 	if value == null:

@@ -8,7 +8,7 @@ const VALID_BRICK_TYPES: Array[String] = [
 	"damage", "damageModifier", "recoil", "statModifier", "statProtection",
 	"statusEffect", "statusInteraction", "healing", "fieldEffect", "sideEffect",
 	"hazard", "positionControl", "turnEconomy", "chargeRequirement", "synergy",
-	"requirement", "conditional", "protection", "priorityOverride", "typeModifier",
+	"requirement", "conditional", "protection", "priorityOverride", "elementModifier",
 	"flags", "criticalHit", "resource", "useRandomTechnique", "transform",
 	"shield", "copyTechnique", "abilityManipulation", "turnOrder",
 ]
@@ -37,6 +37,7 @@ const REQUIRED_FIELDS: Dictionary = {
 	"copyTechnique": ["source"],
 	"abilityManipulation": ["type"],
 	"turnOrder": ["type"],
+	"elementModifier": ["type"],
 }
 
 # Enum validation sets for specific fields.
@@ -101,6 +102,14 @@ const ABILITY_MANIPULATION_TYPES: Array[String] = [
 const TURN_ORDER_TYPES: Array[String] = [
 	"makeTargetMoveNext", "makeTargetMoveLast", "repeatTargetMove",
 ]
+
+const ELEMENT_MODIFIER_TYPES: Array[String] = [
+	"addElement", "removeElement", "replaceElements",
+	"changeTechniqueElement", "matchTargetWeakness",
+	"changeUserResistanceProfile", "changeTargetResistanceProfile",
+]
+
+const VALID_RESISTANCE_VALUES: Array[float] = [0.0, 0.5, 1.0, 1.5, 2.0]
 
 const TECHNIQUE_CLASS_VALUES: Array[String] = [
 	"Physical", "Special", "Status",
@@ -215,6 +224,24 @@ func _validate_single_brick(brick: Dictionary, index: int, errors: Array[String]
 			_validate_enum_field(
 				brick, "type", ABILITY_MANIPULATION_TYPES, index, type_str, errors
 			)
+		"elementModifier":
+			_validate_enum_field(
+				brick, "type", ELEMENT_MODIFIER_TYPES, index, type_str, errors
+			)
+			_validate_optional_enum(
+				brick, "target", BRICK_TARGET_VALUES, index, type_str, errors
+			)
+			if brick.has("value"):
+				var val: Variant = brick["value"]
+				if val is not float and val is not int:
+					errors.append(
+						"Brick %d (elementModifier): 'value' must be a number" % index
+					)
+				elif float(val) not in VALID_RESISTANCE_VALUES:
+					errors.append(
+						"Brick %d (elementModifier): 'value' must be 0.0, 0.5, 1.0, 1.5, or 2.0"
+						% index
+					)
 		"turnOrder":
 			_validate_enum_field(brick, "type", TURN_ORDER_TYPES, index, type_str, errors)
 

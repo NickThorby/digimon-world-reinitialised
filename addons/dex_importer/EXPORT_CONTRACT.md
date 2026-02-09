@@ -1,6 +1,6 @@
 # Export Contract — Dex → Game Data Endpoint
 
-> **Version**: 1
+> **Version**: 2
 > **Purpose**: Defines the JSON shape the game-side importer expects from the dex export endpoint. The dex team implements `GET /export/game` to match this contract exactly.
 
 ---
@@ -17,14 +17,29 @@ Bulk export of the entire game-relevant dataset. No pagination. Single JSON resp
 
 ```jsonc
 {
-  "version": 1,
+  "version": 2,
   "exported_at": "2026-02-08T12:00:00.000Z",
 
   "lookups": {
     "elements": [{ "name": "Null" }, { "name": "Fire" } /* ...all 11 */],
     "attributes": [{ "name": "None" }, { "name": "Vaccine" } /* ...all 7 */],
-    "evolution_types": [{ "name": "Standard" } /* ...all 7 */]
+    "evolution_types": [{ "name": "Standard" } /* ...all 7 */],
+    "trait_categories": [
+      { "name": "Size", "max_traits": 1 },
+      { "name": "Movement", "max_traits": null },
+      { "name": "Type", "max_traits": 1 },
+      { "name": "Element", "max_traits": null }
+    ]
   },
+
+  "traits": [
+    { "name": "Tiny", "category": "Size" },
+    { "name": "Medium", "category": "Size" },
+    { "name": "Dragon", "category": "Type" },
+    { "name": "Fire", "category": "Element" },
+    { "name": "Terrestrial", "category": "Movement" }
+    // ...all traits
+  ],
 
   "techniques": [
     {
@@ -63,13 +78,18 @@ Bulk export of the entire game-relevant dataset. No pagination. Single JSON resp
       "jp_name": "Yukidarumon",
       "dub_name": "Frigimon",
       "name": null,
-      "type": "Icy",
       "level": 4,
       "attribute": "Vaccine",
       "bst": 350,
       "hp": 60, "energy": 40, "attack": 55, "defence": 65,
       "special_attack": 50, "special_defence": 55, "speed": 40,
       "resistances": { "Null": 1.0, "Fire": 0.5 /* ...all 11 */ },
+      "traits": [
+        { "name": "Medium", "category": "Size" },
+        { "name": "Terrestrial", "category": "Movement" },
+        { "name": "Icy", "category": "Type" },
+        { "name": "Ice", "category": "Element" }
+      ],
       "techniques": [
         { "game_id": "ice_blast", "requirements": [{ "type": "innate" }] },
         { "game_id": "sub_zero_ice_punch", "requirements": [{ "type": "level", "value": 15 }] }
@@ -125,6 +145,20 @@ Bulk export of the entire game-relevant dataset. No pagination. Single JSON resp
 - **`version`**: Integer. Importer checks this matches its expected version.
 - **`exported_at`**: ISO 8601 timestamp. Logged by importer, not validated.
 
+### Lookups — Trait Categories
+
+| Field | Type | Notes |
+|---|---|---|
+| `name` | `string` | Category name: `Size`, `Movement`, `Type`, `Element`. |
+| `max_traits` | `int?` | Maximum traits per Digimon in this category. `null` = unlimited. |
+
+### Traits
+
+| Field | Type | Notes |
+|---|---|---|
+| `name` | `string` | Display name (PascalCase or multi-word). |
+| `category` | `string` | Must match a `trait_categories` name. |
+
 ### Techniques
 
 | Field | Type | Notes |
@@ -164,12 +198,12 @@ Bulk export of the entire game-relevant dataset. No pagination. Single JSON resp
 | `jp_name` | `string` | Romanised Japanese. |
 | `dub_name` | `string` | English dub name. |
 | `name` | `string?` | Optional game-specific override. |
-| `type` | `string?` | Descriptive tag (e.g. "Icy", "Dragon"). |
 | `level` | `int` | Evolution level (1-10). |
 | `attribute` | `string` | PascalCase: `None`, `Vaccine`, `Virus`, `Data`, `Free`, `Variable`, `Unknown`. |
 | `bst` | `int` | Base Stat Total. |
 | `hp`..`speed` | `int` | 7 base stat values. |
 | `resistances` | `object` | Element name (PascalCase) → float multiplier. All 11 elements present. |
+| `traits` | `array` | Objects with `name` (string) and `category` (string). See Traits section. |
 | `techniques` | `array` | Objects with `game_id` and `requirements`. |
 | `abilities` | `array` | Objects with `game_id` and `slot` (1-3). |
 
@@ -226,13 +260,14 @@ Nested region → sector → zone hierarchy. May be `null` or have empty `region
 
 The game importer validates:
 
-1. **`version`** must equal `1`
+1. **`version`** must equal `2`
 2. **Techniques**: bricks must pass `BRICK_CONTRACT.md` validation. Empty/invalid bricks → technique discarded.
 3. **Abilities**: Same brick validation. Empty/invalid → discarded.
 4. **Digimon**: Always imported. Technique/ability key references may point to discarded entries (Atlas returns `null`).
 5. **Evolutions**: Always imported.
 6. **Locations**: Skipped if empty/null.
+7. **Traits**: Each `digimon.traits` entry must have both `name` and `category`. Entries missing either field are skipped.
 
 ---
 
-*Last Updated: 2026-02-08*
+*Last Updated: 2026-02-09*
