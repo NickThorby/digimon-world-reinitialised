@@ -18,10 +18,18 @@ enum AdvanceMode {
 	AUTO,
 }
 
+enum WindowScale {
+	SCALE_1X,
+	SCALE_1_25X,
+	SCALE_1_5X,
+	SCALE_2X,
+}
+
 signal display_preference_changed(preference: DisplayPreference)
 signal use_game_names_changed(enabled: bool)
 signal text_speed_changed(speed: TextSpeed)
 signal advance_mode_changed(mode: AdvanceMode)
+signal window_scale_changed(scale: WindowScale)
 
 const _SAVE_PATH: String = "user://settings.cfg"
 const _DISPLAY_SECTION: String = "display"
@@ -34,6 +42,22 @@ const TEXT_SPEED_CPS: Dictionary = {
 	TextSpeed.INSTANT: 0,
 }
 const AUTO_ADVANCE_DELAY: float = 1.2
+
+const _BASE_RESOLUTION := Vector2i(1920, 1080)
+
+const WINDOW_SCALE_VALUES: Dictionary = {
+	WindowScale.SCALE_1X: 1.0,
+	WindowScale.SCALE_1_25X: 1.25,
+	WindowScale.SCALE_1_5X: 1.5,
+	WindowScale.SCALE_2X: 2.0,
+}
+
+const WINDOW_SCALE_LABELS: Dictionary = {
+	WindowScale.SCALE_1X: "1x (1920×1080)",
+	WindowScale.SCALE_1_25X: "1.25x (2400×1350)",
+	WindowScale.SCALE_1_5X: "1.5x (2880×1620)",
+	WindowScale.SCALE_2X: "2x (3840×2160)",
+}
 
 var display_preference: DisplayPreference = DisplayPreference.DUB:
 	set(value):
@@ -67,9 +91,34 @@ var advance_mode: AdvanceMode = AdvanceMode.MANUAL:
 		advance_mode_changed.emit(value)
 		_save()
 
+var window_scale: WindowScale = WindowScale.SCALE_1X:
+	set(value):
+		if window_scale == value:
+			return
+		window_scale = value
+		window_scale_changed.emit(value)
+		_apply_window_scale()
+		_save()
+
 
 func _ready() -> void:
 	_load()
+	_apply_window_scale()
+
+
+func _apply_window_scale() -> void:
+	var factor: float = WINDOW_SCALE_VALUES.get(window_scale, 1.0)
+	var new_size := Vector2i(
+		roundi(_BASE_RESOLUTION.x * factor),
+		roundi(_BASE_RESOLUTION.y * factor)
+	)
+	DisplayServer.window_set_size(new_size)
+	var screen_size := DisplayServer.screen_get_size()
+	var position := Vector2i(
+		maxi((screen_size.x - new_size.x) / 2, 0),
+		maxi((screen_size.y - new_size.y) / 2, 0)
+	)
+	DisplayServer.window_set_position(position)
 
 
 func _load() -> void:
@@ -84,6 +133,9 @@ func _load() -> void:
 	use_game_names = config.get_value(
 		_DISPLAY_SECTION, "use_game_names", true
 	) as bool
+	window_scale = config.get_value(
+		_DISPLAY_SECTION, "window_scale", WindowScale.SCALE_1X
+	) as WindowScale
 	text_speed = config.get_value(
 		_BATTLE_SECTION, "text_speed", TextSpeed.MEDIUM
 	) as TextSpeed
@@ -96,6 +148,7 @@ func _save() -> void:
 	var config := ConfigFile.new()
 	config.set_value(_DISPLAY_SECTION, "display_preference", display_preference)
 	config.set_value(_DISPLAY_SECTION, "use_game_names", use_game_names)
+	config.set_value(_DISPLAY_SECTION, "window_scale", window_scale)
 	config.set_value(_BATTLE_SECTION, "text_speed", text_speed)
 	config.set_value(_BATTLE_SECTION, "advance_mode", advance_mode)
 	config.save(_SAVE_PATH)

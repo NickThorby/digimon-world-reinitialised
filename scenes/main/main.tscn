@@ -52,6 +52,15 @@ layout_mode = 2
 custom_minimum_size = Vector2(300, 50)
 text = "Battle Builder"
 
+[node name="ButtonSpacer" type="Control" parent="CentreContainer/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 12)
+
+[node name="SettingsButton" type="Button" parent="CentreContainer/VBox" unique_name_in_owner=true]
+layout_mode = 2
+custom_minimum_size = Vector2(300, 50)
+text = "Settings"
+
 [node name="Spacer2" type="Control" parent="CentreContainer/VBox"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 20)

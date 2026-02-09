@@ -1,0 +1,154 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/menus/settings_screen.gd" id="1"]
+[ext_resource type="Theme" path="res://ui/theme/game_theme.tres" id="2"]
+
+[node name="SettingsScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme = ExtResource("2")
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.035, 0.035, 0.043, 1)
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="VBox" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+
+[node name="HeaderBar" type="MarginContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="HBox" type="HBoxContainer" parent="MarginContainer/VBox/HeaderBar"]
+layout_mode = 2
+
+[node name="BackButton" type="Button" parent="MarginContainer/VBox/HeaderBar/HBox" unique_name_in_owner=true]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.631, 0.631, 0.667, 1)
+theme_override_colors/font_hover_color = Color(0.133, 0.827, 0.933, 1)
+flat = true
+text = "< Back to Menu"
+
+[node name="Title" type="Label" parent="MarginContainer/VBox/HeaderBar/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.024, 0.714, 0.831, 1)
+theme_override_font_sizes/font_size = 28
+text = "Settings"
+horizontal_alignment = 1
+
+[node name="HeaderSpacer" type="Control" parent="MarginContainer/VBox/HeaderBar/HBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(120, 0)
+
+[node name="CentreContainer" type="CenterContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="SettingsPanel" type="PanelContainer" parent="MarginContainer/VBox/CentreContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(500, 0)
+
+[node name="PanelMargin" type="MarginContainer" parent="MarginContainer/VBox/CentreContainer/SettingsPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="SettingsVBox" type="VBoxContainer" parent="MarginContainer/VBox/CentreContainer/SettingsPanel/PanelMargin"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="DisplayLabel" type="Label" parent="MarginContainer/VBox/CentreContainer/SettingsPanel/PanelMargin/SettingsVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.024, 0.714, 0.831, 1)
+theme_override_font_sizes/font_size = 18
+text = "Display"
+
+[node name="NameStyleRow" type="HBoxContainer" parent="MarginContainer/VBox/CentreContainer/SettingsPanel/PanelMargin/SettingsVBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MarginContainer/VBox/CentreContainer/SettingsPanel/PanelMargin/SettingsVBox/NameStyleRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Name Style"
+
+[node name="NameStyleOption" type="OptionButton" parent="MarginContainer/VBox/CentreContainer/SettingsPanel/PanelMargin/SettingsVBox/NameStyleRow" unique_name_in_owner=true]
+layout_mode = 2
+custom_minimum_size = Vector2(200, 0)
+
+[node name="UseGameNamesRow" type="HBoxContainer" parent="MarginContainer/VBox/CentreContainer/SettingsPanel/PanelMargin/SettingsVBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MarginContainer/VBox/CentreContainer/SettingsPanel/PanelMargin/SettingsVBox/UseGameNamesRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Use Game Names"
+
+[node name="UseGameNamesCheck" type="CheckBox" parent="MarginContainer/VBox/CentreContainer/SettingsPanel/PanelMargin/SettingsVBox/UseGameNamesRow" unique_name_in_owner=true]
+layout_mode = 2
+custom_minimum_size = Vector2(200, 0)
+
+[node name="WindowScaleRow" type="HBoxContainer" parent="MarginContainer/VBox/CentreContainer/SettingsPanel/PanelMargin/SettingsVBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MarginContainer/VBox/CentreContainer/SettingsPanel/PanelMargin/SettingsVBox/WindowScaleRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Window Scale"
+
+[node name="WindowScaleOption" type="OptionButton" parent="MarginContainer/VBox/CentreContainer/SettingsPanel/PanelMargin/SettingsVBox/WindowScaleRow" unique_name_in_owner=true]
+layout_mode = 2
+custom_minimum_size = Vector2(200, 0)
+
+[node name="HSeparator" type="HSeparator" parent="MarginContainer/VBox/CentreContainer/SettingsPanel/PanelMargin/SettingsVBox"]
+layout_mode = 2
+
+[node name="BattleLabel" type="Label" parent="MarginContainer/VBox/CentreContainer/SettingsPanel/PanelMargin/SettingsVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.024, 0.714, 0.831, 1)
+theme_override_font_sizes/font_size = 18
+text = "Battle"
+
+[node name="TextSpeedRow" type="HBoxContainer" parent="MarginContainer/VBox/CentreContainer/SettingsPanel/PanelMargin/SettingsVBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MarginContainer/VBox/CentreContainer/SettingsPanel/PanelMargin/SettingsVBox/TextSpeedRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Text Speed"
+
+[node name="TextSpeedOption" type="OptionButton" parent="MarginContainer/VBox/CentreContainer/SettingsPanel/PanelMargin/SettingsVBox/TextSpeedRow" unique_name_in_owner=true]
+layout_mode = 2
+custom_minimum_size = Vector2(200, 0)
+
+[node name="AdvanceModeRow" type="HBoxContainer" parent="MarginContainer/VBox/CentreContainer/SettingsPanel/PanelMargin/SettingsVBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MarginContainer/VBox/CentreContainer/SettingsPanel/PanelMargin/SettingsVBox/AdvanceModeRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Advance Mode"
+
+[node name="AdvanceModeOption" type="OptionButton" parent="MarginContainer/VBox/CentreContainer/SettingsPanel/PanelMargin/SettingsVBox/AdvanceModeRow" unique_name_in_owner=true]
+layout_mode = 2
+custom_minimum_size = Vector2(200, 0)
+
+[node name="Spacer" type="Control" parent="MarginContainer/VBox"]
+layout_mode = 2
