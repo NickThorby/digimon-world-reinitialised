@@ -104,9 +104,10 @@ func test_battle_ended_signal_with_correct_result() -> void:
 	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
 	target.current_hp = 1
 
-	var received_result: BattleResult = null
+	# Use an Array container so the lambda captures by reference, not by value.
+	var capture: Array = [null]
 	_engine.battle_ended.connect(func(result: BattleResult) -> void:
-		received_result = result
+		capture[0] = result
 	)
 
 	var actions: Array[BattleAction] = [
@@ -115,6 +116,7 @@ func test_battle_ended_signal_with_correct_result() -> void:
 	]
 	_engine.execute_turn(actions)
 
+	var received_result: BattleResult = capture[0] as BattleResult
 	assert_not_null(received_result, "Should receive BattleResult in signal")
 	assert_eq(
 		received_result.outcome, BattleResult.Outcome.WIN,
@@ -163,7 +165,7 @@ func test_no_actions_processed_after_battle_over() -> void:
 
 	# Second turn: try to execute more actions
 	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
-	var initial_hp: int = user.current_hp
+	var _initial_hp: int = user.current_hp
 	var actions_2: Array[BattleAction] = [
 		TestBattleFactory.make_rest_action(0, 0),
 	]

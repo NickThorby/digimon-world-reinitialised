@@ -20,8 +20,11 @@ static func execute_brick(
 			return _execute_status_effect(brick, user, target, battle)
 		"statModifier":
 			return _execute_stat_modifier(brick, user, target, battle)
-		"flags":
-			# Consumed at import time; no runtime execution needed
+		"damageModifier":
+			# Consumed by damage brick handler; standalone execution is a no-op
+			return {"handled": true, "skipped": true}
+		"flags", "criticalHit":
+			# Consumed at import/calc time; no runtime execution needed
 			return {"handled": true}
 		_:
 			push_warning("BrickExecutor: Unimplemented brick type '%s'" % brick_type)
@@ -46,6 +49,9 @@ static func execute_bricks(
 
 
 ## Handle "damage" brick (standard subtype).
+## After base damage calculation, collects damageModifier bricks from the
+## technique and the user's CONTINUOUS ability, evaluates their conditions,
+## and applies passing multipliers/flat bonuses.
 static func _execute_damage(
 	brick: Dictionary,
 	user: BattleDigimonState,
@@ -63,14 +69,30 @@ static func _execute_damage(
 		user, target, technique, battle.rng, crit_bonus,
 	)
 
-	var actual_damage: int = target.apply_damage(damage_result.final_damage)
+	# Pre-compute effectiveness for condition context
+	var effectiveness: StringName = damage_result.effectiveness
+
+	# Collect applicable damageModifier bricks
+	var modifiers: Array[Dictionary] = _collect_damage_modifiers(
+		user, target, technique, battle, effectiveness,
+	)
+
+	# Apply modifiers to final damage
+	var modified_damage: int = damage_result.final_damage
+	for modifier: Dictionary in modifiers:
+		var multiplier: float = float(modifier.get("multiplier", 1.0))
+		var flat_bonus: int = int(modifier.get("flatBonus", 0))
+		modified_damage = int(float(modified_damage) * multiplier) + flat_bonus
+	modified_damage = maxi(modified_damage, 1)
+
+	var actual_damage: int = target.apply_damage(modified_damage)
 	target.counters["times_hit"] = int(target.counters.get("times_hit", 0)) + 1
 
 	return {
 		"handled": true,
 		"damage": actual_damage,
 		"was_critical": damage_result.was_critical,
-		"effectiveness": damage_result.effectiveness,
+		"effectiveness": effectiveness,
 		"raw_damage": damage_result.raw_damage,
 	}
 
@@ -82,6 +104,13 @@ static func _execute_status_effect(
 	target: BattleDigimonState,
 	battle: BattleState,
 ) -> Dictionary:
+	# Per-brick condition check
+	var condition_str: String = brick.get("condition", "")
+	if condition_str != "":
+		var ctx: Dictionary = {"user": user, "target": target, "battle": battle}
+		if not BrickConditionEvaluator.evaluate(condition_str, ctx):
+			return {"handled": true, "condition_failed": true}
+
 	var action: String = brick.get("action", "apply")
 	var status_key: StringName = StringName(brick.get("status", ""))
 	var chance: float = float(brick.get("chance", 100)) / 100.0
@@ -103,8 +132,13 @@ static func _execute_status_effect(
 	if battle.rng.randf() > chance:
 		return {"handled": true, "action": "apply", "missed": true, "status": status_key}
 
-	# Status override rules
-	_apply_status_overrides(actual_target, status_key)
+	# Status override rules (may fully handle the status, e.g. frostbitten upgrade)
+	var override_status: StringName = _apply_status_overrides(actual_target, status_key)
+	if override_status != &"":
+		return {
+			"handled": true, "action": "apply", "applied": true,
+			"status": override_status,
+		}
 
 	var duration: int = brick.get("duration", -1)
 	var extra: Dictionary = {}
@@ -133,6 +167,13 @@ static func _execute_stat_modifier(
 	target: BattleDigimonState,
 	battle: BattleState,
 ) -> Dictionary:
+	# Per-brick condition check
+	var condition_str: String = brick.get("condition", "")
+	if condition_str != "":
+		var ctx: Dictionary = {"user": user, "target": target, "battle": battle}
+		if not BrickConditionEvaluator.evaluate(condition_str, ctx):
+			return {"handled": true, "condition_failed": true}
+
 	var modifier_type: String = brick.get("modifierType", "stage")
 	if modifier_type != "stage":
 		push_warning("BrickExecutor: Unimplemented statModifier type '%s'" % modifier_type)
@@ -186,6 +227,50 @@ static func _execute_stat_modifier(
 	}
 
 
+## Collect all applicable damageModifier bricks from technique and CONTINUOUS
+## abilities. Evaluates each modifier's condition string and returns only those
+## that pass.
+static func _collect_damage_modifiers(
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	technique: TechniqueData,
+	battle: BattleState,
+	effectiveness: StringName,
+) -> Array[Dictionary]:
+	var modifiers: Array[Dictionary] = []
+	var context: Dictionary = {
+		"user": user,
+		"target": target,
+		"technique": technique,
+		"battle": battle,
+		"effectiveness": effectiveness,
+	}
+
+	# 1. Collect from technique's own bricks
+	if technique != null:
+		for tech_brick: Dictionary in technique.bricks:
+			if tech_brick.get("brick", "") == "damageModifier":
+				var cond: String = tech_brick.get("condition", "")
+				if BrickConditionEvaluator.evaluate(cond, context):
+					modifiers.append(tech_brick)
+
+	# 2. Collect from user's CONTINUOUS ability bricks
+	if user != null and user.ability_key != &"" \
+			and not user.has_status(&"nullified"):
+		var ability: AbilityData = Atlas.abilities.get(
+			user.ability_key,
+		) as AbilityData
+		if ability != null \
+				and ability.trigger == Registry.AbilityTrigger.CONTINUOUS:
+			for ability_brick: Dictionary in ability.bricks:
+				if ability_brick.get("brick", "") == "damageModifier":
+					var cond: String = ability_brick.get("condition", "")
+					if BrickConditionEvaluator.evaluate(cond, context):
+						modifiers.append(ability_brick)
+
+	return modifiers
+
+
 ## Extract crit stage bonus from a technique's criticalHit brick (if any).
 static func _extract_crit_bonus(technique: TechniqueData) -> int:
 	if technique == null:
@@ -197,10 +282,12 @@ static func _extract_crit_bonus(technique: TechniqueData) -> int:
 
 
 ## Apply status override rules (Burned removes Frostbitten/Frozen, etc.).
+## Returns the override status key if the status was fully handled (e.g. upgrade),
+## or &"" if normal application should proceed.
 static func _apply_status_overrides(
 	target: BattleDigimonState,
 	new_status: StringName,
-) -> void:
+) -> StringName:
 	match str(new_status).to_lower():
 		"burned":
 			target.remove_status(&"frostbitten")
@@ -211,3 +298,5 @@ static func _apply_status_overrides(
 			if target.has_status(&"frostbitten"):
 				target.remove_status(&"frostbitten")
 				target.add_status(&"frozen")
+				return &"frozen"
+	return &""

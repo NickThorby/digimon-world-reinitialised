@@ -49,6 +49,8 @@ func save_game(slot_name: String) -> bool:
 ## Return to main menu (clears current state).
 func return_to_menu() -> void:
 	state = null
+	if not Engine.has_singleton(&"SceneManager"):
+		return
 	var sm: Node = Engine.get_singleton(&"SceneManager")
 	if sm:
 		sm.change_scene(SCENE_MAIN_MENU)

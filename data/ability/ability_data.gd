@@ -12,8 +12,9 @@ const _Reg = preload("res://autoload/registry.gd")
 @export var trigger: _Reg.AbilityTrigger = _Reg.AbilityTrigger.CONTINUOUS
 @export var stack_limit: _Reg.StackLimit = _Reg.StackLimit.UNLIMITED
 
-## Optional condition for trigger (e.g., {hp_percent: 33, type: "below"}).
-@export var trigger_condition: Dictionary = {}
+## Optional condition string for trigger (e.g., "userHpBelow:33").
+## Uses BrickConditionEvaluator format: "condType:value" with "|" for AND.
+@export var trigger_condition: String = ""
 
 ## Modular effect bricks.
 @export var bricks: Array[Dictionary] = []

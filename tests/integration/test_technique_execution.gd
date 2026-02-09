@@ -46,14 +46,16 @@ func test_special_technique_reduces_hp() -> void:
 func test_status_technique_no_damage() -> void:
 	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
 	var initial_hp: int = target.current_hp
+	# Burn DoT ticks at end of turn (max_hp / 16), so account for it.
+	var expected_dot: int = maxi(target.max_hp / 16, 1)
 	var actions: Array[BattleAction] = [
 		TestBattleFactory.make_technique_action(0, 0, &"test_status_burn", 1, 0),
 		TestBattleFactory.make_rest_action(1, 0),
 	]
 	_engine.execute_turn(actions)
 	assert_eq(
-		target.current_hp, initial_hp,
-		"Status technique should not deal direct damage",
+		target.current_hp, initial_hp - expected_dot,
+		"Status technique should not deal direct damage (only burn DoT at end of turn)",
 	)
 
 

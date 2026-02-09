@@ -521,22 +521,18 @@ func _process_ability_result(
 
 
 ## Check whether an ability's trigger_condition is met.
+## Uses BrickConditionEvaluator for generalised condition string evaluation.
 func _check_trigger_condition(
 	digimon: BattleDigimonState,
-	condition: Dictionary,
-	_context: Dictionary,
+	condition: String,
+	context: Dictionary,
 ) -> bool:
-	if condition.is_empty():
+	if condition == "":
 		return true
-	var cond_type: String = condition.get("type", "")
-	match cond_type:
-		"below":
-			var threshold: float = float(condition.get("hp_percent", 100)) / 100.0
-			return float(digimon.current_hp) / float(maxi(digimon.max_hp, 1)) < threshold
-		"above":
-			var threshold: float = float(condition.get("hp_percent", 0)) / 100.0
-			return float(digimon.current_hp) / float(maxi(digimon.max_hp, 1)) > threshold
-	return true
+	var eval_context: Dictionary = context.duplicate()
+	eval_context["user"] = digimon
+	eval_context["battle"] = _battle
+	return BrickConditionEvaluator.evaluate(condition, eval_context)
 
 
 ## Resolve ability brick targets from brick-level target field.

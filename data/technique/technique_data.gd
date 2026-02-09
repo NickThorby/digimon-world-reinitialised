@@ -34,11 +34,12 @@ const _Settings = preload("res://autoload/settings.gd")
 ## Returns the display name based on player preference settings.
 var display_name: String:
 	get:
-		var settings: Node = Engine.get_singleton(&"Settings")
-		if settings and settings.use_game_names and custom_name != "":
-			return custom_name
-		if settings and settings.display_preference == _Settings.DisplayPreference.JAPANESE:
-			return jp_name
+		if Engine.has_singleton(&"Settings"):
+			var settings: Node = Engine.get_singleton(&"Settings")
+			if settings.use_game_names and custom_name != "":
+				return custom_name
+			if settings.display_preference == _Settings.DisplayPreference.JAPANESE:
+				return jp_name
 		if dub_name != "":
 			return dub_name
 		return jp_name

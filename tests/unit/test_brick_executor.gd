@@ -249,3 +249,199 @@ func test_execute_bricks_processes_all() -> void:
 	)
 	assert_eq(results.size(), 2, "Should return 2 results for 2 bricks")
 	assert_gt(int(results[0].get("damage", 0)), 0, "First brick should deal damage")
+
+
+# --- damageModifier brick (standalone) ---
+
+
+func test_damage_modifier_standalone_returns_skipped() -> void:
+	var brick: Dictionary = {
+		"brick": "damageModifier", "condition": "userHpBelow:50",
+		"multiplier": 1.5,
+	}
+	var result: Dictionary = BrickExecutor.execute_brick(
+		brick, _user, _target, null, _battle,
+	)
+	assert_true(result.get("handled", false), "Should be handled")
+	assert_true(result.get("skipped", false), "Should be skipped")
+
+
+# --- damageModifier via technique ---
+
+
+func test_damage_with_technique_modifier_condition_passes() -> void:
+	# test_first_impact has a damageModifier with condition="targetAtFullHp"
+	var technique: TechniqueData = Atlas.techniques[&"test_first_impact"]
+	var brick: Dictionary = {"brick": "damage", "type": "standard"}
+	# Target at full HP -> modifier should apply (2x)
+	var result_modified: Dictionary = BrickExecutor.execute_brick(
+		brick, _user, _target, technique, _battle,
+	)
+	# Now damage the target and try again with a fresh battle
+	var battle2: BattleState = TestBattleFactory.create_1v1_battle()
+	var user2: BattleDigimonState = battle2.get_digimon_at(0, 0)
+	var target2: BattleDigimonState = battle2.get_digimon_at(1, 0)
+	target2.apply_damage(1)  # No longer at full HP
+	var result_normal: Dictionary = BrickExecutor.execute_brick(
+		brick, user2, target2, technique, battle2,
+	)
+	# Modified damage should be roughly 2x the normal damage
+	var dmg_modified: int = int(result_modified.get("damage", 0))
+	var dmg_normal: int = int(result_normal.get("damage", 0))
+	assert_gt(dmg_modified, dmg_normal, "Modified damage should be greater")
+
+
+func test_damage_with_technique_modifier_condition_fails() -> void:
+	var technique: TechniqueData = Atlas.techniques[&"test_first_impact"]
+	var brick: Dictionary = {"brick": "damage", "type": "standard"}
+	_target.apply_damage(1)  # Not at full HP
+	var result: Dictionary = BrickExecutor.execute_brick(
+		brick, _user, _target, technique, _battle,
+	)
+	assert_gt(int(result.get("damage", 0)), 0, "Should still deal base damage")
+
+
+# --- damageModifier via CONTINUOUS ability ---
+
+
+func test_damage_with_ability_modifier_condition_passes() -> void:
+	# Give user the blaze-like ability and set HP below 50%
+	_user.ability_key = &"test_ability_blaze"
+	_user.current_hp = int(float(_user.max_hp) * 0.3)
+	var technique: TechniqueData = Atlas.techniques[&"test_fire_blast"]
+	var brick: Dictionary = {"brick": "damage", "type": "standard"}
+	var result: Dictionary = BrickExecutor.execute_brick(
+		brick, _user, _target, technique, _battle,
+	)
+	# Create a baseline without the ability
+	var battle2: BattleState = TestBattleFactory.create_1v1_battle()
+	var user2: BattleDigimonState = battle2.get_digimon_at(0, 0)
+	var target2: BattleDigimonState = battle2.get_digimon_at(1, 0)
+	user2.ability_key = &""
+	user2.current_hp = int(float(user2.max_hp) * 0.3)
+	var result_base: Dictionary = BrickExecutor.execute_brick(
+		brick, user2, target2, technique, battle2,
+	)
+	var dmg_boosted: int = int(result.get("damage", 0))
+	var dmg_base: int = int(result_base.get("damage", 0))
+	assert_gt(dmg_boosted, dmg_base, "Blaze should increase fire damage when HP is low")
+
+
+func test_damage_with_ability_modifier_condition_fails() -> void:
+	# Give user blaze but keep HP at full (above 50%)
+	_user.ability_key = &"test_ability_blaze"
+	var technique: TechniqueData = Atlas.techniques[&"test_fire_blast"]
+	var brick: Dictionary = {"brick": "damage", "type": "standard"}
+	var result: Dictionary = BrickExecutor.execute_brick(
+		brick, _user, _target, technique, _battle,
+	)
+	# Baseline without ability
+	var battle2: BattleState = TestBattleFactory.create_1v1_battle()
+	var user2: BattleDigimonState = battle2.get_digimon_at(0, 0)
+	var target2: BattleDigimonState = battle2.get_digimon_at(1, 0)
+	user2.ability_key = &""
+	var result_base: Dictionary = BrickExecutor.execute_brick(
+		brick, user2, target2, technique, battle2,
+	)
+	# Damage should be the same (condition fails, modifier not applied)
+	assert_eq(
+		int(result.get("damage", 0)), int(result_base.get("damage", 0)),
+		"Blaze should not boost when HP is above 50%",
+	)
+
+
+# --- Nullified blocks CONTINUOUS modifiers ---
+
+
+func test_nullified_blocks_ability_damage_modifier() -> void:
+	_user.ability_key = &"test_ability_boost_fire"
+	_user.add_status(&"nullified")
+	var technique: TechniqueData = Atlas.techniques[&"test_fire_blast"]
+	var brick: Dictionary = {"brick": "damage", "type": "standard"}
+	var result: Dictionary = BrickExecutor.execute_brick(
+		brick, _user, _target, technique, _battle,
+	)
+	# Baseline without ability
+	var battle2: BattleState = TestBattleFactory.create_1v1_battle()
+	var user2: BattleDigimonState = battle2.get_digimon_at(0, 0)
+	var target2: BattleDigimonState = battle2.get_digimon_at(1, 0)
+	user2.ability_key = &""
+	var result_base: Dictionary = BrickExecutor.execute_brick(
+		brick, user2, target2, technique, battle2,
+	)
+	assert_eq(
+		int(result.get("damage", 0)), int(result_base.get("damage", 0)),
+		"Nullified should block CONTINUOUS ability modifiers",
+	)
+
+
+# --- Per-brick conditions on statModifier ---
+
+
+func test_stat_modifier_with_condition_passes() -> void:
+	_user.current_hp = int(float(_user.max_hp) * 0.3)
+	var brick: Dictionary = {
+		"brick": "statModifier", "modifierType": "stage",
+		"stats": ["atk"], "stages": 2, "target": "self",
+		"condition": "userHpBelow:50",
+	}
+	var result: Dictionary = BrickExecutor.execute_brick(
+		brick, _user, _target, null, _battle,
+	)
+	assert_true(result.get("handled", false), "Should be handled")
+	assert_false(result.has("condition_failed"), "Condition should pass")
+	assert_eq(_user.stat_stages[&"attack"], 2, "Attack should be boosted")
+
+
+func test_stat_modifier_with_condition_fails() -> void:
+	# HP is full, above 50%
+	var brick: Dictionary = {
+		"brick": "statModifier", "modifierType": "stage",
+		"stats": ["atk"], "stages": 2, "target": "self",
+		"condition": "userHpBelow:50",
+	}
+	var result: Dictionary = BrickExecutor.execute_brick(
+		brick, _user, _target, null, _battle,
+	)
+	assert_true(result.get("handled", false), "Should be handled")
+	assert_true(result.get("condition_failed", false), "Condition should fail")
+	assert_eq(_user.stat_stages[&"attack"], 0, "Attack should be unchanged")
+
+
+# --- Per-brick conditions on statusEffect ---
+
+
+func test_status_effect_with_condition_passes() -> void:
+	_user.current_hp = int(float(_user.max_hp) * 0.3)
+	var brick: Dictionary = {
+		"brick": "statusEffect", "status": "vitalised", "chance": 100,
+		"target": "self", "condition": "userHpBelow:50",
+	}
+	var result: Dictionary = BrickExecutor.execute_brick(
+		brick, _user, _target, null, _battle,
+	)
+	assert_true(result.get("applied", false), "Status should be applied")
+	assert_true(_user.has_status(&"vitalised"), "User should be vitalised")
+
+
+func test_status_effect_with_condition_fails() -> void:
+	var brick: Dictionary = {
+		"brick": "statusEffect", "status": "vitalised", "chance": 100,
+		"target": "self", "condition": "userHpBelow:50",
+	}
+	var result: Dictionary = BrickExecutor.execute_brick(
+		brick, _user, _target, null, _battle,
+	)
+	assert_true(result.get("condition_failed", false), "Condition should fail")
+	assert_false(_user.has_status(&"vitalised"), "User should NOT be vitalised")
+
+
+# --- criticalHit brick ---
+
+
+func test_critical_hit_brick_returns_handled() -> void:
+	var brick: Dictionary = {"brick": "criticalHit", "stages": 1}
+	var result: Dictionary = BrickExecutor.execute_brick(
+		brick, _user, _target, null, _battle,
+	)
+	assert_true(result.get("handled", false), "criticalHit brick should return handled=true")

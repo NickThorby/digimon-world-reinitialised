@@ -233,6 +233,27 @@ static func _inject_techniques() -> void:
 		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
 		[], [{"brick": "damage", "type": "standard"}],
 	)
+	# Technique with damageModifier: 2x on full-HP target
+	Atlas.techniques[&"test_first_impact"] = _make_technique(
+		&"test_first_impact", "Test First Impact",
+		Registry.TechniqueClass.PHYSICAL, &"", 60, 100, 10,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{"brick": "damage", "type": "standard"},
+			{"brick": "damageModifier", "condition": "targetAtFullHp", "multiplier": 2.0},
+		],
+	)
+	# Status technique with conditional stat boost
+	Atlas.techniques[&"test_conditional_boost"] = _make_technique(
+		&"test_conditional_boost", "Test Conditional Boost",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SELF, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "statModifier", "modifierType": "stage",
+			"stats": ["atk"], "stages": 2, "target": "self",
+			"condition": "userHpBelow:50",
+		}],
+	)
 
 
 static func _make_technique(
@@ -306,6 +327,28 @@ static func _inject_abilities() -> void:
 		Registry.StackLimit.ONCE_PER_TURN,
 		[],
 	)
+	# CONTINUOUS damageModifier: 1.5x fire damage when HP < 50%
+	Atlas.abilities[&"test_ability_blaze"] = _make_ability(
+		&"test_ability_blaze", "Test Blaze",
+		Registry.AbilityTrigger.CONTINUOUS,
+		Registry.StackLimit.UNLIMITED,
+		[{
+			"brick": "damageModifier",
+			"condition": "damageTypeIs:fire|userHpBelow:50",
+			"multiplier": 1.5,
+		}],
+	)
+	# CONTINUOUS damageModifier: 1.5x fire damage (no HP condition)
+	Atlas.abilities[&"test_ability_boost_fire"] = _make_ability(
+		&"test_ability_boost_fire", "Test Boost Fire",
+		Registry.AbilityTrigger.CONTINUOUS,
+		Registry.StackLimit.UNLIMITED,
+		[{
+			"brick": "damageModifier",
+			"condition": "damageTypeIs:fire",
+			"multiplier": 1.5,
+		}],
+	)
 
 
 static func _make_ability(
@@ -314,12 +357,14 @@ static func _make_ability(
 	trigger: Registry.AbilityTrigger,
 	stack_limit: Registry.StackLimit,
 	bricks: Array,
+	trigger_condition: String = "",
 ) -> AbilityData:
 	var a := AbilityData.new()
 	a.key = key
 	a.name = ability_name
 	a.trigger = trigger
 	a.stack_limit = stack_limit
+	a.trigger_condition = trigger_condition
 	for brick: Variant in bricks:
 		a.bricks.append(brick as Dictionary)
 	return a

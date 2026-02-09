@@ -250,12 +250,17 @@ func map_ability(dex_data: Dictionary, _validator: RefCounted) -> Resource:
 		stack_str, _Reg.StackLimit.UNLIMITED
 	)
 
-	# Trigger condition
+	# Trigger condition (condition string format: "condType:value|cond2")
 	var condition: Variant = dex_data.get("trigger_condition")
-	if condition != null and condition is Dictionary:
-		ability.trigger_condition = condition as Dictionary
+	if condition is String:
+		ability.trigger_condition = condition
+	elif condition is Dictionary and not (condition as Dictionary).is_empty():
+		# Legacy dict format: convert {type: "below", hp_percent: 50} -> "userHpBelow:50"
+		ability.trigger_condition = _convert_legacy_trigger_condition(
+			condition as Dictionary,
+		)
 	else:
-		ability.trigger_condition = {}
+		ability.trigger_condition = ""
 
 	# Bricks
 	var raw_bricks: Array = dex_data.get("bricks", []) as Array
@@ -442,3 +447,21 @@ func _str_or_empty(value: Variant) -> String:
 	if value is String:
 		return value as String
 	return str(value)
+
+
+## Converts legacy Dictionary trigger_condition to condition string format.
+## Input:  {"type": "below", "hpPercent": 33}  or  {"type": "above", "hpPercent": 50}
+## Output: "userHpBelow:33"  or  "userHpAbove:50"
+static func _convert_legacy_trigger_condition(cond: Dictionary) -> String:
+	var cond_type: String = str(cond.get("type", ""))
+	var hp_percent: Variant = cond.get("hpPercent", cond.get("hp_percent", null))
+
+	if hp_percent != null:
+		match cond_type:
+			"below":
+				return "userHpBelow:%d" % int(hp_percent)
+			"above":
+				return "userHpAbove:%d" % int(hp_percent)
+
+	push_warning("DexMapper: Unknown legacy trigger_condition format: %s" % str(cond))
+	return ""

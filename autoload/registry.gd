@@ -115,17 +115,19 @@ var _evolution_level_dub_labels: Dictionary = {
 
 ## Returns the label for a single evolution level based on display preference.
 func get_evolution_level_label(level: EvolutionLevel) -> String:
-	var settings_node: Node = Engine.get_singleton("Settings")
-	if settings_node and settings_node.display_preference == _SettingsScript.DisplayPreference.JAPANESE:
-		return _evolution_level_jp_labels.get(level, "Unknown")
+	if Engine.has_singleton("Settings"):
+		var settings_node: Node = Engine.get_singleton("Settings")
+		if settings_node.display_preference == _SettingsScript.DisplayPreference.JAPANESE:
+			return _evolution_level_jp_labels.get(level, "Unknown")
 	return _evolution_level_dub_labels.get(level, "Unknown")
 
 ## Returns the full evolution level labels dictionary based on display preference.
 var evolution_level_labels: Dictionary:
 	get:
-		var settings_node: Node = Engine.get_singleton("Settings")
-		if settings_node and settings_node.display_preference == _SettingsScript.DisplayPreference.JAPANESE:
-			return _evolution_level_jp_labels
+		if Engine.has_singleton("Settings"):
+			var settings_node: Node = Engine.get_singleton("Settings")
+			if settings_node.display_preference == _SettingsScript.DisplayPreference.JAPANESE:
+				return _evolution_level_jp_labels
 		return _evolution_level_dub_labels
 
 # --- Techniques ---

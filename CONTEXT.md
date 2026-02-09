@@ -381,6 +381,41 @@ The brick system enables modular effect composition. Each brick is a dictionary 
 | `abilityManipulation`| Copies, swaps, or suppresses abilities           |
 | `turnOrder`          | Manipulates turn order                           |
 
+### Per-Brick Conditions
+
+Individual bricks can have a `condition` field — a condition string that must evaluate to true before the brick executes. Condition format:
+
+- **Single**: `conditionType` or `conditionType:value`
+- **Multiple (AND)**: `cond1|cond2|cond3` — all must pass
+
+Evaluated by `BrickConditionEvaluator` (`scripts/utilities/brick_condition_evaluator.gd`). Supported on `damageModifier`, `statModifier`, and `statusEffect` bricks. Empty string or missing `condition` = always active.
+
+#### Condition Types (30 Tier 1)
+
+| Category | Conditions |
+|----------|-----------|
+| HP thresholds | `userHpBelow:N`, `userHpAbove:N`, `targetHpBelow:N`, `targetHpAbove:N`, `targetAtFullHp` |
+| Status | `userHasStatus:key`, `targetHasStatus:key`, `targetNoStatus:key` |
+| Element/type | `damageTypeIs:elem`, `techniqueIsType:elem`, `targetIsType:elem`, `userIsType:elem` |
+| Field | `weatherIs:key`, `terrainIs:key` |
+| Timing | `isFirstTurn`, `targetNotActed`, `targetActed` |
+| Stats | `userStatHigher:abbr`, `targetStatHigher:abbr` |
+| Energy | `userEpBelow:N`, `userEpAbove:N`, `targetEpBelow:N`, `targetEpAbove:N` |
+| Technique class | `usingTechniqueOfClass:physical\|special\|status` |
+| Turn | `turnIsLessThan:N`, `turnIsMoreThan:N` |
+| Ability | `userHasAbility:key`, `targetHasAbility:key` |
+| Effectiveness | `isSuperEffective`, `isNotVeryEffective` |
+| Last technique | `lastTechniqueWas:key` |
+
+### damageModifier Brick
+
+Not executed standalone — consumed by the `damage` brick handler. After base damage calculation, the damage handler collects `damageModifier` bricks from:
+
+1. The technique's own bricks
+2. The user's CONTINUOUS ability bricks (skipped if user is nullified)
+
+Each modifier's `condition` is evaluated; passing modifiers apply their `multiplier` (default 1.0) and `flatBonus` (default 0). Final damage clamped to minimum 1.
+
 ### Technique Flags (16)
 
 Flags are metadata on techniques that interact with abilities and status effects:
@@ -446,7 +481,7 @@ Only **one ability is active** at a time, stored as `active_ability_slot` on Dig
 | `mechanic_description` | `String`                  | Detailed effect text             |
 | `trigger`              | `Registry.AbilityTrigger` | When the ability activates       |
 | `stack_limit`          | `Registry.StackLimit`     | How often it can trigger         |
-| `trigger_condition`    | `Dictionary`              | Optional condition details       |
+| `trigger_condition`    | `String`                  | Condition string (BrickConditionEvaluator format) |
 | `bricks`               | `Array[Dictionary]`       | Effect definitions (same system) |
 
 ### Trigger Events
@@ -473,6 +508,14 @@ Only **one ability is active** at a time, stored as `active_ability_slot` on Dig
 | `ON_TERRAIN_CHANGE`| When terrain changes                       |
 | `ON_HP_THRESHOLD`  | When HP crosses a threshold                |
 | `CONTINUOUS`       | Always active (passive effect)             |
+
+### CONTINUOUS Abilities
+
+CONTINUOUS abilities are not fired via `_fire_ability_trigger()`. Instead, their `damageModifier` bricks are collected by `BrickExecutor._collect_damage_modifiers()` during damage calculation. Each brick's `condition` string is evaluated against the current context. The nullified status suppresses CONTINUOUS ability effects.
+
+### Trigger Condition Strings
+
+`AbilityData.trigger_condition` is a condition string (same format as per-brick conditions). Evaluated by `BrickConditionEvaluator` in `BattleEngine._check_trigger_condition()`. Empty string = no condition (always triggers).
 
 ### Stack Limits
 

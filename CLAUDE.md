@@ -41,6 +41,7 @@
 - **Registry** holds all enums and constants — access via `Registry.Attribute.VACCINE`, `Registry.STAT_STAGE_MULTIPLIERS`, etc.
 - **tr()** for all user-facing text (translation-ready)
 - **Serialisation**: save source data only (IVs, TVs, level, personality, known techniques); recalculate derived stats on load
+- **Brick conditions**: `condType:value` format, `|` for AND. Evaluated by `BrickConditionEvaluator`
 
 ## Testing
 
