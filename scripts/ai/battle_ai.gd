@@ -82,10 +82,17 @@ func _get_usable_techniques(digimon: BattleDigimonState) -> Array[StringName]:
 		if tech_key == disabled_key:
 			continue
 
+		var tech: TechniqueData = Atlas.techniques.get(tech_key) as TechniqueData
+		if tech == null:
+			continue
+
+		# Skip techniques that would cause overexertion
+		if tech.energy_cost > digimon.current_energy:
+			continue
+
 		# Taunt: can only use damaging techniques
 		if digimon.has_status(&"taunted"):
-			var tech: TechniqueData = Atlas.techniques.get(tech_key) as TechniqueData
-			if tech and tech.technique_class == Registry.TechniqueClass.STATUS:
+			if tech.technique_class == Registry.TechniqueClass.STATUS:
 				continue
 
 		usable.append(tech_key)

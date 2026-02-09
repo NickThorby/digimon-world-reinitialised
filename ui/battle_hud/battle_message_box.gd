@@ -67,6 +67,24 @@ func _unhandled_input(event: InputEvent) -> void:
 				get_viewport().set_input_as_handled()
 
 
+func _gui_input(event: InputEvent) -> void:
+	if event is not InputEventMouseButton:
+		return
+	var mb: InputEventMouseButton = event as InputEventMouseButton
+	if not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
+		return
+
+	match _state:
+		State.REVEALING:
+			_label.visible_characters = _total_characters
+			_enter_waiting()
+			accept_event()
+		State.WAITING:
+			if Settings.advance_mode == Settings.AdvanceMode.MANUAL:
+				_advance()
+				accept_event()
+
+
 ## Display a message with typewriter reveal. Awaitable — resolves when advanced.
 func show_message(text: String) -> void:
 	_label.text = text

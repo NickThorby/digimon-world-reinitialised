@@ -24,6 +24,7 @@ enum BattlePhase {
 @onready var _turn_label: Label = $BattleHUD/TopBar/TurnLabel
 @onready var _near_side: HBoxContainer = $BattleField/NearSide
 @onready var _far_side: HBoxContainer = $BattleField/FarSide
+@onready var _target_back_button: Button = $BattleHUD/TargetBackButton
 
 var _battle: BattleState = null
 var _engine: BattleEngine = BattleEngine.new()
@@ -44,6 +45,19 @@ var _foe_panel_map: Dictionary = {}
 
 # Event queue for async replay
 var _event_queue: Array[Dictionary] = []
+
+# Hover bounce tweens — key "side_slot" -> Tween
+var _hover_tweens: Dictionary = {}
+
+# Active digimon bounce
+var _active_bounce_tween: Tween = null
+var _active_bounce_panel_tween: Tween = null
+var _active_bounce_key: String = ""
+
+# Sprite-based targeting
+var _target_indicators: Array[TargetIndicator] = []
+var _valid_target_map: Dictionary = {}  # "side_slot" -> true
+var _is_targeting: bool = false
 
 
 func _ready() -> void:
@@ -114,6 +128,7 @@ func _connect_ui_signals() -> void:
 	_switch_menu.back_pressed.connect(_on_switch_back)
 	_target_selector.target_chosen.connect(_on_target_chosen)
 	_target_selector.back_pressed.connect(_on_target_back)
+	_target_back_button.pressed.connect(_on_targeting_back)
 	_post_battle_screen.continue_pressed.connect(_on_continue_pressed)
 
 
@@ -122,6 +137,9 @@ func _hide_all_menus() -> void:
 	_technique_menu.visible = false
 	_switch_menu.visible = false
 	_target_selector.visible = false
+	_target_back_button.visible = false
+	if _is_targeting:
+		_exit_targeting_mode()
 
 
 ## --- Phase Management ---
@@ -143,6 +161,8 @@ func _start_input_phase() -> void:
 
 
 func _advance_input() -> void:
+	_stop_active_bounce()
+
 	if _input_queue.is_empty():
 		# All player input collected — get AI actions and execute
 		_collect_ai_actions()
@@ -170,6 +190,8 @@ func _advance_input() -> void:
 	_hide_all_menus()
 	_action_menu.visible = true
 
+	_start_active_bounce(_current_input_side, _current_input_slot)
+
 
 func _collect_ai_actions() -> void:
 	for i: int in _battle.config.side_count:
@@ -183,6 +205,7 @@ func _collect_ai_actions() -> void:
 
 
 func _execute_turn() -> void:
+	_stop_active_bounce()
 	_phase = BattlePhase.EXECUTING
 	_hide_all_menus()
 
@@ -297,11 +320,17 @@ func _replay_events() -> void:
 				pass  # Animation moved to technique_animation event
 
 			&"damage_dealt":
+				var dmg_side: int = int(event["side_index"])
+				var dmg_slot: int = int(event["slot_index"])
+				var hit_ph: Node = _get_battlefield_placeholder(dmg_side, dmg_slot)
+				var hit_dur: float = _anim_hit(hit_ph)
 				_update_panel_from_snapshot(
-					int(event["side_index"]), int(event["slot_index"]),
+					dmg_side, dmg_slot,
 					event.get("snapshot", {}) as Dictionary,
 				)
-				await get_tree().create_timer(0.4).timeout
+				if hit_dur > 0.0:
+					await get_tree().create_timer(hit_dur).timeout
+				await get_tree().create_timer(0.15).timeout
 
 			&"energy_spent":
 				_update_panel_from_snapshot(
@@ -317,11 +346,19 @@ func _replay_events() -> void:
 				await get_tree().create_timer(0.3).timeout
 
 			&"digimon_fainted":
+				var faint_side: int = int(event["side_index"])
+				var faint_slot: int = int(event["slot_index"])
 				_update_panel_from_snapshot(
-					int(event["side_index"]), int(event["slot_index"]),
+					faint_side, faint_slot,
 					event.get("snapshot", {}) as Dictionary,
 				)
 				await get_tree().create_timer(0.5).timeout
+				var faint_ph: Node = _get_battlefield_placeholder(
+					faint_side, faint_slot
+				)
+				var faint_out_dur: float = _anim_switch_out(faint_ph)
+				if faint_out_dur > 0.0:
+					await get_tree().create_timer(faint_out_dur).timeout
 
 			&"digimon_switched":
 				var side_idx: int = int(event["side_index"])
@@ -432,6 +469,27 @@ func _anim_status_tint(placeholder: Node) -> float:
 	return 0.3
 
 
+## Hit: shake horizontally and flash red on the target.
+func _anim_hit(placeholder: Node) -> float:
+	if placeholder is not Control:
+		return 0.0
+	var ctrl: Control = placeholder as Control
+	var origin: Vector2 = ctrl.position
+
+	var tween: Tween = create_tween()
+	# Red flash
+	tween.tween_property(ctrl, "modulate", Color(1.4, 0.3, 0.3), 0.05)
+	# Shake
+	tween.tween_property(ctrl, "position", origin + Vector2(6, 0), 0.04)
+	tween.tween_property(ctrl, "position", origin + Vector2(-6, 0), 0.04)
+	tween.tween_property(ctrl, "position", origin + Vector2(4, 0), 0.04)
+	tween.tween_property(ctrl, "position", origin + Vector2(-4, 0), 0.04)
+	# Reset
+	tween.tween_property(ctrl, "position", origin, 0.04)
+	tween.tween_property(ctrl, "modulate", Color.WHITE, 0.1)
+	return 0.3
+
+
 ## Switch out: shrink sprite to nothing.
 func _anim_switch_out(placeholder: Node) -> float:
 	if placeholder is not Control:
@@ -524,10 +582,25 @@ func _on_technique_chosen(technique_key: StringName) -> void:
 		var user: BattleDigimonState = _battle.get_digimon_at(
 			_current_input_side, _current_input_slot
 		)
-		if user:
-			_target_selector.populate(user, tech.targeting, _battle)
-			_hide_all_menus()
-			_target_selector.visible = true
+		if user == null:
+			return
+
+		var valid_targets: Array[Dictionary] = _target_selector.get_valid_targets(
+			user, tech.targeting, _battle
+		)
+
+		if valid_targets.size() == 0:
+			_message_box.show_prompt("No valid targets!")
+			return
+
+		if valid_targets.size() == 1:
+			_on_target_chosen(
+				int(valid_targets[0]["side"]), int(valid_targets[0]["slot"])
+			)
+			return
+
+		# 2+ targets: enter sprite-based targeting mode
+		_enter_targeting_mode(user, valid_targets)
 	else:
 		# Multi-target or self — no target selection needed
 		var action := BattleAction.new()
@@ -559,6 +632,13 @@ func _on_target_chosen(side_index: int, slot_index: int) -> void:
 
 
 func _on_target_back() -> void:
+	_exit_targeting_mode()
+	_hide_all_menus()
+	_technique_menu.visible = true
+
+
+func _on_targeting_back() -> void:
+	_exit_targeting_mode()
 	_hide_all_menus()
 	_technique_menu.visible = true
 
@@ -792,8 +872,8 @@ func _setup_digimon_panels() -> void:
 func _position_battlefield() -> void:
 	var vp_size: Vector2 = get_viewport_rect().size
 
-	# FarSide: enemy sprites — top-right area
-	_far_side.position = Vector2(vp_size.x * 0.50, vp_size.y * 0.05)
+	# FarSide: enemy sprites — top-right area, below foe panels
+	_far_side.position = Vector2(vp_size.x * 0.50, vp_size.y * 0.18)
 	_far_side.size = Vector2(vp_size.x * 0.35, vp_size.y * 0.25)
 
 	# NearSide: ally sprites — bottom-left area
@@ -812,10 +892,15 @@ func _setup_battlefield_placeholders() -> void:
 	for side: SideState in _battle.sides:
 		var is_ally: bool = _battle.are_allies(0, side.side_index)
 		var container: HBoxContainer = _near_side if is_ally else _far_side
+		var is_multi: bool = side.slots.size() > 1
+
+		if is_multi:
+			container.add_theme_constant_override("separation", 4)
 
 		for slot: SlotState in side.slots:
 			var vbox := VBoxContainer.new()
-			vbox.custom_minimum_size = Vector2(88, 104)
+			var min_w: float = 64.0 if is_multi else 72.0
+			vbox.custom_minimum_size = Vector2(min_w, 72)
 			vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 			# Try sprite first, fall back to ColorRect
@@ -844,16 +929,22 @@ func _setup_battlefield_placeholders() -> void:
 				rect.name = "ColorRect"
 				vbox.add_child(rect)
 
-			var label := Label.new()
-			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			if slot.digimon != null and slot.digimon.data != null:
-				label.text = slot.digimon.data.display_name
-			else:
-				label.text = "(Empty)"
-			label.name = "NameLabel"
-			vbox.add_child(label)
-
 			vbox.name = "Slot_%d_%d" % [side.side_index, slot.slot_index]
+
+			# Mouse input for hover bounce and sprite-based targeting
+			vbox.mouse_filter = Control.MOUSE_FILTER_STOP
+			var si: int = side.side_index
+			var sli: int = slot.slot_index
+			vbox.mouse_entered.connect(
+				_on_sprite_mouse_entered.bind(si, sli)
+			)
+			vbox.mouse_exited.connect(
+				_on_sprite_mouse_exited.bind(si, sli)
+			)
+			vbox.gui_input.connect(
+				_on_sprite_gui_input.bind(si, sli)
+			)
+
 			container.add_child(vbox)
 
 
@@ -909,37 +1000,222 @@ func _update_placeholder(side_index: int, slot_index: int) -> void:
 	if vbox == null:
 		return
 
-	var label: Label = vbox.get_node_or_null("NameLabel") as Label
-	if label == null:
+	var digimon: BattleDigimonState = _battle.get_digimon_at(side_index, slot_index)
+	if digimon == null or digimon.data == null:
 		return
 
-	var digimon: BattleDigimonState = _battle.get_digimon_at(side_index, slot_index)
-	if digimon != null and digimon.data != null:
-		label.text = digimon.data.display_name
+	# Update sprite/colour
+	var old_sprite: Node = vbox.get_node_or_null("SpriteRect")
+	var old_color: Node = vbox.get_node_or_null("ColorRect")
 
-		# Update sprite/colour
-		var old_sprite: Node = vbox.get_node_or_null("SpriteRect")
-		var old_color: Node = vbox.get_node_or_null("ColorRect")
+	var sprite_tex: Texture2D = null
+	if "sprite_texture" in digimon.data:
+		sprite_tex = digimon.data.sprite_texture
 
-		var sprite_tex: Texture2D = null
-		if "sprite_texture" in digimon.data:
-			sprite_tex = digimon.data.sprite_texture
+	if sprite_tex != null:
+		if old_sprite is TextureRect:
+			(old_sprite as TextureRect).texture = sprite_tex
+			(old_sprite as TextureRect).flip_h = not is_ally
+		elif old_color != null:
+			old_color.queue_free()
+			var tex_rect := TextureRect.new()
+			tex_rect.texture = sprite_tex
+			tex_rect.custom_minimum_size = Vector2(64, 64)
+			tex_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			tex_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+			tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			tex_rect.flip_h = not is_ally
+			tex_rect.name = "SpriteRect"
+			vbox.add_child(tex_rect)
+			vbox.move_child(tex_rect, 0)
 
-		if sprite_tex != null:
-			if old_sprite is TextureRect:
-				(old_sprite as TextureRect).texture = sprite_tex
-				(old_sprite as TextureRect).flip_h = not is_ally
-			elif old_color != null:
-				old_color.queue_free()
-				var tex_rect := TextureRect.new()
-				tex_rect.texture = sprite_tex
-				tex_rect.custom_minimum_size = Vector2(64, 64)
-				tex_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
-				tex_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
-				tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-				tex_rect.flip_h = not is_ally
-				tex_rect.name = "SpriteRect"
-				vbox.add_child(tex_rect)
-				vbox.move_child(tex_rect, 0)
-	else:
-		label.text = "(Empty)"
+
+## --- Hover Bounce ---
+
+
+func _get_sprite_child(vbox: Node) -> Control:
+	var sprite: Node = vbox.get_node_or_null("SpriteRect")
+	if sprite is Control:
+		return sprite as Control
+	sprite = vbox.get_node_or_null("ColorRect")
+	if sprite is Control:
+		return sprite as Control
+	return null
+
+
+func _on_sprite_mouse_entered(side_index: int, slot_index: int) -> void:
+	if _phase == BattlePhase.EXECUTING:
+		return
+
+	var key: String = "%d_%d" % [side_index, slot_index]
+
+	# Skip if this is the active digimon (already bouncing)
+	if key == _active_bounce_key:
+		return
+
+	var placeholder: Node = _get_battlefield_placeholder(side_index, slot_index)
+	if placeholder == null:
+		return
+
+	var sprite: Control = _get_sprite_child(placeholder)
+	if sprite == null:
+		return
+
+	# Kill existing hover tween for this slot
+	if _hover_tweens.has(key) and _hover_tweens[key] is Tween:
+		(_hover_tweens[key] as Tween).kill()
+
+	var tween: Tween = create_tween().set_loops()
+	tween.tween_property(sprite, "position:y", -4.0, 0.15) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
+	tween.tween_property(sprite, "position:y", 0.0, 0.15) \
+		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_SINE)
+	_hover_tweens[key] = tween
+
+
+func _on_sprite_mouse_exited(side_index: int, slot_index: int) -> void:
+	var key: String = "%d_%d" % [side_index, slot_index]
+	if _hover_tweens.has(key) and _hover_tweens[key] is Tween:
+		(_hover_tweens[key] as Tween).kill()
+		_hover_tweens.erase(key)
+
+	var placeholder: Node = _get_battlefield_placeholder(side_index, slot_index)
+	if placeholder == null:
+		return
+
+	var sprite: Control = _get_sprite_child(placeholder)
+	if sprite != null:
+		sprite.position.y = 0.0
+
+
+func _on_sprite_gui_input(
+	event: InputEvent, side_index: int, slot_index: int
+) -> void:
+	if not _is_targeting:
+		return
+	if event is not InputEventMouseButton:
+		return
+	var mb: InputEventMouseButton = event as InputEventMouseButton
+	if not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
+		return
+
+	var key: String = "%d_%d" % [side_index, slot_index]
+	if _valid_target_map.has(key):
+		_exit_targeting_mode()
+		_target_selector.select_target(side_index, slot_index)
+
+
+## --- Active Digimon Bounce ---
+
+
+func _start_active_bounce(side_index: int, slot_index: int) -> void:
+	_stop_active_bounce()
+	_active_bounce_key = "%d_%d" % [side_index, slot_index]
+
+	# Bounce the sprite child
+	var placeholder: Node = _get_battlefield_placeholder(side_index, slot_index)
+	if placeholder != null:
+		var sprite: Control = _get_sprite_child(placeholder)
+		if sprite != null:
+			_active_bounce_tween = create_tween().set_loops()
+			_active_bounce_tween.tween_property(
+				sprite, "position:y", -6.0, 0.2
+			).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
+			_active_bounce_tween.tween_property(
+				sprite, "position:y", 0.0, 0.2
+			).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_SINE)
+
+	# Pulse the DigimonPanel scale
+	var panel: DigimonPanel = _get_panel(side_index, slot_index)
+	if panel != null:
+		panel.pivot_offset = panel.size / 2.0
+		_active_bounce_panel_tween = create_tween().set_loops()
+		_active_bounce_panel_tween.tween_property(
+			panel, "scale", Vector2(1.03, 1.03), 0.3
+		).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+		_active_bounce_panel_tween.tween_property(
+			panel, "scale", Vector2.ONE, 0.3
+		).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+
+
+func _stop_active_bounce() -> void:
+	if _active_bounce_tween != null:
+		_active_bounce_tween.kill()
+		_active_bounce_tween = null
+
+	if _active_bounce_panel_tween != null:
+		_active_bounce_panel_tween.kill()
+		_active_bounce_panel_tween = null
+
+	if _active_bounce_key != "":
+		var parts: PackedStringArray = _active_bounce_key.split("_")
+		if parts.size() == 2:
+			var si: int = int(parts[0])
+			var sli: int = int(parts[1])
+
+			var placeholder: Node = _get_battlefield_placeholder(si, sli)
+			if placeholder != null:
+				var sprite: Control = _get_sprite_child(placeholder)
+				if sprite != null:
+					sprite.position.y = 0.0
+
+			var panel: DigimonPanel = _get_panel(si, sli)
+			if panel != null:
+				panel.scale = Vector2.ONE
+
+		_active_bounce_key = ""
+
+
+func _get_panel(side_index: int, slot_index: int) -> DigimonPanel:
+	var key: String = "%d_%d" % [side_index, slot_index]
+	if _ally_panel_map.has(key):
+		return _ally_panel_map[key] as DigimonPanel
+	if _foe_panel_map.has(key):
+		return _foe_panel_map[key] as DigimonPanel
+	return null
+
+
+## --- Sprite-Based Targeting Mode ---
+
+
+func _enter_targeting_mode(
+	user: BattleDigimonState, targets: Array[Dictionary]
+) -> void:
+	_valid_target_map.clear()
+
+	_hide_all_menus()
+	_is_targeting = true
+	_message_box.show_prompt("Select a target...")
+
+	for target: Dictionary in targets:
+		var si: int = int(target["side"])
+		var sli: int = int(target["slot"])
+		var key: String = "%d_%d" % [si, sli]
+		_valid_target_map[key] = true
+
+		var is_foe: bool = _battle.are_foes(user.side_index, si)
+		var indicator_colour: TargetIndicator.IndicatorColour = \
+			TargetIndicator.IndicatorColour.FOE if is_foe else \
+			TargetIndicator.IndicatorColour.ALLY
+
+		var indicator: TargetIndicator = TargetIndicator.create(indicator_colour)
+		var placeholder: Node = _get_battlefield_placeholder(si, sli)
+		if placeholder != null:
+			var sprite: Control = _get_sprite_child(placeholder)
+			if sprite != null:
+				sprite.add_child(indicator)
+				_target_indicators.append(indicator)
+
+	_target_back_button.visible = true
+
+
+func _exit_targeting_mode() -> void:
+	_is_targeting = false
+	_valid_target_map.clear()
+
+	for indicator: TargetIndicator in _target_indicators:
+		if is_instance_valid(indicator):
+			indicator.queue_free()
+	_target_indicators.clear()
+
+	_target_back_button.visible = false

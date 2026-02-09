@@ -1,58 +1,15 @@
 class_name TargetSelector
-extends PanelContainer
-## Highlights valid targets and emits selection for single-target techniques.
+extends Control
+## Non-visual coordinator for target selection.
+## Exposes valid-target logic; the battle scene handles sprite-based UI.
 
 
 signal target_chosen(side_index: int, slot_index: int)
 signal back_pressed
 
-@onready var _target_container: VBoxContainer = $VBox/TargetContainer
-@onready var _back_button: Button = $VBox/BackButton
 
-
-func _ready() -> void:
-	_back_button.pressed.connect(func() -> void: back_pressed.emit())
-
-
-## Populate with valid targets based on targeting type and battle state.
-func populate(
-	user: BattleDigimonState,
-	targeting: Registry.Targeting,
-	battle: BattleState,
-) -> void:
-	for child: Node in _target_container.get_children():
-		child.queue_free()
-
-	var valid_targets: Array[Dictionary] = _get_valid_targets(user, targeting, battle)
-
-	for target_info: Dictionary in valid_targets:
-		var digimon: BattleDigimonState = target_info["digimon"] as BattleDigimonState
-		if digimon == null or digimon.data == null:
-			continue
-
-		var name: String = digimon.data.display_name
-		var side_idx: int = int(target_info["side"])
-		var slot_idx: int = int(target_info["slot"])
-		var is_foe: bool = battle.are_foes(user.side_index, side_idx)
-
-		var button := Button.new()
-		button.text = "%s%s  Lv. %d  HP: %d/%d" % [
-			"[Foe] " if is_foe else "[Ally] ",
-			name,
-			digimon.source_state.level if digimon.source_state else 1,
-			digimon.current_hp,
-			digimon.max_hp,
-		]
-
-		var s: int = side_idx
-		var sl: int = slot_idx
-		button.pressed.connect(
-			func() -> void: target_chosen.emit(s, sl)
-		)
-		_target_container.add_child(button)
-
-
-func _get_valid_targets(
+## Return the list of valid targets for a given user, targeting mode, and battle.
+func get_valid_targets(
 	user: BattleDigimonState,
 	targeting: Registry.Targeting,
 	battle: BattleState,
@@ -84,3 +41,8 @@ func _get_valid_targets(
 				})
 
 	return targets
+
+
+## Called by the battle scene when a sprite target is clicked.
+func select_target(side_index: int, slot_index: int) -> void:
+	target_chosen.emit(side_index, slot_index)

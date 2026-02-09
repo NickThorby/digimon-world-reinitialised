@@ -59,12 +59,21 @@ func execute_turn(actions: Array[BattleAction]) -> void:
 			continue
 
 		# Verify actor is still alive
-		var user: BattleDigimonState = _battle.get_digimon_at(action.user_side, action.user_slot)
+		var user: BattleDigimonState = _battle.get_digimon_at(
+			action.user_side, action.user_slot
+		)
 		if user == null or user.is_fainted:
 			continue
 
+		# Retarget if the chosen target has fainted
+		if action.action_type == BattleAction.ActionType.TECHNIQUE:
+			_retarget_if_fainted(action, user)
+
 		var results: Array[Dictionary] = _resolve_action(action)
 		action_resolved.emit(action, results)
+
+		# Clear fainted slots with no reserve
+		_clear_fainted_no_reserve()
 
 		# Check for faints after each action
 		_check_faints()
@@ -453,6 +462,8 @@ func _end_of_turn() -> void:
 			battle_message.emit("%s fainted!" % _get_digimon_name(digimon))
 			digimon_fainted.emit(digimon.side_index, digimon.slot_index)
 
+	_clear_fainted_no_reserve()
+
 	# 2. Field duration ticks
 	var expired: Dictionary = _battle.field.tick_durations()
 	if expired.get("weather", false):
@@ -551,6 +562,83 @@ func _check_faints() -> void:
 			if slot.digimon != null and slot.digimon.check_faint():
 				# Faint already handled by individual action resolution
 				pass
+
+
+## Retarget a technique action if the original target has fainted.
+## Picks a random valid target based on the technique's targeting type.
+func _retarget_if_fainted(
+	action: BattleAction, user: BattleDigimonState
+) -> void:
+	var target: BattleDigimonState = _battle.get_digimon_at(
+		action.target_side, action.target_slot
+	)
+	if target != null and not target.is_fainted:
+		return  # Target is still alive
+
+	var technique: TechniqueData = Atlas.techniques.get(
+		action.technique_key
+	) as TechniqueData
+	if technique == null:
+		return
+
+	# Only retarget single-target techniques
+	if technique.targeting not in [
+		Registry.Targeting.SINGLE_FOE,
+		Registry.Targeting.SINGLE_TARGET,
+		Registry.Targeting.SINGLE_OTHER,
+		Registry.Targeting.SINGLE_ALLY,
+	]:
+		return
+
+	# Gather valid replacement targets
+	var candidates: Array[BattleDigimonState] = []
+	for side: SideState in _battle.sides:
+		for slot: SlotState in side.slots:
+			if slot.digimon == null or slot.digimon.is_fainted:
+				continue
+			if slot.digimon == user:
+				continue
+
+			match technique.targeting:
+				Registry.Targeting.SINGLE_FOE:
+					if _battle.are_foes(user.side_index, side.side_index):
+						candidates.append(slot.digimon)
+				Registry.Targeting.SINGLE_ALLY:
+					if _battle.are_allies(
+						user.side_index, side.side_index
+					):
+						candidates.append(slot.digimon)
+				Registry.Targeting.SINGLE_OTHER:
+					candidates.append(slot.digimon)
+				Registry.Targeting.SINGLE_TARGET:
+					candidates.append(slot.digimon)
+
+	if candidates.is_empty():
+		return  # No valid targets — technique will fizzle
+
+	var new_target: BattleDigimonState = candidates[
+		_battle.rng.randi() % candidates.size()
+	]
+	action.target_side = new_target.side_index
+	action.target_slot = new_target.slot_index
+
+
+## Clear fainted Digimon from slots when no reserves are available.
+## This removes them from the field entirely in multi-slot battles.
+func _clear_fainted_no_reserve() -> void:
+	for side: SideState in _battle.sides:
+		if side.slots.size() <= 1:
+			continue  # Single-slot sides keep the fainted mon for display
+		var has_reserve: bool = false
+		for digimon: DigimonState in side.party:
+			if digimon.current_hp > 0:
+				has_reserve = true
+				break
+		if has_reserve:
+			continue
+		for slot: SlotState in side.slots:
+			if slot.digimon != null and slot.digimon.is_fainted:
+				slot.digimon = null
 
 
 ## Get display name for a BattleDigimonState.
