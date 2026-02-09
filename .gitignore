@@ -16,6 +16,15 @@ FEATURE.md
 data/digimon/*.tres
 data/technique/*.tres
 data/ability/*.tres
+data/item/general/*.tres
+data/item/capture_scan/*.tres
+data/item/medicine/*.tres
+data/item/performance/*.tres
+data/item/gear/*.tres
+data/item/key/*.tres
+data/item/quest/*.tres
+data/item/card/*.tres
 data/evolution/*.tres
 data/locale/locations.json
 assets/sprites/digimon/*.png
+assets/icons/items/*.png
