@@ -1,0 +1,97 @@
+[gd_scene load_steps=2 format=3 uid="uid://dex_importer_dock"]
+
+[ext_resource type="Script" path="res://addons/dex_importer/dex_importer_dock.gd" id="1_dock"]
+
+[node name="DexImporterDock" type="VBoxContainer"]
+custom_minimum_size = Vector2(250, 0)
+script = ExtResource("1_dock")
+
+[node name="HeaderLabel" type="Label" parent="."]
+text = "Dex Importer"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 16
+
+[node name="SourceSeparator" type="HSeparator" parent="."]
+
+[node name="SourceLabel" type="Label" parent="."]
+text = "Source"
+
+[node name="SourceMode" type="OptionButton" parent="."]
+unique_name_in_owner = true
+item_count = 2
+popup/item_0/text = "API"
+popup/item_1/text = "File"
+
+[node name="ApiUrlContainer" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
+
+[node name="ApiUrl" type="LineEdit" parent="ApiUrlContainer"]
+unique_name_in_owner = true
+size_flags_horizontal = 3
+text = "http://localhost:3000/export/game"
+placeholder_text = "API URL"
+
+[node name="FilePathContainer" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+
+[node name="FilePath" type="LineEdit" parent="FilePathContainer"]
+unique_name_in_owner = true
+size_flags_horizontal = 3
+placeholder_text = "Path to JSON file"
+
+[node name="BrowseButton" type="Button" parent="FilePathContainer"]
+unique_name_in_owner = true
+text = "..."
+custom_minimum_size = Vector2(40, 0)
+
+[node name="OptionsSeparator" type="HSeparator" parent="."]
+
+[node name="OptionsLabel" type="Label" parent="."]
+text = "Import Options"
+
+[node name="ImportDigimon" type="CheckBox" parent="."]
+unique_name_in_owner = true
+button_pressed = true
+text = "Digimon"
+
+[node name="ImportTechniques" type="CheckBox" parent="."]
+unique_name_in_owner = true
+button_pressed = true
+text = "Techniques"
+
+[node name="ImportAbilities" type="CheckBox" parent="."]
+unique_name_in_owner = true
+button_pressed = true
+text = "Abilities"
+
+[node name="ImportEvolutions" type="CheckBox" parent="."]
+unique_name_in_owner = true
+button_pressed = true
+text = "Evolutions"
+
+[node name="ImportLocations" type="CheckBox" parent="."]
+unique_name_in_owner = true
+button_pressed = true
+text = "Locations"
+
+[node name="ActionSeparator" type="HSeparator" parent="."]
+
+[node name="ImportButton" type="Button" parent="."]
+unique_name_in_owner = true
+text = "Import from Dex"
+
+[node name="ProgressBar" type="ProgressBar" parent="."]
+unique_name_in_owner = true
+visible = false
+value = 0.0
+
+[node name="LogLabel" type="Label" parent="."]
+text = "Log"
+
+[node name="LogOutput" type="RichTextLabel" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 200)
+size_flags_vertical = 3
+bbcode_enabled = true
+scroll_following = true

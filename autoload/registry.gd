@@ -630,3 +630,16 @@ const SHIELD_TYPES: Array[StringName] = [
 const SEMI_INVULNERABLE_STATES: Array[StringName] = [
 	&"sky", &"underground", &"underwater", &"shadow", &"intangible",
 ]
+
+## Maps dex priority integers (-4 to 4) to game Priority enum values.
+const DEX_PRIORITY_MAP: Dictionary = {
+	-4: Priority.MINIMUM,
+	-3: Priority.NEGATIVE,
+	-2: Priority.VERY_LOW,
+	-1: Priority.LOW,
+	0: Priority.NORMAL,
+	1: Priority.HIGH,
+	2: Priority.VERY_HIGH,
+	3: Priority.INSTANT,
+	4: Priority.MAXIMUM,
+}

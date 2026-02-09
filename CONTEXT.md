@@ -313,7 +313,7 @@ Mapped from digimon-dex `Attack` table (**"attack" in dex = "technique" in game*
 | `targeting`            | `Registry.Targeting`      | Who can be targeted              |
 | `element_key`          | `StringName`              | Element of this technique        |
 | `power`                | `int`                     | Base power (0 for Status)        |
-| `accuracy`             | `int`                     | Hit chance (100 = always hits)   |
+| `accuracy`             | `int`                     | Hit chance (0 = always hits, bypasses accuracy check) |
 | `energy_cost`          | `int`                     | Energy to use                    |
 | `priority`             | `Registry.Priority`       | Priority tier                    |
 | `flags`                | `Array[TechniqueFlag]`    | Contact, Sound, Beam, etc.       |
@@ -599,6 +599,7 @@ Central enum registry containing all game enums and constants:
 - `CRIT_STAGE_RATES`: Dictionary mapping crit stage (0-3) to crit chance
 - `CRIT_DAMAGE_MULTIPLIER`: float (1.5)
 - `WEATHER_TYPES`, `TERRAIN_TYPES`, `HAZARD_TYPES`, `GLOBAL_EFFECT_TYPES`, `SIDE_EFFECT_TYPES`, `SHIELD_TYPES`, `SEMI_INVULNERABLE_STATES`: Constant arrays of valid battle effect names
+- `DEX_PRIORITY_MAP`: Dictionary mapping dex priority integers (-4 to 4) to `Priority` enum values
 
 Each enum has a corresponding `_labels` dictionary using `tr()` for localisation.
 
