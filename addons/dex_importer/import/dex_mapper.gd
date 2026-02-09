@@ -301,9 +301,8 @@ func map_digimon(
 				)
 		digimon.resistances = mapped_resistances
 
-	# Techniques — all referenced keys included regardless of validity
-	var innate_keys: Array[StringName] = []
-	var learnable_keys: Array[StringName] = []
+	# Techniques — preserve all requirement types
+	var technique_entries: Array[Dictionary] = []
 	var techniques_arr: Variant = dex_data.get("techniques", [])
 	if techniques_arr is Array:
 		for tech_entry: Variant in (techniques_arr as Array):
@@ -313,16 +312,18 @@ func map_digimon(
 			var tech_key: StringName = StringName(entry.get("game_id", ""))
 			if tech_key == &"":
 				continue
-			learnable_keys.append(tech_key)
-			var requirements: Variant = entry.get("requirements", [])
-			if requirements is Array:
-				for req: Variant in (requirements as Array):
-					if req is Dictionary and (req as Dictionary).get("type", "") == "innate":
-						innate_keys.append(tech_key)
-						break
+			var raw_reqs: Variant = entry.get("requirements", [])
+			var typed_reqs: Array[Dictionary] = []
+			if raw_reqs is Array:
+				for req: Variant in (raw_reqs as Array):
+					if req is Dictionary:
+						typed_reqs.append(req as Dictionary)
+			technique_entries.append({
+				"key": tech_key,
+				"requirements": typed_reqs,
+			})
 
-	digimon.innate_technique_keys = innate_keys
-	digimon.learnable_technique_keys = learnable_keys
+	digimon.technique_entries = technique_entries
 
 	# Abilities
 	var abilities_arr: Variant = dex_data.get("abilities", [])

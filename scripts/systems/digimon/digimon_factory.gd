@@ -50,10 +50,11 @@ static func create_digimon(
 		state.personality_key = personality_keys[randi() % personality_keys.size()]
 
 	# Set innate techniques as known and equipped
-	state.known_technique_keys = data.innate_technique_keys.duplicate()
+	var innate_keys: Array[StringName] = data.get_innate_technique_keys()
+	state.known_technique_keys = innate_keys.duplicate()
 	var max_equipped: int = balance.max_equipped_techniques if balance else 4
-	for i: int in mini(data.innate_technique_keys.size(), max_equipped):
-		state.equipped_technique_keys.append(data.innate_technique_keys[i])
+	for i: int in mini(innate_keys.size(), max_equipped):
+		state.equipped_technique_keys.append(innate_keys[i])
 
 	# Calculate initial HP and energy
 	state.current_hp = StatCalculator.calculate_stat(data.base_hp, state.ivs.get(&"hp", 0), 0, level)

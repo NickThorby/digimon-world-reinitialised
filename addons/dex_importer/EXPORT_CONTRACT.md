@@ -92,7 +92,7 @@ Bulk export of the entire game-relevant dataset. No pagination. Single JSON resp
       ],
       "techniques": [
         { "game_id": "ice_blast", "requirements": [{ "type": "innate" }] },
-        { "game_id": "sub_zero_ice_punch", "requirements": [{ "type": "level", "value": 15 }] }
+        { "game_id": "sub_zero_ice_punch", "requirements": [{ "type": "level", "level": 15 }] }
       ],
       "abilities": [
         { "game_id": "ice_body", "slot": 1 },
@@ -212,7 +212,9 @@ Bulk export of the entire game-relevant dataset. No pagination. Single JSON resp
 | Type | Fields | Meaning |
 |---|---|---|
 | `innate` | — | Signature technique, always known. |
-| `level` | `value: int` | Learned at this level. |
+| `level` | `level: int` | Learned at this level. |
+| `tutor` | `text: string` | Learned from a tutor NPC. |
+| `item` | `text: string` | Learned via a consumable item. |
 
 #### Ability Slots
 

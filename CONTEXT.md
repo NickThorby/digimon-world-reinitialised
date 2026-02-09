@@ -71,11 +71,12 @@ Mapped from digimon-dex `Digimon` table:
 | `base_hp` through `base_speed` | `int`              | 7 base stat values                 |
 | `bst`                     | `int`                    | Base Stat Total                    |
 | `resistances`             | `Dictionary`             | Element key -> float multiplier    |
-| `innate_technique_keys`   | `Array[StringName]`      | Signature techniques               |
-| `learnable_technique_keys`| `Array[StringName]`      | All learnable techniques           |
+| `technique_entries`       | `Array[Dictionary]`      | Techniques with learn requirements |
 | `ability_slot_1_key`      | `StringName`             | Standard ability slot 1            |
 | `ability_slot_2_key`      | `StringName`             | Standard ability slot 2            |
 | `ability_slot_3_key`      | `StringName`             | Hidden/secret ability              |
+
+Each `technique_entries` element: `{ "key": StringName, "requirements": Array[Dictionary] }`. Requirement types (OR logic — any met = learnable): `innate` (no fields), `level` (`level: int`), `tutor` (`text: String`), `item` (`text: String`). Helpers: `get_innate_technique_keys()`, `get_technique_keys_at_level(level)`, `get_all_technique_keys()`.
 
 ### DigimonState Runtime
 

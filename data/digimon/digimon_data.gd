@@ -35,15 +35,60 @@ const _Settings = preload("res://autoload/settings.gd")
 ## Element key -> resistance multiplier (0.0 immune, 0.5 resistant, 1.0 neutral, 1.5 weak, 2.0 very weak).
 @export var resistances: Dictionary = {}
 
-## Keys of techniques this Digimon learns innately.
-@export var innate_technique_keys: Array[StringName] = []
-## Keys of all techniques this Digimon can learn.
-@export var learnable_technique_keys: Array[StringName] = []
+## Techniques this Digimon can learn, with requirements (OR logic — any met = learnable).
+## Each entry: { "key": StringName, "requirements": Array[Dictionary] }
+## Requirement types:
+##   { "type": "innate" }
+##   { "type": "level", "level": int }
+##   { "type": "tutor", "text": String }
+##   { "type": "item", "text": String }
+@export var technique_entries: Array[Dictionary] = []
 
 ## Ability slot keys (slot 3 is hidden/secret).
 @export var ability_slot_1_key: StringName = &""
 @export var ability_slot_2_key: StringName = &""
 @export var ability_slot_3_key: StringName = &""
+
+
+## Returns keys of techniques with an "innate" requirement.
+func get_innate_technique_keys() -> Array[StringName]:
+	var keys: Array[StringName] = []
+	for entry: Dictionary in technique_entries:
+		var reqs: Array = entry.get("requirements", []) as Array
+		for req: Variant in reqs:
+			if req is Dictionary and (req as Dictionary).get("type", "") == "innate":
+				keys.append(entry.get("key", &"") as StringName)
+				break
+	return keys
+
+
+## Returns keys of techniques learnable at or below the given level (innate + level requirements).
+func get_technique_keys_at_level(level_threshold: int) -> Array[StringName]:
+	var keys: Array[StringName] = []
+	for entry: Dictionary in technique_entries:
+		var reqs: Array = entry.get("requirements", []) as Array
+		for req: Variant in reqs:
+			if req is not Dictionary:
+				continue
+			var r: Dictionary = req as Dictionary
+			var req_type: String = r.get("type", "") as String
+			if req_type == "innate":
+				keys.append(entry.get("key", &"") as StringName)
+				break
+			if req_type == "level" and int(r.get("level", 0)) <= level_threshold:
+				keys.append(entry.get("key", &"") as StringName)
+				break
+	return keys
+
+
+## Returns all technique keys regardless of requirement type.
+func get_all_technique_keys() -> Array[StringName]:
+	var keys: Array[StringName] = []
+	for entry: Dictionary in technique_entries:
+		var key: StringName = entry.get("key", &"") as StringName
+		if key != &"":
+			keys.append(key)
+	return keys
 
 
 ## Returns the display name based on player preference settings.
