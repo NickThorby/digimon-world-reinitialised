@@ -38,3 +38,8 @@ func set_run_visible(can_run: bool) -> void:
 ## Enable/disable switch button.
 func set_switch_enabled(enabled: bool) -> void:
 	_switch_button.disabled = not enabled
+
+
+## Enable/disable item button.
+func set_item_enabled(enabled: bool) -> void:
+	_item_button.disabled = not enabled

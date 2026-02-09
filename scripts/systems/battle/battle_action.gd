@@ -30,6 +30,7 @@ var switch_to_party_index: int = -1
 var item_key: StringName = &""
 var item_target_side: int = -1
 var item_target_slot: int = -1
+var item_target_party_index: int = -1
 
 ## Resolved priority tier (derived from technique or action type).
 var priority: int = Registry.Priority.NORMAL

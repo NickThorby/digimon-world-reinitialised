@@ -10,6 +10,10 @@ const _Reg = preload("res://autoload/registry.gd")
 @export var category: _Reg.ItemCategory = _Reg.ItemCategory.GENERAL
 @export var is_consumable: bool = false
 @export var is_combat_usable: bool = false
+@export var is_revive: bool = false          ## Targets fainted party member instead of active field Digimon
+@export var buy_price: int = 0
+@export var sell_price: int = 0
+@export var icon_texture: Texture2D = null   ## Item icon (default fallback, dex override)
 
 ## Modular effect bricks (for gear effects, medicine effects, etc.).
 @export var bricks: Array[Dictionary] = []

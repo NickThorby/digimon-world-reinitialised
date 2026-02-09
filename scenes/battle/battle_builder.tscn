@@ -178,9 +178,40 @@ text = "Wild Battle:"
 [node name="WildToggle" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/WildRow" unique_name_in_owner=true]
 layout_mode = 2
 
-[node name="ValidationLabel" type="RichTextLabel" parent="MarginContainer/VBox/HSplit/RightPanel" unique_name_in_owner=true]
+[node name="BagSeparator" type="HSeparator" parent="MarginContainer/VBox/HSplit/RightPanel"]
+layout_mode = 2
+
+[node name="BagSection" type="VBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel"]
 layout_mode = 2
 size_flags_vertical = 3
+
+[node name="BagLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/BagSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Battle Bag"
+
+[node name="BagCategoryRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/BagSection"]
+layout_mode = 2
+
+[node name="BagCategoryLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/BagSection/BagCategoryRow"]
+layout_mode = 2
+text = "Category:"
+
+[node name="BagCategoryOption" type="OptionButton" parent="MarginContainer/VBox/HSplit/RightPanel/BagSection/BagCategoryRow" unique_name_in_owner=true]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BagScroll" type="ScrollContainer" parent="MarginContainer/VBox/HSplit/RightPanel/BagSection"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="BagItemList" type="VBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/BagSection/BagScroll" unique_name_in_owner=true]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="ValidationLabel" type="RichTextLabel" parent="MarginContainer/VBox/HSplit/RightPanel" unique_name_in_owner=true]
+layout_mode = 2
 bbcode_enabled = true
 text = ""
 fit_content = true

@@ -17,6 +17,8 @@ enum BattlePhase {
 @onready var _action_menu: ActionMenu = $BattleHUD/ActionMenu
 @onready var _technique_menu: TechniqueMenu = $BattleHUD/TechniqueMenu
 @onready var _switch_menu: SwitchMenu = $BattleHUD/SwitchMenu
+@onready var _item_menu: ItemMenu = $BattleHUD/ItemMenu
+@onready var _item_target_menu: ItemTargetMenu = $BattleHUD/ItemTargetMenu
 @onready var _target_selector: TargetSelector = $BattleHUD/TargetSelector
 @onready var _message_box: BattleMessageBox = $BattleHUD/BattleMessageBox
 @onready var _post_battle_screen: PostBattleScreen = $BattleHUD/PostBattleScreen
@@ -70,7 +72,9 @@ func _ready() -> void:
 		_get_phase_value, _set_phase_value, _hide_all_menus,
 	)
 	_input_manager.set_hud_refs(
-		_action_menu, _technique_menu, _switch_menu, _target_selector,
+		_action_menu, _technique_menu, _switch_menu,
+		_item_menu, _item_target_menu,
+		_target_selector,
 		_message_box, _target_back_button, _turn_label, _post_battle_screen,
 	)
 	_input_manager.connect_ui_signals()
@@ -111,6 +115,8 @@ func _hide_all_menus() -> void:
 	_action_menu.visible = false
 	_technique_menu.visible = false
 	_switch_menu.visible = false
+	_item_menu.visible = false
+	_item_target_menu.visible = false
 	_target_selector.visible = false
 	_target_back_button.visible = false
 	if _display.is_targeting():

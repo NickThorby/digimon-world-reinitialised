@@ -19,10 +19,14 @@ const TEAM_SAVE_POPUP_SCENE := preload("res://ui/components/team_save_popup.tscn
 @onready var _load_team_button: Button = $MarginContainer/VBox/HSplit/LeftPanel/TeamButtonRow/LoadTeamButton
 @onready var _validation_label: RichTextLabel = $MarginContainer/VBox/HSplit/RightPanel/ValidationLabel
 @onready var _side_label: Label = $MarginContainer/VBox/HSplit/RightPanel/SideLabel
+@onready var _bag_category_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/BagSection/BagCategoryRow/BagCategoryOption
+@onready var _bag_item_list: VBoxContainer = $MarginContainer/VBox/HSplit/RightPanel/BagSection/BagScroll/BagItemList
 
 var _config: BattleConfig = BattleConfig.new()
 var _current_side: int = 0
 var _editing_index: int = -1
+var _builder_bag: BagState = BagState.new()
+var _bag_category_filter: int = -1  ## -1 = All
 
 
 func _ready() -> void:
@@ -54,6 +58,8 @@ func _restore_from_picker() -> void:
 	if ctx.has("config"):
 		_config = ctx["config"] as BattleConfig
 	_current_side = int(ctx.get("side", 0))
+	if ctx.has("bag"):
+		_builder_bag = ctx["bag"] as BagState
 
 	# If user cancelled (null result), just restore state without adding
 	if result == null or result is not DigimonState:
@@ -111,6 +117,8 @@ func _connect_signals() -> void:
 	_back_button.pressed.connect(_on_back)
 	_save_team_button.pressed.connect(_on_save_team)
 	_load_team_button.pressed.connect(_on_load_team)
+	_bag_category_option.item_selected.connect(_on_bag_category_selected)
+	_setup_bag_category_options()
 
 
 func _on_format_selected(index: int) -> void:
@@ -161,6 +169,15 @@ func _on_launch() -> void:
 	if errors.size() > 0:
 		_show_validation_errors(errors)
 		return
+
+	# Inject bag into all player-controlled sides
+	if not _builder_bag.is_empty():
+		for i: int in _config.side_configs.size():
+			var controller: int = int(
+				_config.side_configs[i].get("controller", 0)
+			)
+			if controller == BattleConfig.ControllerType.PLAYER:
+				_config.side_configs[i]["bag"] = _builder_bag
 
 	Game.battle_config = _config
 	SceneManager.change_scene(BATTLE_SCENE_PATH)
@@ -230,6 +247,7 @@ func _navigate_to_picker(existing: DigimonState = null) -> void:
 		"editing_index": _editing_index,
 		"existing_state": existing,
 		"config": _config,
+		"bag": _builder_bag,
 	}
 	Game.picker_result = null
 	SceneManager.change_scene(PICKER_SCENE_PATH)
@@ -322,3 +340,105 @@ func _show_validation_message(msg: String) -> void:
 
 func _clear_validation() -> void:
 	_validation_label.text = ""
+
+
+func _setup_bag_category_options() -> void:
+	_bag_category_option.clear()
+	_bag_category_option.add_item("All")
+	_bag_category_option.add_item("Medicine")
+	_bag_category_option.add_item("Gear")
+	_bag_category_option.add_item("Capture/Scan")
+	_bag_category_option.add_item("General")
+	_bag_category_option.add_item("Performance")
+	_bag_category_option.selected = 0
+	_update_bag_display()
+
+
+func _on_bag_category_selected(index: int) -> void:
+	_bag_category_filter = index - 1  ## 0=All(-1), 1=Medicine(2), 2=Gear(4), etc.
+	_update_bag_display()
+
+
+func _get_bag_filter_category() -> int:
+	## Maps dropdown index to Registry.ItemCategory. Returns -1 for "All".
+	match _bag_category_filter:
+		0: return Registry.ItemCategory.MEDICINE
+		1: return Registry.ItemCategory.GEAR
+		2: return Registry.ItemCategory.CAPTURE_SCAN
+		3: return Registry.ItemCategory.GENERAL
+		4: return Registry.ItemCategory.PERFORMANCE
+		_: return -1
+
+
+func _update_bag_display() -> void:
+	for child: Node in _bag_item_list.get_children():
+		child.queue_free()
+
+	var filter: int = _get_bag_filter_category()
+	var shown_items: Array[ItemData] = []
+
+	for key: StringName in Atlas.items:
+		var item: ItemData = Atlas.items[key] as ItemData
+		if item == null:
+			continue
+		if filter >= 0 and item.category != filter:
+			continue
+		shown_items.append(item)
+
+	shown_items.sort_custom(
+		func(a: ItemData, b: ItemData) -> bool: return a.name < b.name
+	)
+
+	if shown_items.is_empty():
+		var label := Label.new()
+		label.text = "No items available."
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.add_theme_color_override("font_color", Color(0.631, 0.631, 0.667))
+		_bag_item_list.add_child(label)
+		return
+
+	for item: ItemData in shown_items:
+		var row := _create_bag_item_row(item)
+		_bag_item_list.add_child(row)
+
+
+func _create_bag_item_row(item: ItemData) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var name_label := Label.new()
+	name_label.text = item.name
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_label.clip_text = true
+	row.add_child(name_label)
+
+	var quantity: int = _builder_bag.get_quantity(item.key)
+
+	var minus_button := Button.new()
+	minus_button.text = "-"
+	minus_button.custom_minimum_size = Vector2(30, 0)
+	minus_button.disabled = quantity <= 0
+	row.add_child(minus_button)
+
+	var qty_label := Label.new()
+	qty_label.text = str(quantity)
+	qty_label.custom_minimum_size = Vector2(30, 0)
+	qty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	row.add_child(qty_label)
+
+	var plus_button := Button.new()
+	plus_button.text = "+"
+	plus_button.custom_minimum_size = Vector2(30, 0)
+	row.add_child(plus_button)
+
+	var item_key: StringName = item.key
+	minus_button.pressed.connect(func() -> void:
+		_builder_bag.remove_item(item_key)
+		_update_bag_display()
+	)
+	plus_button.pressed.connect(func() -> void:
+		_builder_bag.add_item(item_key)
+		_update_bag_display()
+	)
+
+	return row

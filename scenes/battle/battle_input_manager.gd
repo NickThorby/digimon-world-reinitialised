@@ -16,6 +16,8 @@ var _event_replay: BattleEventReplay = null
 var _action_menu: ActionMenu = null
 var _technique_menu: TechniqueMenu = null
 var _switch_menu: SwitchMenu = null
+var _item_menu: ItemMenu = null
+var _item_target_menu: ItemTargetMenu = null
 var _target_selector: TargetSelector = null
 var _message_box: BattleMessageBox = null
 var _target_back_button: Button = null
@@ -29,6 +31,7 @@ var _current_input_slot: int = -1
 var _player_sides: Array[int] = []
 var _input_queue: Array[Dictionary] = []
 var _selected_technique_key: StringName = &""
+var _selected_item_key: StringName = &""
 
 var _phase_ref: Callable = Callable()
 var _set_phase: Callable = Callable()
@@ -61,6 +64,8 @@ func set_hud_refs(
 	action_menu: ActionMenu,
 	technique_menu: TechniqueMenu,
 	switch_menu: SwitchMenu,
+	item_menu: ItemMenu,
+	item_target_menu: ItemTargetMenu,
 	target_selector: TargetSelector,
 	message_box: BattleMessageBox,
 	target_back_button: Button,
@@ -70,6 +75,8 @@ func set_hud_refs(
 	_action_menu = action_menu
 	_technique_menu = technique_menu
 	_switch_menu = switch_menu
+	_item_menu = item_menu
+	_item_target_menu = item_target_menu
 	_target_selector = target_selector
 	_message_box = message_box
 	_target_back_button = target_back_button
@@ -83,6 +90,10 @@ func connect_ui_signals() -> void:
 	_technique_menu.back_pressed.connect(_on_technique_back)
 	_switch_menu.switch_chosen.connect(_on_switch_chosen)
 	_switch_menu.back_pressed.connect(_on_switch_back)
+	_item_menu.item_chosen.connect(_on_item_chosen)
+	_item_menu.back_pressed.connect(_on_item_back)
+	_item_target_menu.target_chosen.connect(_on_item_target_chosen)
+	_item_target_menu.back_pressed.connect(_on_item_target_back)
 	_target_selector.target_chosen.connect(_on_target_chosen)
 	_target_selector.back_pressed.connect(_on_target_back)
 	_target_back_button.pressed.connect(_on_targeting_back)
@@ -132,6 +143,7 @@ func _advance_input() -> void:
 
 	var side: SideState = _battle.sides[_current_input_side]
 	_action_menu.set_switch_enabled(side.party.size() > 0)
+	_action_menu.set_item_enabled(side.bag != null and not side.bag.is_empty())
 
 	_hide_all_menus.call()
 	_action_menu.visible = true
@@ -294,7 +306,13 @@ func _on_action_chosen(action_type: BattleAction.ActionType) -> void:
 			_advance_input()
 
 		BattleAction.ActionType.ITEM:
-			_message_box.show_prompt("Items are not yet available.")
+			var side: SideState = _battle.sides[_current_input_side]
+			if side.bag == null or side.bag.is_empty():
+				_message_box.show_prompt("No items available.")
+				return
+			_item_menu.populate(side.bag)
+			_hide_all_menus.call()
+			_item_menu.visible = true
 
 
 func _on_technique_chosen(technique_key: StringName) -> void:
@@ -435,3 +453,118 @@ func _on_switch_back() -> void:
 		return
 	_hide_all_menus.call()
 	_action_menu.visible = true
+
+
+func _on_item_chosen(item_key: StringName) -> void:
+	_selected_item_key = item_key
+	var item: ItemData = Atlas.items.get(item_key) as ItemData
+	if item == null:
+		return
+
+	match item.category:
+		Registry.ItemCategory.MEDICINE:
+			# Show party target menu
+			var side: SideState = _battle.sides[_current_input_side]
+			var roster: Array[Dictionary] = _build_roster(side)
+			_item_target_menu.populate(roster, item.is_revive)
+			_hide_all_menus.call()
+			_item_target_menu.visible = true
+
+		Registry.ItemCategory.CAPTURE_SCAN:
+			# Foe target selection via field sprites
+			var user: BattleDigimonState = _battle.get_digimon_at(
+				_current_input_side, _current_input_slot,
+			)
+			if user == null:
+				return
+			var valid_targets: Array[Dictionary] = \
+				_target_selector.get_valid_targets(
+					user, Registry.Targeting.SINGLE_FOE, _battle,
+				)
+			if valid_targets.size() == 1:
+				_on_item_foe_chosen(
+					int(valid_targets[0]["side"]),
+					int(valid_targets[0]["slot"]),
+				)
+				return
+			_hide_all_menus.call()
+			_display.enter_targeting_mode(
+				user, valid_targets,
+				func(si: int, sli: int) -> void:
+					_on_item_foe_chosen(si, sli),
+				_target_back_button,
+				_message_box,
+			)
+
+		_:
+			# Use immediately, no target needed
+			var action := BattleAction.new()
+			action.action_type = BattleAction.ActionType.ITEM
+			action.user_side = _current_input_side
+			action.user_slot = _current_input_slot
+			action.item_key = item_key
+			_pending_actions.append(action)
+			_advance_input()
+
+
+func _on_item_back() -> void:
+	_hide_all_menus.call()
+	_action_menu.visible = true
+
+
+func _on_item_target_chosen(party_index: int) -> void:
+	var action := BattleAction.new()
+	action.action_type = BattleAction.ActionType.ITEM
+	action.user_side = _current_input_side
+	action.user_slot = _current_input_slot
+	action.item_key = _selected_item_key
+	action.item_target_party_index = party_index
+	_pending_actions.append(action)
+	_advance_input()
+
+
+func _on_item_target_back() -> void:
+	_hide_all_menus.call()
+	_item_menu.visible = true
+
+
+func _on_item_foe_chosen(side_index: int, slot_index: int) -> void:
+	_display.exit_targeting_mode()
+	var action := BattleAction.new()
+	action.action_type = BattleAction.ActionType.ITEM
+	action.user_side = _current_input_side
+	action.user_slot = _current_input_slot
+	action.item_key = _selected_item_key
+	action.item_target_side = side_index
+	action.item_target_slot = slot_index
+	_pending_actions.append(action)
+	_advance_input()
+
+
+## Build the full roster for the current side (mirrors BattleEngine._get_full_roster).
+func _build_roster(side: SideState) -> Array[Dictionary]:
+	var roster: Array[Dictionary] = []
+	for slot: SlotState in side.slots:
+		if slot.digimon != null:
+			var digimon_name: String = slot.digimon.data.display_name \
+				if slot.digimon.data else "???"
+			if slot.digimon.source_state != null \
+					and slot.digimon.source_state.nickname != "":
+				digimon_name = slot.digimon.source_state.nickname
+			roster.append({
+				"is_active": true,
+				"battle_digimon": slot.digimon,
+				"digimon_state": slot.digimon.source_state,
+				"name": digimon_name,
+			})
+	for reserve: DigimonState in side.party:
+		var data: DigimonData = Atlas.digimon.get(reserve.key) as DigimonData
+		var digimon_name: String = data.display_name if data else str(reserve.key)
+		if reserve.nickname != "":
+			digimon_name = reserve.nickname
+		roster.append({
+			"is_active": false,
+			"digimon_state": reserve,
+			"name": digimon_name,
+		})
+	return roster

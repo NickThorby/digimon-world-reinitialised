@@ -111,11 +111,15 @@ func to_dict() -> Dictionary:
 		for digimon: Variant in cfg.get("party", []):
 			if digimon is DigimonState:
 				party_data.append((digimon as DigimonState).to_dict())
-		configs_data.append({
+		var cfg_dict: Dictionary = {
 			"controller": cfg.get("controller", ControllerType.PLAYER),
 			"party": party_data,
 			"is_wild": cfg.get("is_wild", false),
-		})
+		}
+		var bag: Variant = cfg.get("bag")
+		if bag is BagState:
+			cfg_dict["bag"] = (bag as BagState).to_dict()
+		configs_data.append(cfg_dict)
 
 	return {
 		"format_preset": format_preset,
@@ -142,11 +146,15 @@ static func from_dict(data: Dictionary) -> BattleConfig:
 		var party: Array[DigimonState] = []
 		for digimon_data: Dictionary in cfg_data.get("party", []):
 			party.append(DigimonState.from_dict(digimon_data))
-		config.side_configs.append({
+		var side_cfg: Dictionary = {
 			"controller": cfg_data.get("controller", ControllerType.PLAYER) as ControllerType,
 			"party": party,
 			"is_wild": cfg_data.get("is_wild", false),
-		})
+		}
+		var bag_data: Variant = cfg_data.get("bag")
+		if bag_data is Dictionary and not (bag_data as Dictionary).is_empty():
+			side_cfg["bag"] = BagState.from_dict(bag_data as Dictionary)
+		config.side_configs.append(side_cfg)
 
 	return config
 

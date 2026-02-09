@@ -128,10 +128,18 @@ static func evaluate_single(
 		"lastTechniqueWas":
 			return _check_last_technique(_get_user(context), cond_value)
 
+		# --- Item conditions ---
+		"userHasItem":
+			return _check_has_item(_get_user(context), cond_value)
+		"userHasNoItem":
+			return not _check_has_item(_get_user(context), cond_value)
+		"targetHasItem":
+			return _check_has_item(_get_target(context), cond_value)
+		"targetHasNoItem":
+			return not _check_has_item(_get_target(context), cond_value)
+
 		# --- Tier 2 stubs (return false until systems exist) ---
 		"hasNoEffect", "isDoubleEffective", \
-		"userHasItem", "userHasNoItem", \
-		"targetHasItem", "targetHasNoItem", \
 		"targetGenderIs", "sameGender", "oppositeGender", \
 		"allyHasAbility":
 			return false
@@ -391,3 +399,15 @@ static func _check_last_technique(
 		"last_technique_key", &"",
 	) as StringName
 	return str(last_key) == technique_key_str
+
+
+# --- Item conditions ---
+
+
+static func _check_has_item(
+	digimon: BattleDigimonState, item_key_str: String,
+) -> bool:
+	if digimon == null:
+		return false
+	var key: StringName = StringName(item_key_str)
+	return digimon.equipped_gear_key == key or digimon.equipped_consumable_key == key

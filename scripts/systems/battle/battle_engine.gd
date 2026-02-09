@@ -50,8 +50,9 @@ func execute_turn(actions: Array[BattleAction]) -> void:
 			digimon.volatiles.get("turns_on_field", 0)
 		) + 1
 
-	# Fire ON_TURN_START abilities
+	# Fire ON_TURN_START abilities and gear
 	_fire_ability_trigger(Registry.AbilityTrigger.ON_TURN_START)
+	_fire_gear_trigger(Registry.AbilityTrigger.ON_TURN_START)
 
 	# Sort actions
 	var sorted: Array[BattleAction] = ActionSorter.sort_actions(actions, _battle)
@@ -190,8 +191,11 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 		user.spend_energy(energy_cost)
 		energy_spent.emit(user.side_index, user.slot_index, energy_cost)
 
-	# Fire ON_BEFORE_TECHNIQUE abilities
+	# Fire ON_BEFORE_TECHNIQUE abilities and gear
 	_fire_ability_trigger(Registry.AbilityTrigger.ON_BEFORE_TECHNIQUE, {
+		"subject": user, "technique": technique,
+	})
+	_fire_gear_trigger(Registry.AbilityTrigger.ON_BEFORE_TECHNIQUE, {
 		"subject": user, "technique": technique,
 	})
 
@@ -291,21 +295,37 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 
 		all_results.append_array(brick_results)
 
-		# Fire damage-related ability triggers
+		# Fire damage-related ability and gear triggers
 		if dealt_damage:
 			_fire_ability_trigger(Registry.AbilityTrigger.ON_DEAL_DAMAGE, {
 				"subject": user, "target": target, "technique": technique,
 			})
+			_fire_gear_trigger(Registry.AbilityTrigger.ON_DEAL_DAMAGE, {
+				"subject": user, "target": target, "technique": technique,
+			})
 			_fire_ability_trigger(Registry.AbilityTrigger.ON_TAKE_DAMAGE, {
 				"subject": target, "attacker": user, "technique": technique,
+			})
+			_fire_gear_trigger(Registry.AbilityTrigger.ON_TAKE_DAMAGE, {
+				"subject": target, "attacker": user, "technique": technique,
+			})
+			# HP threshold check after taking damage
+			_fire_ability_trigger(Registry.AbilityTrigger.ON_HP_THRESHOLD, {
+				"subject": target,
+			})
+			_fire_gear_trigger(Registry.AbilityTrigger.ON_HP_THRESHOLD, {
+				"subject": target,
 			})
 
 		# Check target faint
 		if target.check_faint():
 			_handle_faint(target, user)
 
-	# Fire ON_AFTER_TECHNIQUE abilities
+	# Fire ON_AFTER_TECHNIQUE abilities and gear
 	_fire_ability_trigger(Registry.AbilityTrigger.ON_AFTER_TECHNIQUE, {
+		"subject": user, "technique": technique,
+	})
+	_fire_gear_trigger(Registry.AbilityTrigger.ON_AFTER_TECHNIQUE, {
 		"subject": user, "technique": technique,
 	})
 
@@ -355,8 +375,11 @@ func _resolve_switch(action: BattleAction) -> Array[Dictionary]:
 	battle_message.emit("%s switched out for %s!" % [name_out, name_in])
 	digimon_switched.emit(action.user_side, action.user_slot, new_battle_mon)
 
-	# Fire ON_ENTRY abilities for the incoming Digimon
+	# Fire ON_ENTRY abilities and gear for the incoming Digimon
 	_fire_ability_trigger(
+		Registry.AbilityTrigger.ON_ENTRY, {"subject": new_battle_mon},
+	)
+	_fire_gear_trigger(
 		Registry.AbilityTrigger.ON_ENTRY, {"subject": new_battle_mon},
 	)
 
@@ -410,16 +433,278 @@ func _resolve_run(action: BattleAction) -> Array[Dictionary]:
 	return [{"fled": true}]
 
 
-## Resolve an item action (placeholder for future).
-func _resolve_item(_action: BattleAction) -> Array[Dictionary]:
-	battle_message.emit("Items are not yet implemented.")
-	return [{"handled": false}]
+## Resolve an item action.
+func _resolve_item(action: BattleAction) -> Array[Dictionary]:
+	var side: SideState = _battle.sides[action.user_side]
+	var user: BattleDigimonState = _battle.get_digimon_at(
+		action.user_side, action.user_slot,
+	)
+	if user == null:
+		return []
+
+	# Validate item exists in bag
+	if side.bag == null or not side.bag.has_item(action.item_key):
+		battle_message.emit("No item to use!")
+		return [{"handled": false, "reason": "no_item"}]
+
+	var item: ItemData = Atlas.items.get(action.item_key) as ItemData
+	if item == null:
+		battle_message.emit("Unknown item!")
+		return [{"handled": false, "reason": "unknown_item"}]
+
+	# Consume from bag
+	side.bag.remove_item(action.item_key)
+
+	# Route by category
+	match item.category:
+		Registry.ItemCategory.MEDICINE:
+			return _resolve_medicine(action, item, side, user)
+		Registry.ItemCategory.CAPTURE_SCAN:
+			return _resolve_capture_item(action, item)
+		_:
+			battle_message.emit(
+				"%s used %s!" % [_get_digimon_name(user), item.name],
+			)
+			return [{"handled": true, "item_used": action.item_key}]
 
 
-## Fire ON_ENTRY abilities for all starting Digimon.
+## Resolve a medicine item targeting a party member.
+func _resolve_medicine(
+	action: BattleAction,
+	item: ItemData,
+	side: SideState,
+	user: BattleDigimonState,
+) -> Array[Dictionary]:
+	battle_message.emit(
+		"%s used %s!" % [_get_digimon_name(user), item.name],
+	)
+
+	# Build full roster: active slot Digimon + party reserves
+	var roster: Array[Dictionary] = _get_full_roster(side)
+	var party_idx: int = action.item_target_party_index
+
+	if party_idx < 0 or party_idx >= roster.size():
+		battle_message.emit("No valid target!")
+		return [{"handled": false, "reason": "invalid_target"}]
+
+	var entry: Dictionary = roster[party_idx]
+	var is_active: bool = entry.get("is_active", false) as bool
+	var all_results: Array[Dictionary] = []
+
+	if is_active:
+		# Target is an active BattleDigimonState
+		var target: BattleDigimonState = entry.get(
+			"battle_digimon",
+		) as BattleDigimonState
+		if target == null or (target.is_fainted and not item.is_revive):
+			battle_message.emit("It won't have any effect!")
+			return [{"handled": false, "reason": "invalid_active_target"}]
+
+		# Handle revive on active fainted Digimon
+		if item.is_revive and target.is_fainted:
+			target.is_fainted = false
+			for brick: Dictionary in item.bricks:
+				var result: Dictionary = BrickExecutor.execute_brick(
+					brick, target, target, null, _battle,
+				)
+				_process_item_result(result, target)
+				all_results.append(result)
+			return all_results
+
+		# Normal medicine on active Digimon
+		for brick: Dictionary in item.bricks:
+			var result: Dictionary = BrickExecutor.execute_brick(
+				brick, target, target, null, _battle,
+			)
+			_process_item_result(result, target)
+			all_results.append(result)
+	else:
+		# Target is a reserve DigimonState
+		var reserve: DigimonState = entry.get("digimon_state") as DigimonState
+		if reserve == null:
+			return [{"handled": false, "reason": "invalid_reserve_target"}]
+
+		if item.is_revive and reserve.current_hp <= 0:
+			# Apply healing bricks directly to reserve DigimonState
+			for brick: Dictionary in item.bricks:
+				var brick_type: String = brick.get("brick", "")
+				if brick_type == "healing":
+					var subtype: String = brick.get("type", "fixed")
+					var data: DigimonData = Atlas.digimon.get(
+						reserve.key,
+					) as DigimonData
+					var max_hp: int = _estimate_max_hp(reserve, data)
+					match subtype:
+						"fixed":
+							var amount: int = int(brick.get("amount", 0))
+							reserve.current_hp = mini(
+								reserve.current_hp + amount, max_hp,
+							)
+						"percentage":
+							var percent: float = float(brick.get("percent", 0))
+							var amount: int = maxi(
+								floori(float(max_hp) * percent / 100.0), 1,
+							)
+							reserve.current_hp = mini(
+								reserve.current_hp + amount, max_hp,
+							)
+					all_results.append({
+						"handled": true,
+						"healing": reserve.current_hp,
+						"reserve_revive": true,
+					})
+			hp_restored.emit(
+				-1, -1, reserve.current_hp,
+			)
+			battle_message.emit(
+				"%s was revived!" % _get_reserve_name(reserve),
+			)
+		elif not item.is_revive and reserve.current_hp > 0:
+			# Heal a non-fainted reserve
+			var data: DigimonData = Atlas.digimon.get(
+				reserve.key,
+			) as DigimonData
+			var max_hp: int = _estimate_max_hp(reserve, data)
+			for brick: Dictionary in item.bricks:
+				var brick_type: String = brick.get("brick", "")
+				if brick_type == "healing":
+					var subtype: String = brick.get("type", "fixed")
+					match subtype:
+						"fixed":
+							var amount: int = int(brick.get("amount", 0))
+							var actual: int = mini(
+								amount, max_hp - reserve.current_hp,
+							)
+							reserve.current_hp += actual
+							all_results.append({
+								"handled": true, "healing": actual,
+							})
+						"percentage":
+							var percent: float = float(brick.get("percent", 0))
+							var amount: int = maxi(
+								floori(float(max_hp) * percent / 100.0), 1,
+							)
+							var actual: int = mini(
+								amount, max_hp - reserve.current_hp,
+							)
+							reserve.current_hp += actual
+							all_results.append({
+								"handled": true, "healing": actual,
+							})
+
+	return all_results
+
+
+## Resolve a capture/scan item.
+func _resolve_capture_item(
+	action: BattleAction, item: ItemData,
+) -> Array[Dictionary]:
+	battle_message.emit("Used %s! Capture is not yet implemented." % item.name)
+	return [{"handled": true, "capture": true, "item_key": action.item_key}]
+
+
+## Build the full roster for a side: active Digimon first, then reserves.
+## Returns [{is_active, battle_digimon?, digimon_state?, name}].
+func _get_full_roster(side: SideState) -> Array[Dictionary]:
+	var roster: Array[Dictionary] = []
+	for slot: SlotState in side.slots:
+		if slot.digimon != null:
+			roster.append({
+				"is_active": true,
+				"battle_digimon": slot.digimon,
+				"digimon_state": slot.digimon.source_state,
+				"name": _get_digimon_name(slot.digimon),
+			})
+	for reserve: DigimonState in side.party:
+		roster.append({
+			"is_active": false,
+			"digimon_state": reserve,
+			"name": _get_reserve_name(reserve),
+		})
+	return roster
+
+
+## Process a single item brick result — emit signals for HP/energy/status.
+func _process_item_result(
+	result: Dictionary, target: BattleDigimonState,
+) -> void:
+	if result.get("healing", 0) > 0:
+		var heal: int = int(result["healing"])
+		hp_restored.emit(target.side_index, target.slot_index, heal)
+		battle_message.emit(
+			"%s restored %d HP!" % [_get_digimon_name(target), heal],
+		)
+
+	if result.get("energy_restored", 0) > 0:
+		var amount: int = int(result["energy_restored"])
+		energy_restored.emit(target.side_index, target.slot_index, amount)
+		battle_message.emit(
+			"%s restored %d energy!" % [_get_digimon_name(target), amount],
+		)
+
+	var cured: Variant = result.get("statuses_cured")
+	if cured is Array:
+		for status_str: Variant in (cured as Array):
+			var status_key: StringName = StringName(str(status_str))
+			status_removed.emit(
+				target.side_index, target.slot_index, status_key,
+			)
+			battle_message.emit(
+				"%s was cured of %s!" % [
+					_get_digimon_name(target), str(status_key),
+				],
+			)
+
+	var sc_changes: Variant = result.get("stat_changes")
+	if sc_changes is Array:
+		for change: Dictionary in sc_changes:
+			var sc_target: BattleDigimonState = change.get(
+				"target",
+			) as BattleDigimonState
+			if sc_target == null:
+				sc_target = target
+			var sc_key: StringName = change.get("stat_key", &"") as StringName
+			var sc_actual: int = int(change.get("actual", 0))
+			stat_changed.emit(
+				sc_target.side_index, sc_target.slot_index,
+				sc_key, sc_actual,
+			)
+			_emit_stat_change_message(
+				_get_digimon_name(sc_target), sc_key,
+				int(change.get("stages", 0)), sc_actual,
+			)
+
+
+## Estimate max HP for a reserve DigimonState (not on field).
+func _estimate_max_hp(state: DigimonState, data: DigimonData) -> int:
+	if data == null:
+		return 100
+	var stats: Dictionary = StatCalculator.calculate_all_stats(data, state)
+	var personality: PersonalityData = Atlas.personalities.get(
+		state.personality_key,
+	) as PersonalityData
+	var hp: int = stats.get(&"hp", 100)
+	hp = StatCalculator.apply_personality(hp, &"hp", personality)
+	return hp
+
+
+## Get display name for a reserve DigimonState.
+func _get_reserve_name(state: DigimonState) -> String:
+	if state == null:
+		return "???"
+	if state.nickname != "":
+		return state.nickname
+	var data: DigimonData = Atlas.digimon.get(state.key) as DigimonData
+	if data != null:
+		return data.display_name
+	return "???"
+
+
+## Fire ON_ENTRY abilities and gear for all starting Digimon.
 func start_battle() -> void:
 	for digimon: BattleDigimonState in _battle.get_active_digimon():
 		_fire_ability_trigger(Registry.AbilityTrigger.ON_ENTRY, {"subject": digimon})
+		_fire_gear_trigger(Registry.AbilityTrigger.ON_ENTRY, {"subject": digimon})
 
 
 ## Centralised ability trigger dispatcher. Checks all active Digimon (or just
@@ -471,6 +756,88 @@ func _fire_ability_trigger(
 				)
 				_process_ability_result(result, digimon, target)
 				all_results.append(result)
+
+	return all_results
+
+
+## Centralised gear trigger dispatcher. Mirrors _fire_ability_trigger() but
+## checks both equipped_gear_key and equipped_consumable_key on each Digimon.
+## Consumable gear is cleared after firing.
+func _fire_gear_trigger(
+	trigger: Registry.AbilityTrigger, context: Dictionary = {},
+) -> Array[Dictionary]:
+	var all_results: Array[Dictionary] = []
+	var subjects: Array[BattleDigimonState] = []
+
+	if context.has("subject"):
+		var subject: BattleDigimonState = context["subject"] as BattleDigimonState
+		if subject != null:
+			subjects.append(subject)
+	else:
+		subjects = _battle.get_active_digimon()
+
+	for digimon: BattleDigimonState in subjects:
+		if digimon.is_fainted:
+			continue
+
+		# Check suppression: dazed or gear_suppression field effect
+		if digimon.has_status(&"dazed"):
+			continue
+		if _battle.field.has_global_effect(&"gear_suppression"):
+			continue
+
+		# Check both gear slots
+		var gear_keys: Array[Dictionary] = []
+		if digimon.equipped_gear_key != &"":
+			gear_keys.append({
+				"key": digimon.equipped_gear_key, "is_consumable": false,
+			})
+		if digimon.equipped_consumable_key != &"":
+			gear_keys.append({
+				"key": digimon.equipped_consumable_key, "is_consumable": true,
+			})
+
+		for gear_entry: Dictionary in gear_keys:
+			var gear_key: StringName = gear_entry["key"] as StringName
+			var is_consumable: bool = gear_entry.get("is_consumable", false)
+			var gear: Variant = Atlas.items.get(gear_key)
+			if gear is not GearData:
+				continue
+			var gear_data: GearData = gear as GearData
+			if gear_data.trigger != trigger:
+				continue
+			if not digimon.can_trigger_gear(gear_data.stack_limit, is_consumable):
+				continue
+			if not _check_trigger_condition(
+				digimon, gear_data.trigger_condition, context,
+			):
+				continue
+
+			digimon.record_gear_trigger(gear_data.stack_limit, is_consumable)
+			battle_message.emit(
+				"%s's %s!" % [_get_digimon_name(digimon), gear_data.name],
+			)
+
+			for brick: Dictionary in gear_data.bricks:
+				var targets: Array[BattleDigimonState] = \
+					_resolve_ability_targets(digimon, brick)
+				for target: BattleDigimonState in targets:
+					if target.is_fainted:
+						continue
+					var result: Dictionary = BrickExecutor.execute_brick(
+						brick, digimon, target, null, _battle,
+					)
+					_process_ability_result(result, digimon, target)
+					all_results.append(result)
+
+			# If consumable gear fired, consume it
+			if is_consumable:
+				digimon.equipped_consumable_key = &""
+				battle_message.emit(
+					"%s's %s was consumed!" % [
+						_get_digimon_name(digimon), gear_data.name,
+					],
+				)
 
 	return all_results
 
@@ -773,8 +1140,9 @@ func _end_of_turn() -> void:
 		digimon.restore_energy(amount)
 		energy_restored.emit(digimon.side_index, digimon.slot_index, amount)
 
-	# 5. Fire ON_TURN_END abilities
+	# 5. Fire ON_TURN_END abilities and gear
 	_fire_ability_trigger(Registry.AbilityTrigger.ON_TURN_END)
+	_fire_gear_trigger(Registry.AbilityTrigger.ON_TURN_END)
 
 	# 6. Check end conditions
 	_battle.check_end_conditions()

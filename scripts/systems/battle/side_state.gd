@@ -27,6 +27,9 @@ var side_effects: Array[Dictionary] = []
 ## Entry hazards: [{ "key": StringName, "layers": int }]
 var hazards: Array[Dictionary] = []
 
+## Item bag for this side (null if no items available).
+var bag: BagState = null
+
 
 func add_side_effect(key: StringName, duration: int) -> void:
 	for effect: Dictionary in side_effects:

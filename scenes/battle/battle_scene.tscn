@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scenes/battle/battle_scene.gd" id="1"]
 [ext_resource type="PackedScene" path="res://ui/battle_hud/action_menu.tscn" id="2"]
@@ -11,6 +11,8 @@
 [ext_resource type="Script" path="res://scenes/battle/battle_event_replay.gd" id="9"]
 [ext_resource type="Script" path="res://scenes/battle/battlefield_display.gd" id="10"]
 [ext_resource type="Script" path="res://scenes/battle/battle_input_manager.gd" id="11"]
+[ext_resource type="PackedScene" path="res://ui/battle_hud/item_menu.tscn" id="12"]
+[ext_resource type="PackedScene" path="res://ui/battle_hud/item_target_menu.tscn" id="13"]
 
 [node name="BattleScene" type="Node2D"]
 script = ExtResource("1")
@@ -109,6 +111,30 @@ offset_bottom = -10.0
 theme = ExtResource("8")
 
 [node name="SwitchMenu" parent="BattleHUD" unique_name_in_owner=true instance=ExtResource("4")]
+visible = false
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -410.0
+offset_top = -400.0
+offset_right = -10.0
+offset_bottom = -10.0
+theme = ExtResource("8")
+
+[node name="ItemMenu" parent="BattleHUD" unique_name_in_owner=true instance=ExtResource("12")]
+visible = false
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -410.0
+offset_top = -400.0
+offset_right = -10.0
+offset_bottom = -10.0
+theme = ExtResource("8")
+
+[node name="ItemTargetMenu" parent="BattleHUD" unique_name_in_owner=true instance=ExtResource("13")]
 visible = false
 anchor_left = 1.0
 anchor_top = 1.0

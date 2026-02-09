@@ -618,21 +618,48 @@ Specific abilities may also grant status immunities regardless of resistance val
 | Category     | Combat Use | Description                                          |
 |--------------|------------|------------------------------------------------------|
 | General      | No         | Non-combat items, sellables, world interaction       |
-| Capture/Scan | No         | Scanning equipment for data collection               |
-| Medicine     | Yes        | HP/status healing, combat usable                     |
+| Capture/Scan | Yes        | Scanning equipment for data collection               |
+| Medicine     | Yes        | HP/energy/status healing, combat usable              |
 | Performance  | No         | IV/TV/level/evolution manipulation                   |
 | Gear         | Passive    | Equipable + consumable, one each per Digimon         |
 | Key          | No         | Story progression, passive effects                   |
 | Quest        | No         | Location-specific quest items                        |
 | Card         | No         | Teach techniques to specific Digimon                 |
 
+### Data Layer
+
+- **`ItemData`** (`data/item/item_data.gd`): Base item resource with key, name, description, category, is_consumable, is_combat_usable, is_revive, buy_price, sell_price, icon_texture, bricks
+- **`GearData`** (`data/item/gear_data.gd`): Extends ItemData with gear_slot, trigger, stack_limit, trigger_condition (mirrors AbilityData fields)
+- **`BagState`** (`scripts/systems/battle/bag_state.gd`): Battle-specific item bag tracking quantities per key. Methods: add_item, remove_item, has_item, get_quantity, get_combat_usable_items, get_items_in_category, to_dict/from_dict
+- **`SideState.bag`**: Optional `BagState` per side, injected via `BattleConfig.side_configs[i]["bag"]`
+
+### Medicine Resolution
+
+Medicine items target party members by roster index (`BattleAction.item_target_party_index`). The roster is built as: active slot Digimon first, then party reserves.
+
+- **Non-revive medicines**: Target non-fainted party members (including active ones). Execute healing/statModifier bricks via `BrickExecutor`
+- **Revive medicines** (`is_revive = true`): Target fainted party members only. For reserve DigimonState, healing is applied directly to `current_hp`
+- **Healing brick types**: `fixed` (flat HP), `percentage` (% of max HP), `energy_fixed` (flat energy), `energy_percentage` (% of max energy), optional `cureStatus` (string or array of status keys)
+- Item actions resolve at `Priority.MAXIMUM` (before techniques), same as Pokemon
+
 ### Gear System
 
 Each Digimon has two gear slots:
-- **Equipable** (`GearSlot.EQUIPABLE`): Persistent passive effect
-- **Consumable** (`GearSlot.CONSUMABLE`): Single-use triggered effect
+- **Equipable** (`GearSlot.EQUIPABLE`): Persistent passive effect via `equipped_gear_key`
+- **Consumable** (`GearSlot.CONSUMABLE`): Single-use triggered effect via `equipped_consumable_key`
 
-Gear effects are defined via bricks (same system as techniques and abilities).
+Gear effects are defined via bricks (same system as techniques and abilities). GearData has trigger, stack_limit, and trigger_condition fields identical to AbilityData.
+
+### Gear Triggers
+
+`_fire_gear_trigger()` in BattleEngine mirrors `_fire_ability_trigger()`:
+- Fires alongside every ability trigger call (ON_TURN_START, ON_BEFORE_TECHNIQUE, ON_DEAL_DAMAGE, ON_TAKE_DAMAGE, ON_AFTER_TECHNIQUE, ON_ENTRY, ON_TURN_END)
+- Checks both `equipped_gear_key` and `equipped_consumable_key` per Digimon
+- Enforces stack limits via `BattleDigimonState.gear_trigger_counts` (separate from ability trigger counts)
+- **CONTINUOUS gear**: Damage modifiers collected in `_collect_damage_modifiers()` (user's offensive gear + target's defensive gear)
+- **Consumable gear consumption**: When a consumable gear fires, `equipped_consumable_key` is cleared and a "consumed" message emitted
+- **Suppression**: All gear effects blocked by `has_status(&"dazed")` or `field.has_global_effect(&"gear_suppression")`
+- **Write-back**: `equipped_consumable_key` persists to `DigimonState` on battle end
 
 ### Scan Mechanic
 
@@ -711,6 +738,7 @@ digimon-dex API → Dex Importer Plugin → .tres resources + translation CSVs
 | `Digimon`           | `DigimonData`          | `game_id` -> `key`              |
 | `Attack`            | `TechniqueData`        | `game_id` -> `key`              |
 | `Ability`           | `AbilityData`          | `game_id` -> `key`              |
+| `Item`              | `ItemData` / `GearData`| `game_id` -> `key`              |
 | `DigimonEvolution`  | `EvolutionLinkData`    | composite -> `key`              |
 | `Element`           | element definitions    | `name` -> `key`                 |
 | `Attribute`         | `Registry.Attribute`   | `name` -> enum value            |
@@ -930,6 +958,7 @@ Configuration is in `.gutconfig.json` pointing to `res://tests/`.
 - 5 test Digimon species (test_agumon, test_gabumon, test_patamon, test_tank, test_speedster)
 - 12+ test techniques covering all classes, elements, targeting types, and flags
 - 6 test abilities covering all trigger types and stack limits
+- 12 test items: 7 medicine (potion, super_potion, energy_drink, burn_heal, full_heal, revive, x_attack), 4 gear (power_band, counter_gem, heal_berry, element_guard), 1 capture (scanner)
 - 3 test personalities (neutral, brave, modest)
 
 All test keys are prefixed with `test_` and cleaned up via `clear_test_data()`.
@@ -957,6 +986,7 @@ tests/
     test_brick_executor.gd
     test_field_state.gd
     test_side_state.gd
+    test_bag_state.gd
   integration/                # Engine + signals + full turn loop
     test_battle_engine_core.gd
     test_technique_execution.gd
@@ -967,6 +997,7 @@ tests/
     test_battle_end.gd
     test_doubles_2v2.gd
     test_battle_ai.gd
+    test_item_system.gd
 ```
 
 ### Signal Verification

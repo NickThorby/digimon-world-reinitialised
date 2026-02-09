@@ -2,14 +2,27 @@
 extends VBoxContainer
 ## Dock panel UI and import orchestration for the Dex Importer.
 
-const EXPECTED_VERSION: int = 2
+const EXPECTED_VERSION: int = 3
 
 const TECHNIQUE_FOLDER: String = "res://data/technique"
 const ABILITY_FOLDER: String = "res://data/ability"
+const ITEM_FOLDER: String = "res://data/item"
 const DIGIMON_FOLDER: String = "res://data/digimon"
 const EVOLUTION_FOLDER: String = "res://data/evolution"
 const LOCATIONS_FILE: String = "res://data/locale/locations.json"
 const SPRITE_FOLDER: String = "res://assets/sprites/digimon"
+const ITEM_ICON_FOLDER: String = "res://assets/icons/items"
+
+const ITEM_SUBFOLDER_MAP: Dictionary = {
+	"General": "general",
+	"CaptureScan": "capture_scan",
+	"Medicine": "medicine",
+	"Performance": "performance",
+	"Gear": "gear",
+	"Key": "key",
+	"Quest": "quest",
+	"Card": "card",
+}
 
 var _client: RefCounted
 var _mapper: RefCounted
@@ -26,6 +39,7 @@ var _file_dialog: EditorFileDialog
 @onready var _import_digimon: CheckBox = %ImportDigimon
 @onready var _import_techniques: CheckBox = %ImportTechniques
 @onready var _import_abilities: CheckBox = %ImportAbilities
+@onready var _import_items: CheckBox = %ImportItems
 @onready var _import_evolutions: CheckBox = %ImportEvolutions
 @onready var _import_locations: CheckBox = %ImportLocations
 @onready var _import_sprites: CheckBox = %ImportSprites
@@ -103,7 +117,7 @@ func _on_import_pressed() -> void:
 	var valid_technique_keys: Dictionary = {}
 	var valid_ability_keys: Dictionary = {}
 	var step_count: float = 0.0
-	var total_steps: float = 6.0
+	var total_steps: float = 8.0
 
 	# Step 1: Techniques
 	if _import_techniques.button_pressed and data.has("techniques"):
@@ -119,28 +133,40 @@ func _on_import_pressed() -> void:
 		valid_ability_keys = result.get("valid_keys", {})
 	step_count += 1.0
 
-	# Step 3: Digimon
+	# Step 3: Items
+	if _import_items.button_pressed and data.has("items"):
+		_set_progress(step_count, total_steps, "Importing items...")
+		_import_items_data(data["items"])
+	step_count += 1.0
+
+	# Step 4: Digimon
 	if _import_digimon.button_pressed and data.has("digimon"):
 		_set_progress(step_count, total_steps, "Importing Digimon...")
 		_import_digimon_data(data["digimon"], valid_technique_keys, valid_ability_keys)
 	step_count += 1.0
 
-	# Step 4: Evolutions
+	# Step 5: Evolutions
 	if _import_evolutions.button_pressed and data.has("evolutions"):
 		_set_progress(step_count, total_steps, "Importing evolutions...")
 		_import_evolutions_data(data["evolutions"])
 	step_count += 1.0
 
-	# Step 5: Locations
+	# Step 6: Locations
 	if _import_locations.button_pressed and data.has("locations"):
 		_set_progress(step_count, total_steps, "Importing locations...")
 		_import_locations_data(data["locations"])
 	step_count += 1.0
 
-	# Step 6: Sprites
+	# Step 7: Sprites
 	if _import_sprites.button_pressed and data.has("digimon"):
 		_set_progress(step_count, total_steps, "Downloading sprites...")
 		await _import_sprites_data(data["digimon"])
+	step_count += 1.0
+
+	# Step 8: Item icons
+	if _import_items.button_pressed and _import_sprites.button_pressed and data.has("items"):
+		_set_progress(step_count, total_steps, "Downloading item icons...")
+		await _import_item_icons(data["items"])
 	step_count += 1.0
 
 	_set_progress(total_steps, total_steps, "Done!")
@@ -256,6 +282,102 @@ func _import_abilities_data(abilities_array: Array) -> Dictionary:
 		imported, discarded_empty, discarded_invalid
 	])
 	return {"valid_keys": valid_keys}
+
+
+func _import_items_data(items_array: Array) -> void:
+	var imported: int = 0
+	var discarded: int = 0
+	var imported_by_subfolder: Dictionary = {}  ## subfolder -> Array[String]
+
+	for entry: Variant in items_array:
+		if entry is not Dictionary:
+			continue
+		var dex_data: Dictionary = entry as Dictionary
+		var game_id: String = dex_data.get("game_id", "")
+		if game_id.is_empty():
+			continue
+
+		var resource: Resource = _mapper.map_item(dex_data, _validator)
+		if resource == null:
+			discarded += 1
+			continue
+
+		var category_str: String = str(dex_data.get("category", "General"))
+		var subfolder: String = ITEM_SUBFOLDER_MAP.get(category_str, "general")
+		var folder: String = ITEM_FOLDER + "/" + subfolder
+
+		# Ensure subfolder exists
+		if not DirAccess.dir_exists_absolute(folder):
+			DirAccess.make_dir_recursive_absolute(folder)
+
+		var filename: String = game_id + ".tres"
+		var error: int = _writer.write_resource(resource, folder, filename)
+		if error == OK:
+			imported += 1
+			if not imported_by_subfolder.has(subfolder):
+				imported_by_subfolder[subfolder] = []
+			(imported_by_subfolder[subfolder] as Array).append(filename)
+		else:
+			_log_error("Failed to write item '%s': error %d" % [game_id, error])
+
+	# Remove stale files per subfolder
+	for subfolder: String in imported_by_subfolder:
+		var folder: String = ITEM_FOLDER + "/" + subfolder
+		var files: Array[String] = []
+		files.assign(imported_by_subfolder[subfolder] as Array)
+		_remove_stale_files(folder, files)
+
+	_log("Items: %d imported, %d discarded" % [imported, discarded])
+
+
+func _import_item_icons(items_array: Array) -> void:
+	var api_url: String = _api_url.text.strip_edges()
+	var base_url: String = api_url
+	if base_url.ends_with("/export/game"):
+		base_url = base_url.substr(0, base_url.length() - "/export/game".length())
+	elif base_url.ends_with("/export/game/"):
+		base_url = base_url.substr(0, base_url.length() - "/export/game/".length())
+
+	if not DirAccess.dir_exists_absolute(ITEM_ICON_FOLDER):
+		DirAccess.make_dir_recursive_absolute(ITEM_ICON_FOLDER)
+
+	var download_all: bool = (_sprite_mode.selected == 1)
+	var downloaded: int = 0
+	var skipped: int = 0
+
+	for entry: Variant in items_array:
+		if entry is not Dictionary:
+			continue
+		var dex_data: Dictionary = entry as Dictionary
+		var game_id: String = dex_data.get("game_id", "")
+		if game_id.is_empty():
+			continue
+
+		var has_icon: bool = dex_data.get("has_icon", false) as bool
+		if not has_icon:
+			continue
+
+		var file_path: String = ITEM_ICON_FOLDER + "/" + game_id + ".png"
+
+		if not download_all and FileAccess.file_exists(file_path):
+			skipped += 1
+			continue
+
+		var png_bytes: PackedByteArray = await _client.download_sprite(
+			base_url, "item-icons/" + game_id, self
+		)
+		if png_bytes.is_empty():
+			continue
+
+		var file: FileAccess = FileAccess.open(file_path, FileAccess.WRITE)
+		if file == null:
+			_log_error("Failed to write item icon: %s" % file_path)
+			continue
+		file.store_buffer(png_bytes)
+		file.close()
+		downloaded += 1
+
+	_log("Item icons: %d downloaded, %d skipped" % [downloaded, skipped])
 
 
 func _import_digimon_data(

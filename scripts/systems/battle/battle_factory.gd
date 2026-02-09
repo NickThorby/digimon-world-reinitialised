@@ -24,6 +24,11 @@ static func create_battle(config: BattleConfig, seed: int = -1) -> BattleState:
 		side.controller = side_cfg.get("controller", BattleConfig.ControllerType.PLAYER) as BattleConfig.ControllerType
 		side.is_wild = side_cfg.get("is_wild", false)
 
+		# Copy bag if provided
+		var bag: Variant = side_cfg.get("bag")
+		if bag is BagState:
+			side.bag = bag as BagState
+
 		var party: Array = side_cfg.get("party", []) as Array
 		var party_index: int = 0
 

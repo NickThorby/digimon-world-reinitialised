@@ -73,6 +73,16 @@ var ability_trigger_counts: Dictionary = {
 	"per_battle": 0,
 }
 
+## Gear trigger counters for stack limit enforcement (separate from abilities).
+var gear_trigger_counts: Dictionary = {
+	"equip_per_turn": 0,
+	"equip_per_switch": 0,
+	"equip_per_battle": 0,
+	"consumable_per_turn": 0,
+	"consumable_per_switch": 0,
+	"consumable_per_battle": 0,
+}
+
 ## Whether this Digimon has fainted.
 var is_fainted: bool = false
 
@@ -144,6 +154,46 @@ func record_ability_trigger(stack_limit: Registry.StackLimit) -> void:
 ## Reset the per-turn ability trigger counter (called at turn start).
 func reset_turn_trigger_count() -> void:
 	ability_trigger_counts["per_turn"] = 0
+	gear_trigger_counts["equip_per_turn"] = 0
+	gear_trigger_counts["consumable_per_turn"] = 0
+
+
+## Check whether a gear item can trigger given its stack limit and whether it's consumable.
+func can_trigger_gear(stack_limit: Registry.StackLimit, is_consumable: bool) -> bool:
+	var prefix: String = "consumable" if is_consumable else "equip"
+	match stack_limit:
+		Registry.StackLimit.UNLIMITED:
+			return true
+		Registry.StackLimit.ONCE_PER_TURN:
+			return int(gear_trigger_counts.get(prefix + "_per_turn", 0)) < 1
+		Registry.StackLimit.ONCE_PER_SWITCH:
+			return int(gear_trigger_counts.get(prefix + "_per_switch", 0)) < 1
+		Registry.StackLimit.ONCE_PER_BATTLE:
+			return int(gear_trigger_counts.get(prefix + "_per_battle", 0)) < 1
+		Registry.StackLimit.FIRST_ONLY:
+			return int(gear_trigger_counts.get(prefix + "_per_battle", 0)) < 1 \
+				and int(gear_trigger_counts.get(prefix + "_per_switch", 0)) < 1
+	return true
+
+
+## Record that a gear item triggered.
+func record_gear_trigger(stack_limit: Registry.StackLimit, is_consumable: bool) -> void:
+	var prefix: String = "consumable" if is_consumable else "equip"
+	match stack_limit:
+		Registry.StackLimit.ONCE_PER_TURN:
+			gear_trigger_counts[prefix + "_per_turn"] = \
+				int(gear_trigger_counts.get(prefix + "_per_turn", 0)) + 1
+		Registry.StackLimit.ONCE_PER_SWITCH:
+			gear_trigger_counts[prefix + "_per_switch"] = \
+				int(gear_trigger_counts.get(prefix + "_per_switch", 0)) + 1
+		Registry.StackLimit.ONCE_PER_BATTLE:
+			gear_trigger_counts[prefix + "_per_battle"] = \
+				int(gear_trigger_counts.get(prefix + "_per_battle", 0)) + 1
+		Registry.StackLimit.FIRST_ONLY:
+			gear_trigger_counts[prefix + "_per_battle"] = \
+				int(gear_trigger_counts.get(prefix + "_per_battle", 0)) + 1
+			gear_trigger_counts[prefix + "_per_switch"] = \
+				int(gear_trigger_counts.get(prefix + "_per_switch", 0)) + 1
 
 
 ## Get effective speed considering priority tier.
@@ -207,6 +257,8 @@ func reset_volatiles() -> void:
 		stat_stages[key] = 0
 	# Reset per-switch ability trigger counter
 	ability_trigger_counts["per_switch"] = 0
+	gear_trigger_counts["equip_per_switch"] = 0
+	gear_trigger_counts["consumable_per_switch"] = 0
 
 
 ## Add a status condition. Returns true if successfully applied.
@@ -252,6 +304,7 @@ func write_back() -> void:
 	source_state.current_hp = current_hp
 	source_state.current_energy = current_energy
 	source_state.experience += xp_earned
+	source_state.equipped_consumable_key = equipped_consumable_key
 
 	# Write back persistent status conditions only
 	source_state.status_conditions.clear()

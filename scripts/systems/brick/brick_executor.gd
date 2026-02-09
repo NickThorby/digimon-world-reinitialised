@@ -20,6 +20,8 @@ static func execute_brick(
 			return _execute_status_effect(brick, user, target, battle)
 		"statModifier":
 			return _execute_stat_modifier(brick, user, target, battle)
+		"healing":
+			return _execute_healing(brick, user, target, battle)
 		"damageModifier":
 			# Consumed by damage brick handler; standalone execution is a no-op
 			return {"handled": true, "skipped": true}
@@ -227,9 +229,65 @@ static func _execute_stat_modifier(
 	}
 
 
+## Handle "healing" brick — restore HP, energy, or cure statuses.
+## Subtypes: "fixed", "percentage", "energy_fixed", "energy_percentage".
+static func _execute_healing(
+	brick: Dictionary,
+	_user: BattleDigimonState,
+	target: BattleDigimonState,
+	_battle: BattleState,
+) -> Dictionary:
+	if target == null:
+		return {"handled": false, "reason": "no_target"}
+
+	var subtype: String = brick.get("type", "fixed")
+	var result: Dictionary = {"handled": true}
+
+	match subtype:
+		"fixed":
+			var amount: int = int(brick.get("amount", 0))
+			var healed: int = target.restore_hp(amount)
+			result["healing"] = healed
+
+		"percentage":
+			var percent: float = float(brick.get("percent", 0))
+			var amount: int = maxi(floori(float(target.max_hp) * percent / 100.0), 1)
+			var healed: int = target.restore_hp(amount)
+			result["healing"] = healed
+
+		"energy_fixed":
+			var amount: int = int(brick.get("amount", 0))
+			target.restore_energy(amount)
+			result["energy_restored"] = amount
+
+		"energy_percentage":
+			var percent: float = float(brick.get("percent", 0))
+			var amount: int = maxi(floori(float(target.max_energy) * percent / 100.0), 1)
+			target.restore_energy(amount)
+			result["energy_restored"] = amount
+
+		_:
+			push_warning("BrickExecutor: Unimplemented healing subtype '%s'" % subtype)
+			return {"handled": false, "subtype": subtype}
+
+	# Cure statuses if specified
+	var cure_status: Variant = brick.get("cureStatus")
+	if cure_status is String:
+		target.remove_status(StringName(cure_status))
+		result["statuses_cured"] = [cure_status]
+	elif cure_status is Array:
+		var cured: Array[String] = []
+		for status_key: Variant in (cure_status as Array):
+			target.remove_status(StringName(str(status_key)))
+			cured.append(str(status_key))
+		result["statuses_cured"] = cured
+
+	return result
+
+
 ## Collect all applicable damageModifier bricks from technique and CONTINUOUS
-## abilities. Evaluates each modifier's condition string and returns only those
-## that pass.
+## abilities/gear. Evaluates each modifier's condition string and returns only
+## those that pass.
 static func _collect_damage_modifiers(
 	user: BattleDigimonState,
 	target: BattleDigimonState,
@@ -268,7 +326,55 @@ static func _collect_damage_modifiers(
 					if BrickConditionEvaluator.evaluate(cond, context):
 						modifiers.append(ability_brick)
 
+	# 3. Collect from user's CONTINUOUS equipable gear bricks
+	if user != null and not _is_gear_suppressed(user, battle):
+		_collect_gear_damage_modifiers(user.equipped_gear_key, context, modifiers)
+		_collect_gear_damage_modifiers(user.equipped_consumable_key, context, modifiers)
+
+	# 4. Collect from target's CONTINUOUS gear (defensive modifiers)
+	if target != null and not _is_gear_suppressed(target, battle):
+		var def_context: Dictionary = context.duplicate()
+		def_context["user"] = target  # Gear owner is the "user" for condition eval
+		_collect_gear_damage_modifiers(
+			target.equipped_gear_key, def_context, modifiers,
+		)
+		_collect_gear_damage_modifiers(
+			target.equipped_consumable_key, def_context, modifiers,
+		)
+
 	return modifiers
+
+
+## Collect damageModifier bricks from a single gear item.
+static func _collect_gear_damage_modifiers(
+	gear_key: StringName,
+	context: Dictionary,
+	modifiers: Array[Dictionary],
+) -> void:
+	if gear_key == &"":
+		return
+	var gear: Variant = Atlas.items.get(gear_key)
+	if gear is not GearData:
+		return
+	var gear_data: GearData = gear as GearData
+	if gear_data.trigger != Registry.AbilityTrigger.CONTINUOUS:
+		return
+	for gear_brick: Dictionary in gear_data.bricks:
+		if gear_brick.get("brick", "") == "damageModifier":
+			var cond: String = gear_brick.get("condition", "")
+			if BrickConditionEvaluator.evaluate(cond, context):
+				modifiers.append(gear_brick)
+
+
+## Check if a Digimon's gear effects are suppressed.
+static func _is_gear_suppressed(
+	digimon: BattleDigimonState, battle: BattleState,
+) -> bool:
+	if digimon.has_status(&"dazed"):
+		return true
+	if battle != null and battle.field.has_global_effect(&"gear_suppression"):
+		return true
+	return false
 
 
 ## Extract crit stage bonus from a technique's criticalHit brick (if any).

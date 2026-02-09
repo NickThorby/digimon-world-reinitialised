@@ -1,6 +1,6 @@
 # Export Contract — Dex → Game Data Endpoint
 
-> **Version**: 2
+> **Version**: 3
 > **Purpose**: Defines the JSON shape the game-side importer expects from the dex export endpoint. The dex team implements `GET /export/game` to match this contract exactly.
 
 ---
@@ -17,7 +17,7 @@ Bulk export of the entire game-relevant dataset. No pagination. Single JSON resp
 
 ```jsonc
 {
-  "version": 2,
+  "version": 3,
   "exported_at": "2026-02-08T12:00:00.000Z",
 
   "lookups": {
@@ -69,6 +69,45 @@ Bulk export of the entire game-relevant dataset. No pagination. Single JSON resp
       "stack_limit": "oncePerBattle",
       "trigger_condition": null,
       "bricks": [/* raw JSON */]
+    }
+  ],
+
+  "items": [
+    {
+      "game_id": "potion",
+      "name": "Potion",
+      "description": "Restores 50 HP.",
+      "mechanic_description": null,
+      "category": "Medicine",
+      "is_consumable": true,
+      "is_combat_usable": true,
+      "is_revive": false,
+      "buy_price": 200,
+      "sell_price": 100,
+      "has_icon": true,
+      "gear_slot": null,
+      "trigger": null,
+      "stack_limit": null,
+      "trigger_condition": null,
+      "bricks": [{"brick": "healing", "type": "fixed", "amount": 50}]
+    },
+    {
+      "game_id": "power_band",
+      "name": "Power Band",
+      "description": "Boosts damage dealt by 20%.",
+      "mechanic_description": null,
+      "category": "Gear",
+      "is_consumable": false,
+      "is_combat_usable": false,
+      "is_revive": false,
+      "buy_price": 5000,
+      "sell_price": 2500,
+      "has_icon": true,
+      "gear_slot": "Equipable",
+      "trigger": "continuous",
+      "stack_limit": "unlimited",
+      "trigger_condition": null,
+      "bricks": [{"brick": "damageModifier", "multiplier": 1.2}]
     }
   ],
 
@@ -190,6 +229,27 @@ Bulk export of the entire game-relevant dataset. No pagination. Single JSON resp
 | `trigger_condition` | `object?` | Optional condition details. `null` if none. |
 | `bricks` | `array` | Raw brick JSON. |
 
+### Items
+
+| Field | Type | Notes |
+|---|---|---|
+| `game_id` | `string` | Unique key. snake_case. |
+| `name` | `string` | Display name. |
+| `description` | `string?` | Flavour text. `null` if not set. |
+| `mechanic_description` | `string?` | Detailed mechanical text. `null` if not set. |
+| `category` | `string` | `General`, `CaptureScan`, `Medicine`, `Performance`, `Gear`, `Key`, `Quest`, `Card`. |
+| `is_consumable` | `bool` | Consumed on use. |
+| `is_combat_usable` | `bool` | Can be used during battle. |
+| `is_revive` | `bool` | Targets fainted party Digimon. |
+| `buy_price` | `int` | Shop buy price (0 = not buyable). |
+| `sell_price` | `int` | Shop sell price (0 = not sellable). |
+| `has_icon` | `bool` | Whether an icon image exists for this item. |
+| `gear_slot` | `string?` | `Equipable` or `Consumable`. `null` for non-gear. |
+| `trigger` | `string?` | camelCase trigger from AbilityTrigger. `null` for non-gear. |
+| `stack_limit` | `string?` | camelCase stack limit. `null` for non-gear. |
+| `trigger_condition` | `string?` | Condition string. `null` if none. |
+| `bricks` | `array` | Raw brick JSON. |
+
 ### Digimon
 
 | Field | Type | Notes |
@@ -265,13 +325,14 @@ Nested region → sector → zone hierarchy. May be `null` or have empty `region
 
 The game importer validates:
 
-1. **`version`** must equal `2`
+1. **`version`** must equal `3`
 2. **Techniques**: bricks must pass `BRICK_CONTRACT.md` validation. Empty/invalid bricks → technique discarded.
 3. **Abilities**: Same brick validation. Empty/invalid → discarded.
-4. **Digimon**: Always imported. Technique/ability key references may point to discarded entries (Atlas returns `null`).
-5. **Evolutions**: Always imported.
-6. **Locations**: Skipped if empty/null.
-7. **Traits**: Each `digimon.traits` entry must have both `name` and `category`. Entries missing either field are skipped.
+4. **Items**: Always imported. Gear items mapped to `GearData`; all others to `ItemData`. Saved to category subfolders.
+5. **Digimon**: Always imported. Technique/ability key references may point to discarded entries (Atlas returns `null`).
+6. **Evolutions**: Always imported.
+7. **Locations**: Skipped if empty/null.
+8. **Traits**: Each `digimon.traits` entry must have both `name` and `category`. Entries missing either field are skipped.
 
 ---
 
@@ -285,6 +346,15 @@ Returns the PNG sprite image for the given `game_id`. Public endpoint (no auth r
 - **404**: No sprite exists for this Digimon
 
 The importer uses the base URL (derived from the API URL by stripping `/export/game`) combined with this path to download sprites.
+
+### `GET /item-icons/:game_id`
+
+Returns the PNG icon image for the given item `game_id`. Public endpoint (no auth required).
+
+- **200**: PNG binary data
+- **404**: No icon exists for this item
+
+The importer uses the base URL combined with this path to download item icons.
 
 ---
 

@@ -65,6 +65,11 @@ unique_name_in_owner = true
 button_pressed = true
 text = "Abilities"
 
+[node name="ImportItems" type="CheckBox" parent="."]
+unique_name_in_owner = true
+button_pressed = true
+text = "Items"
+
 [node name="ImportEvolutions" type="CheckBox" parent="."]
 unique_name_in_owner = true
 button_pressed = true

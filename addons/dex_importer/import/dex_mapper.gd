@@ -435,6 +435,93 @@ func map_evolution(dex_data: Dictionary) -> Resource:
 	return evolution
 
 
+# --- Item Mapping ---
+
+const ITEM_CATEGORY_MAP: Dictionary = {
+	"General": _Reg.ItemCategory.GENERAL,
+	"CaptureScan": _Reg.ItemCategory.CAPTURE_SCAN,
+	"Medicine": _Reg.ItemCategory.MEDICINE,
+	"Performance": _Reg.ItemCategory.PERFORMANCE,
+	"Gear": _Reg.ItemCategory.GEAR,
+	"Key": _Reg.ItemCategory.KEY,
+	"Quest": _Reg.ItemCategory.QUEST,
+	"Card": _Reg.ItemCategory.CARD,
+}
+
+const GEAR_SLOT_MAP: Dictionary = {
+	"Equipable": _Reg.GearSlot.EQUIPABLE,
+	"Consumable": _Reg.GearSlot.CONSUMABLE,
+}
+
+## Maps a dex item dictionary to an ItemData or GearData resource. Returns null on failure.
+func map_item(dex_data: Dictionary, _validator: RefCounted) -> Resource:
+	var category_str: String = _str_or_empty(dex_data.get("category"))
+	var gear_slot_str: Variant = dex_data.get("gear_slot")
+	var is_gear: bool = category_str == "Gear" and gear_slot_str is String
+
+	if is_gear:
+		return _map_gear_item(dex_data)
+	else:
+		return _map_standard_item(dex_data, category_str)
+
+
+func _map_standard_item(dex_data: Dictionary, category_str: String) -> ItemData:
+	var item := ItemData.new()
+	_populate_base_item_fields(item, dex_data, category_str)
+	return item
+
+
+func _map_gear_item(dex_data: Dictionary) -> GearData:
+	var gear := GearData.new()
+	_populate_base_item_fields(gear, dex_data, "Gear")
+
+	# Gear-specific fields
+	var slot_str: String = _str_or_empty(dex_data.get("gear_slot"))
+	gear.gear_slot = GEAR_SLOT_MAP.get(slot_str, _Reg.GearSlot.EQUIPABLE)
+
+	var trigger_str: String = _str_or_empty(dex_data.get("trigger"))
+	gear.trigger = ABILITY_TRIGGER_MAP.get(
+		trigger_str, _Reg.AbilityTrigger.CONTINUOUS
+	)
+
+	var stack_str: String = _str_or_empty(dex_data.get("stack_limit"))
+	gear.stack_limit = STACK_LIMIT_MAP.get(
+		stack_str, _Reg.StackLimit.UNLIMITED
+	)
+
+	var condition: Variant = dex_data.get("trigger_condition")
+	if condition is String:
+		gear.trigger_condition = condition
+	else:
+		gear.trigger_condition = ""
+
+	return gear
+
+
+func _populate_base_item_fields(
+	item: ItemData, dex_data: Dictionary, category_str: String,
+) -> void:
+	item.key = StringName(dex_data.get("game_id", ""))
+	item.name = _str_or_empty(dex_data.get("name"))
+	item.description = _str_or_empty(dex_data.get("description"))
+	item.category = ITEM_CATEGORY_MAP.get(
+		category_str, _Reg.ItemCategory.GENERAL
+	)
+	item.is_consumable = dex_data.get("is_consumable", false) as bool
+	item.is_combat_usable = dex_data.get("is_combat_usable", false) as bool
+	item.is_revive = dex_data.get("is_revive", false) as bool
+	item.buy_price = int(dex_data.get("buy_price", 0))
+	item.sell_price = int(dex_data.get("sell_price", 0))
+
+	# Bricks
+	var raw_bricks: Array = dex_data.get("bricks", []) as Array
+	var typed_bricks: Array[Dictionary] = []
+	for b: Variant in raw_bricks:
+		if b is Dictionary:
+			typed_bricks.append(b as Dictionary)
+	item.bricks = typed_bricks
+
+
 # --- Utilities ---
 
 func _trait_to_key(trait_name: String) -> StringName:

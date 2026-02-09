@@ -16,6 +16,7 @@ static func inject_all_test_data() -> void:
 	_inject_digimon()
 	_inject_techniques()
 	_inject_abilities()
+	_inject_items()
 
 
 ## Remove all test data (keys starting with "test_") from Atlas.
@@ -24,6 +25,7 @@ static func clear_test_data() -> void:
 	_clear_dict(Atlas.techniques)
 	_clear_dict(Atlas.abilities)
 	_clear_dict(Atlas.personalities)
+	_clear_dict(Atlas.items)
 
 
 static func _clear_dict(dict: Dictionary) -> void:
@@ -370,6 +372,143 @@ static func _make_ability(
 	return a
 
 
+# --- Item data ---
+
+
+static func _inject_items() -> void:
+	# Medicine: fixed HP heal
+	Atlas.items[&"test_potion"] = _make_medicine(
+		&"test_potion", "Test Potion",
+		[{"brick": "healing", "type": "fixed", "amount": 50}],
+	)
+	# Medicine: percentage HP heal
+	Atlas.items[&"test_super_potion"] = _make_medicine(
+		&"test_super_potion", "Test Super Potion",
+		[{"brick": "healing", "type": "percentage", "percent": 50}],
+	)
+	# Medicine: fixed energy restore
+	Atlas.items[&"test_energy_drink"] = _make_medicine(
+		&"test_energy_drink", "Test Energy Drink",
+		[{"brick": "healing", "type": "energy_fixed", "amount": 30}],
+	)
+	# Medicine: cure burned status
+	Atlas.items[&"test_burn_heal"] = _make_medicine(
+		&"test_burn_heal", "Test Burn Heal",
+		[{"brick": "healing", "type": "fixed", "amount": 0, "cureStatus": "burned"}],
+	)
+	# Medicine: full heal (100% HP + cure major statuses)
+	Atlas.items[&"test_full_heal"] = _make_medicine(
+		&"test_full_heal", "Test Full Heal",
+		[{"brick": "healing", "type": "percentage", "percent": 100, "cureStatus": ["burned", "paralysed", "poisoned", "frostbitten"]}],
+	)
+	# Medicine: revive (50% HP to fainted Digimon)
+	Atlas.items[&"test_revive"] = _make_medicine(
+		&"test_revive", "Test Revive",
+		[{"brick": "healing", "type": "percentage", "percent": 50}],
+		true,  # is_revive
+	)
+	# Medicine: stat boost (ATK +2)
+	Atlas.items[&"test_x_attack"] = _make_medicine(
+		&"test_x_attack", "Test X Attack",
+		[{"brick": "statModifier", "modifierType": "stage", "stats": ["atk"], "stages": 2, "target": "self"}],
+	)
+	# Equipable gear: CONTINUOUS 1.2x damage
+	Atlas.items[&"test_power_band"] = _make_gear(
+		&"test_power_band", "Test Power Band",
+		Registry.GearSlot.EQUIPABLE,
+		Registry.AbilityTrigger.CONTINUOUS,
+		Registry.StackLimit.UNLIMITED,
+		"",
+		[{"brick": "damageModifier", "multiplier": 1.2}],
+	)
+	# Equipable gear: ON_TAKE_DAMAGE DEF +1
+	Atlas.items[&"test_counter_gem"] = _make_gear(
+		&"test_counter_gem", "Test Counter Gem",
+		Registry.GearSlot.EQUIPABLE,
+		Registry.AbilityTrigger.ON_TAKE_DAMAGE,
+		Registry.StackLimit.ONCE_PER_TURN,
+		"",
+		[{"brick": "statModifier", "modifierType": "stage", "stats": ["def"], "stages": 1, "target": "self"}],
+	)
+	# Consumable gear: ON_HP_THRESHOLD (<50% HP) heal 25%
+	Atlas.items[&"test_heal_berry"] = _make_gear(
+		&"test_heal_berry", "Test Heal Berry",
+		Registry.GearSlot.CONSUMABLE,
+		Registry.AbilityTrigger.ON_HP_THRESHOLD,
+		Registry.StackLimit.ONCE_PER_BATTLE,
+		"userHpBelow:50",
+		[{"brick": "healing", "type": "percentage", "percent": 25}],
+	)
+	# Consumable gear: ON_BEFORE_HIT reduce super-effective by 0.5x
+	Atlas.items[&"test_element_guard"] = _make_gear(
+		&"test_element_guard", "Test Element Guard",
+		Registry.GearSlot.CONSUMABLE,
+		Registry.AbilityTrigger.CONTINUOUS,
+		Registry.StackLimit.UNLIMITED,
+		"",
+		[{"brick": "damageModifier", "condition": "damageIsSuperEffective", "multiplier": 0.5}],
+	)
+	# Capture/scan item
+	Atlas.items[&"test_scanner"] = _make_capture_item(
+		&"test_scanner", "Test Scanner",
+	)
+
+
+static func _make_medicine(
+	key: StringName,
+	item_name: String,
+	bricks: Array,
+	is_revive: bool = false,
+) -> ItemData:
+	var item := ItemData.new()
+	item.key = key
+	item.name = item_name
+	item.category = Registry.ItemCategory.MEDICINE
+	item.is_consumable = true
+	item.is_combat_usable = true
+	item.is_revive = is_revive
+	for brick: Variant in bricks:
+		item.bricks.append(brick as Dictionary)
+	return item
+
+
+static func _make_gear(
+	key: StringName,
+	gear_name: String,
+	slot: Registry.GearSlot,
+	trigger: Registry.AbilityTrigger,
+	stack_limit: Registry.StackLimit,
+	trigger_condition: String,
+	bricks: Array,
+) -> GearData:
+	var gear := GearData.new()
+	gear.key = key
+	gear.name = gear_name
+	gear.category = Registry.ItemCategory.GEAR
+	gear.is_consumable = (slot == Registry.GearSlot.CONSUMABLE)
+	gear.is_combat_usable = false
+	gear.gear_slot = slot
+	gear.trigger = trigger
+	gear.stack_limit = stack_limit
+	gear.trigger_condition = trigger_condition
+	for brick: Variant in bricks:
+		gear.bricks.append(brick as Dictionary)
+	return gear
+
+
+static func _make_capture_item(
+	key: StringName,
+	item_name: String,
+) -> ItemData:
+	var item := ItemData.new()
+	item.key = key
+	item.name = item_name
+	item.category = Registry.ItemCategory.CAPTURE_SCAN
+	item.is_consumable = true
+	item.is_combat_usable = true
+	return item
+
+
 # --- DigimonState creation ---
 
 
@@ -564,6 +703,87 @@ static func make_run_action(user_side: int, user_slot: int) -> BattleAction:
 	action.user_side = user_side
 	action.user_slot = user_slot
 	return action
+
+
+static func make_item_action(
+	user_side: int,
+	user_slot: int,
+	item_key: StringName,
+	party_index: int = 0,
+	target_side: int = -1,
+	target_slot: int = -1,
+) -> BattleAction:
+	var action := BattleAction.new()
+	action.action_type = BattleAction.ActionType.ITEM
+	action.user_side = user_side
+	action.user_slot = user_slot
+	action.item_key = item_key
+	action.item_target_party_index = party_index
+	if target_side >= 0:
+		action.target_side = target_side
+		action.target_slot = target_slot
+	return action
+
+
+# --- Battle creation with bag ---
+
+
+## Create a 1v1 battle where side 0 has a bag with items.
+static func create_1v1_battle_with_bag(
+	s0_key: StringName = &"test_agumon",
+	s1_key: StringName = &"test_gabumon",
+	bag_items: Dictionary = {},  ## {StringName: int} — item_key -> quantity
+	seed: int = DEFAULT_SEED,
+) -> BattleState:
+	var config := BattleConfig.new()
+	config.apply_preset(BattleConfig.FormatPreset.SINGLES_1V1)
+	var bag := BagState.new()
+	for key: StringName in bag_items:
+		bag.add_item(key, int(bag_items[key]))
+	config.side_configs[0] = {
+		"controller": BattleConfig.ControllerType.PLAYER,
+		"party": [make_digimon_state(s0_key)] as Array[DigimonState],
+		"is_wild": false,
+		"bag": bag,
+	}
+	config.side_configs[1] = {
+		"controller": BattleConfig.ControllerType.AI,
+		"party": [make_digimon_state(s1_key)] as Array[DigimonState],
+		"is_wild": false,
+	}
+	return BattleFactory.create_battle(config, seed)
+
+
+## Create a 1v1 battle with reserves and a bag for side 0.
+static func create_1v1_with_reserves_and_bag(
+	s0_keys: Array[StringName] = [&"test_agumon", &"test_patamon"],
+	s1_keys: Array[StringName] = [&"test_gabumon", &"test_tank"],
+	bag_items: Dictionary = {},
+	seed: int = DEFAULT_SEED,
+) -> BattleState:
+	var config := BattleConfig.new()
+	config.apply_preset(BattleConfig.FormatPreset.SINGLES_1V1)
+	var party_0: Array[DigimonState] = []
+	for key: StringName in s0_keys:
+		party_0.append(make_digimon_state(key))
+	var party_1: Array[DigimonState] = []
+	for key: StringName in s1_keys:
+		party_1.append(make_digimon_state(key))
+	var bag := BagState.new()
+	for key: StringName in bag_items:
+		bag.add_item(key, int(bag_items[key]))
+	config.side_configs[0] = {
+		"controller": BattleConfig.ControllerType.PLAYER,
+		"party": party_0,
+		"is_wild": false,
+		"bag": bag,
+	}
+	config.side_configs[1] = {
+		"controller": BattleConfig.ControllerType.AI,
+		"party": party_1,
+		"is_wild": false,
+	}
+	return BattleFactory.create_battle(config, seed)
 
 
 # --- Engine setup ---
