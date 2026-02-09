@@ -2,6 +2,8 @@ class_name TechniqueData
 extends Resource
 ## Immutable template defining a technique. Mapped from digimon-dex Attack table.
 
+const _Settings = preload("res://autoload/settings.gd")
+
 @export var key: StringName = &""
 @export var jp_name: String = ""
 @export var dub_name: String = ""
@@ -31,9 +33,10 @@ extends Resource
 ## Returns the display name based on player preference settings.
 var display_name: String:
 	get:
-		if Settings.use_game_names and custom_name != "":
+		var settings: Node = Engine.get_singleton(&"Settings")
+		if settings and settings.use_game_names and custom_name != "":
 			return custom_name
-		if Settings.display_preference == Settings.DisplayPreference.JAPANESE:
+		if settings and settings.display_preference == _Settings.DisplayPreference.JAPANESE:
 			return jp_name
 		if dub_name != "":
 			return dub_name
