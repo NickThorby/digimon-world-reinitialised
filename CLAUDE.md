@@ -42,6 +42,21 @@
 - **tr()** for all user-facing text (translation-ready)
 - **Serialisation**: save source data only (IVs, TVs, level, personality, known techniques); recalculate derived stats on load
 
+## Testing
+
+- **Framework**: GUT (Godot Unit Test) in `addons/gut/`
+- **Test location**: `tests/unit/` for unit tests, `tests/integration/` for integration tests
+- **Test data**: Synthetic data in `tests/helpers/test_battle_factory.gd` — never use imported dex data for tests
+- **Running tests**: `godot --headless -s addons/gut/gut_cmdln.gd`
+- **Naming**: Files prefixed with `test_`, functions prefixed with `test_`
+
+## When to Write Tests
+
+- **New battle engine features**: Any new brick type, status condition, ability trigger, or battle mechanic MUST have tests
+- **Bug fixes**: Regression test for the specific bug (prove it's fixed)
+- **New calculators/utilities**: Unit tests for pure functions (StatCalculator, DamageCalculator, etc.)
+- **Test data**: If a new feature needs test data not yet in `TestBattleFactory`, add it there with `test_` prefix
+
 ## Common Patterns
 
 ### Creating a Data Resource
@@ -80,3 +95,6 @@ static func from_dict(data: Dictionary) -> MyThingState:
 - Say "attacks" when you mean "techniques" (except when referencing digimon-dex field names)
 - Use 3D nodes or physics (this is a 2D game)
 - Use spaces for GDScript indentation (use tabs)
+- Merge battle engine changes without corresponding tests
+- Use imported game data (from `data/`) in tests — use `TestBattleFactory` test data instead
+- Write tests that depend on specific RNG output without documenting the seed

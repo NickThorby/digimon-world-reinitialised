@@ -868,6 +868,70 @@ Abilities, status conditions, field effects, and gear register event handlers. T
 
 ---
 
+## 20. Testing Architecture
+
+### Framework
+
+Tests use the **GUT** (Godot Unit Test) addon in `addons/gut/`. Tests run headless via:
+
+```bash
+godot --headless -s addons/gut/gut_cmdln.gd
+```
+
+Configuration is in `.gutconfig.json` pointing to `res://tests/`.
+
+### Test Data Factory
+
+`TestBattleFactory` (`tests/helpers/test_battle_factory.gd`) injects synthetic resources directly into Atlas dictionaries at runtime:
+
+- 5 test Digimon species (test_agumon, test_gabumon, test_patamon, test_tank, test_speedster)
+- 12+ test techniques covering all classes, elements, targeting types, and flags
+- 6 test abilities covering all trigger types and stack limits
+- 3 test personalities (neutral, brave, modest)
+
+All test keys are prefixed with `test_` and cleaned up via `clear_test_data()`.
+
+### Test Data Isolation
+
+Tests **never** use imported dex data. This ensures tests remain stable regardless of balance changes to real game data. `inject_all_test_data()` runs in `before_all()`, `clear_test_data()` in `after_all()`.
+
+### Deterministic RNG
+
+All battles use a fixed seed (default `12345`) passed to `BattleFactory.create_battle()`. Different seeds produce different outcomes (e.g., hit vs miss). Tests that depend on specific RNG outcomes document which seed produces which result.
+
+### Test Structure
+
+```
+tests/
+  helpers/
+    test_battle_factory.gd   # Synthetic test data + battle creation helpers
+  unit/                       # Pure function tests (no engine dependency)
+    test_stat_calculator.gd
+    test_damage_calculator.gd
+    test_action_sorter.gd
+    test_xp_calculator.gd
+    test_battle_digimon_state.gd
+    test_brick_executor.gd
+    test_field_state.gd
+    test_side_state.gd
+  integration/                # Engine + signals + full turn loop
+    test_battle_engine_core.gd
+    test_technique_execution.gd
+    test_status_conditions.gd
+    test_energy_system.gd
+    test_switching.gd
+    test_ability_system.gd
+    test_battle_end.gd
+    test_doubles_2v2.gd
+    test_battle_ai.gd
+```
+
+### Signal Verification
+
+Integration tests use GUT's `watch_signals()` + `assert_signal_emitted()` / `assert_signal_emit_count()`. For parameter checking, tests connect lambdas to capture values before asserting.
+
+---
+
 ## Important Technical Notes
 
 - **Godot Version**: 4.6 (GDScript only, no C#)
