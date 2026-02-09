@@ -2,6 +2,7 @@ class_name DigimonData
 extends Resource
 ## Immutable template defining a Digimon species. Mapped from digimon-dex Digimon table.
 
+const _Reg = preload("res://autoload/registry.gd")
 const _Settings = preload("res://autoload/settings.gd")
 
 @export var key: StringName = &""
@@ -19,7 +20,7 @@ const _Settings = preload("res://autoload/settings.gd")
 @export var element_traits: Array[StringName] = []
 
 @export var level: int = 1
-@export var attribute: Registry.Attribute = Registry.Attribute.NONE
+@export var attribute: _Reg.Attribute = _Reg.Attribute.NONE
 
 # Base stats
 @export var base_hp: int = 0

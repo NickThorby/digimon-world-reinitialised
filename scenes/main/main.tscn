@@ -1,15 +1,15 @@
-[gd_scene load_steps=2 format=3 uid="uid://c2xr3mq7g8c6y"]
+[gd_scene format=3 uid="uid://c2xr3mq7g8c6y"]
 
-[ext_resource type="Script" path="res://scenes/main/main.gd" id="1"]
+[ext_resource type="Script" uid="uid://didoxs5sinr24" path="res://scenes/main/main.gd" id="1"]
 
-[node name="Main" type="Node2D"]
+[node name="Main" type="Node2D" unique_id=1398047787]
 script = ExtResource("1")
 
-[node name="Placeholder" type="Label" parent="."]
+[node name="Placeholder" type="Label" parent="." unique_id=1984664926]
 offset_left = 440.0
 offset_top = 320.0
 offset_right = 840.0
 offset_bottom = 400.0
+text = "Digimon World: Reinitialised"
 horizontal_alignment = 1
 vertical_alignment = 1
-text = "Digimon World: Reinitialised"

@@ -2,6 +2,7 @@ class_name TechniqueData
 extends Resource
 ## Immutable template defining a technique. Mapped from digimon-dex Attack table.
 
+const _Reg = preload("res://autoload/registry.gd")
 const _Settings = preload("res://autoload/settings.gd")
 
 @export var key: StringName = &""
@@ -11,15 +12,15 @@ const _Settings = preload("res://autoload/settings.gd")
 @export var description: String = ""
 @export var mechanic_description: String = ""
 
-@export var technique_class: Registry.TechniqueClass = Registry.TechniqueClass.PHYSICAL
-@export var targeting: Registry.Targeting = Registry.Targeting.SINGLE_OTHER
+@export var technique_class: _Reg.TechniqueClass = _Reg.TechniqueClass.PHYSICAL
+@export var targeting: _Reg.Targeting = _Reg.Targeting.SINGLE_OTHER
 @export var element_key: StringName = &""
 @export var power: int = 0
 @export var accuracy: int = 100
 @export var energy_cost: int = 10
-@export var priority: Registry.Priority = Registry.Priority.NORMAL
+@export var priority: _Reg.Priority = _Reg.Priority.NORMAL
 
-@export var flags: Array[Registry.TechniqueFlag] = []
+@export var flags: Array[_Reg.TechniqueFlag] = []
 
 ## Number of charges required before use (0 = no charge needed).
 @export var charge_required: int = 0
