@@ -161,7 +161,11 @@ func map_technique(dex_data: Dictionary, _validator: RefCounted) -> Resource:
 
 	# Bricks — store validated bricks as-is
 	var bricks: Array = dex_data.get("bricks", []) as Array
-	technique.bricks = bricks
+	var typed_bricks: Array[Dictionary] = []
+	for b: Variant in bricks:
+		if b is Dictionary:
+			typed_bricks.append(b as Dictionary)
+	technique.bricks = typed_bricks
 
 	# Extract derived fields from bricks
 	_extract_technique_fields(technique, bricks)
@@ -243,7 +247,12 @@ func map_ability(dex_data: Dictionary, _validator: RefCounted) -> Resource:
 		ability.trigger_condition = {}
 
 	# Bricks
-	ability.bricks = dex_data.get("bricks", []) as Array
+	var raw_bricks: Array = dex_data.get("bricks", []) as Array
+	var typed_bricks: Array[Dictionary] = []
+	for b: Variant in raw_bricks:
+		if b is Dictionary:
+			typed_bricks.append(b as Dictionary)
+	ability.bricks = typed_bricks
 
 	return ability
 
@@ -378,7 +387,11 @@ func map_evolution(dex_data: Dictionary) -> Resource:
 	# Requirements (AND logic, stored as-is)
 	var requirements: Variant = dex_data.get("requirements")
 	if requirements is Array:
-		evolution.requirements = requirements as Array[Dictionary]
+		var typed_reqs: Array[Dictionary] = []
+		for req: Variant in (requirements as Array):
+			if req is Dictionary:
+				typed_reqs.append(req as Dictionary)
+		evolution.requirements = typed_reqs
 	else:
 		evolution.requirements = []
 
