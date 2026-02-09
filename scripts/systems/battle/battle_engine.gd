@@ -212,6 +212,20 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 						_get_digimon_name(target), str(status_key),
 					])
 
+			# Stat modifier results from technique bricks
+			var tech_stat_changes: Variant = brick_result.get("stat_changes")
+			if tech_stat_changes is Array:
+				for change: Dictionary in tech_stat_changes:
+					var sc_target: BattleDigimonState = change.get("target") as BattleDigimonState
+					if sc_target == null:
+						sc_target = target
+					var sc_key: StringName = change.get("stat_key", &"") as StringName
+					var sc_actual: int = int(change.get("actual", 0))
+					stat_changed.emit(sc_target.side_index, sc_target.slot_index, sc_key, sc_actual)
+					_emit_stat_change_message(
+						_get_digimon_name(sc_target), sc_key, int(change.get("stages", 0)), sc_actual
+					)
+
 		all_results.append_array(brick_results)
 
 		# Check target faint
@@ -263,6 +277,9 @@ func _resolve_switch(action: BattleAction) -> Array[Dictionary]:
 	var name_in: String = _get_digimon_name(new_battle_mon)
 	battle_message.emit("%s switched out for %s!" % [name_out, name_in])
 	digimon_switched.emit(action.user_side, action.user_slot, new_battle_mon)
+
+	# Fire ON_ENTRY abilities for the incoming Digimon
+	_fire_on_entry_abilities(new_battle_mon)
 
 	return [{"switched": true}]
 
@@ -318,6 +335,124 @@ func _resolve_run(action: BattleAction) -> Array[Dictionary]:
 func _resolve_item(_action: BattleAction) -> Array[Dictionary]:
 	battle_message.emit("Items are not yet implemented.")
 	return [{"handled": false}]
+
+
+## Fire ON_ENTRY abilities for all starting Digimon.
+func start_battle() -> void:
+	for digimon: BattleDigimonState in _battle.get_active_digimon():
+		_fire_on_entry_abilities(digimon)
+
+
+## Fire ON_ENTRY ability for a single Digimon.
+func _fire_on_entry_abilities(digimon: BattleDigimonState) -> void:
+	if digimon.ability_key == &"":
+		return
+
+	var ability: AbilityData = Atlas.abilities.get(digimon.ability_key) as AbilityData
+	if ability == null:
+		return
+	if ability.trigger != Registry.AbilityTrigger.ON_ENTRY:
+		return
+
+	battle_message.emit("%s's %s!" % [_get_digimon_name(digimon), ability.name])
+
+	for brick: Dictionary in ability.bricks:
+		var targets: Array[BattleDigimonState] = _resolve_ability_targets(digimon, brick)
+		for target: BattleDigimonState in targets:
+			if target.is_fainted:
+				continue
+			var result: Dictionary = BrickExecutor.execute_brick(
+				brick, digimon, target, null, _battle,
+			)
+
+			# Handle stat modifier results
+			var sc_changes: Variant = result.get("stat_changes")
+			if sc_changes is Array:
+				for change: Dictionary in sc_changes:
+					var sc_target: BattleDigimonState = change.get(
+						"target"
+					) as BattleDigimonState
+					if sc_target == null:
+						sc_target = target
+					var sc_key: StringName = change.get("stat_key", &"") as StringName
+					var sc_actual: int = int(change.get("actual", 0))
+					stat_changed.emit(
+						sc_target.side_index, sc_target.slot_index, sc_key, sc_actual
+					)
+					_emit_stat_change_message(
+						_get_digimon_name(sc_target), sc_key,
+						int(change.get("stages", 0)), sc_actual,
+					)
+
+			# Handle status effect results
+			if result.get("applied", false):
+				var status_key: StringName = result.get("status", &"") as StringName
+				if status_key != &"":
+					status_applied.emit(
+						target.side_index, target.slot_index, status_key
+					)
+					battle_message.emit("%s was afflicted with %s!" % [
+						_get_digimon_name(target), str(status_key),
+					])
+
+
+## Resolve ability brick targets from brick-level target field.
+func _resolve_ability_targets(
+	user: BattleDigimonState, brick: Dictionary
+) -> Array[BattleDigimonState]:
+	var brick_target: String = brick.get("target", "self")
+	var targets: Array[BattleDigimonState] = []
+
+	match brick_target:
+		"self":
+			targets.append(user)
+		"allFoes":
+			for side: SideState in _battle.sides:
+				if _battle.are_foes(user.side_index, side.side_index):
+					for slot: SlotState in side.slots:
+						if slot.digimon != null and not slot.digimon.is_fainted:
+							targets.append(slot.digimon)
+		"allAllies":
+			for side: SideState in _battle.sides:
+				if _battle.are_allies(user.side_index, side.side_index):
+					for slot: SlotState in side.slots:
+						if slot.digimon != null and not slot.digimon.is_fainted:
+							targets.append(slot.digimon)
+		"target":
+			# No single target context for abilities; skip
+			pass
+		_:
+			targets.append(user)
+
+	return targets
+
+
+## Emit a battle message describing a stat change.
+func _emit_stat_change_message(
+	digimon_name: String, stat_key: StringName, stages: int, actual: int,
+) -> void:
+	var stat_label: String = str(stat_key).replace("_", " ").capitalize()
+	if actual == 0:
+		if stages > 0:
+			battle_message.emit("%s's %s won't go any higher!" % [digimon_name, stat_label])
+		else:
+			battle_message.emit("%s's %s won't go any lower!" % [digimon_name, stat_label])
+		return
+
+	var change_text: String = ""
+	var abs_actual: int = absi(actual)
+	if actual > 0:
+		match abs_actual:
+			1: change_text = "rose!"
+			2: change_text = "rose sharply!"
+			_: change_text = "rose drastically!"
+	else:
+		match abs_actual:
+			1: change_text = "fell!"
+			2: change_text = "fell harshly!"
+			_: change_text = "fell severely!"
+
+	battle_message.emit("%s's %s %s" % [digimon_name, stat_label, change_text])
 
 
 ## Pre-execution checks for technique use.

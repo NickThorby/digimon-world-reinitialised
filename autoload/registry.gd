@@ -580,6 +580,17 @@ const PRIORITY_SPEED_MULTIPLIERS: Dictionary = {
 	Priority.VERY_HIGH: 2.0,
 }
 
+## BattleStat enum to stat_stages dictionary key mapping.
+const BATTLE_STAT_STAGE_KEYS: Dictionary = {
+	BattleStat.ATTACK: &"attack",
+	BattleStat.DEFENCE: &"defence",
+	BattleStat.SPECIAL_ATTACK: &"special_attack",
+	BattleStat.SPECIAL_DEFENCE: &"special_defence",
+	BattleStat.SPEED: &"speed",
+	BattleStat.ACCURACY: &"accuracy",
+	BattleStat.EVASION: &"evasion",
+}
+
 ## Dex brick stat abbreviation to game BattleStat mapping.
 const BRICK_STAT_MAP: Dictionary = {
 	"hp": BattleStat.HP,

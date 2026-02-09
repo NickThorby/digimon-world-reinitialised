@@ -18,6 +18,8 @@ static func execute_brick(
 			return _execute_damage(brick, user, target, technique, battle)
 		"statusEffect":
 			return _execute_status_effect(brick, user, target, battle)
+		"statModifier":
+			return _execute_stat_modifier(brick, user, target, battle)
 		"flags":
 			# Consumed at import time; no runtime execution needed
 			return {"handled": true}
@@ -115,6 +117,66 @@ static func _execute_status_effect(
 		"action": "apply",
 		"applied": applied,
 		"status": status_key,
+	}
+
+
+## Handle "statModifier" brick — modify stat stages on the target.
+static func _execute_stat_modifier(
+	brick: Dictionary,
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	battle: BattleState,
+) -> Dictionary:
+	var modifier_type: String = brick.get("modifierType", "stage")
+	if modifier_type != "stage":
+		push_warning("BrickExecutor: Unimplemented statModifier type '%s'" % modifier_type)
+		return {"handled": false, "modifier_type": modifier_type}
+
+	# Chance check
+	var chance: float = float(brick.get("chance", 100)) / 100.0
+	if chance < 1.0 and battle.rng.randf() > chance:
+		return {"handled": true, "missed": true}
+
+	# Resolve target based on brick target field
+	var brick_target: String = brick.get("target", "target")
+	var actual_target: BattleDigimonState = target
+	if brick_target == "self":
+		actual_target = user
+
+	var stages: int = int(brick.get("stages", 0))
+	var raw_stats: Variant = brick.get("stats", [])
+
+	# Normalise stats to array
+	var stat_keys: Array = []
+	if raw_stats is String:
+		stat_keys = [raw_stats]
+	elif raw_stats is Array:
+		stat_keys = raw_stats as Array
+	else:
+		return {"handled": false, "reason": "invalid_stats"}
+
+	var stat_changes: Array[Dictionary] = []
+	for abbr: Variant in stat_keys:
+		var abbr_str: String = str(abbr)
+		var battle_stat: Variant = Registry.BRICK_STAT_MAP.get(abbr_str)
+		if battle_stat == null:
+			push_warning("BrickExecutor: Unknown stat abbreviation '%s'" % abbr_str)
+			continue
+		var stage_key: Variant = Registry.BATTLE_STAT_STAGE_KEYS.get(battle_stat)
+		if stage_key == null:
+			continue
+		var stat_key: StringName = stage_key as StringName
+		var actual: int = actual_target.modify_stat_stage(stat_key, stages)
+		stat_changes.append({
+			"target": actual_target,
+			"stat_key": stat_key,
+			"stages": stages,
+			"actual": actual,
+		})
+
+	return {
+		"handled": true,
+		"stat_changes": stat_changes,
 	}
 
 

@@ -101,6 +101,13 @@ func _ready() -> void:
 
 	# Start input phase
 	await _message_box.show_message("Battle start!")
+
+	# Fire ON_ENTRY abilities for all starting Digimon
+	_event_queue.clear()
+	_engine.start_battle()
+	if not _event_queue.is_empty():
+		await _replay_events()
+
 	_start_input_phase()
 
 
@@ -113,6 +120,7 @@ func _connect_engine_signals() -> void:
 	_engine.hp_restored.connect(_on_hp_restored)
 	_engine.digimon_fainted.connect(_on_digimon_fainted)
 	_engine.digimon_switched.connect(_on_digimon_switched)
+	_engine.stat_changed.connect(_on_stat_changed)
 	_engine.status_applied.connect(_on_status_applied)
 	_engine.status_removed.connect(_on_status_removed)
 	_engine.turn_started.connect(_on_turn_started)
@@ -277,6 +285,7 @@ func _prompt_forced_switch() -> void:
 					await get_tree().create_timer(out_dur).timeout
 
 				var reserve_idx: int = _first_alive_reserve_index(side)
+				_event_queue.clear()
 				var switch_action := BattleAction.new()
 				switch_action.action_type = BattleAction.ActionType.SWITCH
 				switch_action.user_side = side.side_index
@@ -290,6 +299,11 @@ func _prompt_forced_switch() -> void:
 				var in_dur: float = _anim_switch_in(ph)
 				if in_dur > 0.0:
 					await get_tree().create_timer(in_dur).timeout
+
+				# Replay ON_ENTRY ability events (skip switch events handled above)
+				_filter_switch_events()
+				if not _event_queue.is_empty():
+					await _replay_events()
 
 	# After all forced switches, return to input
 	if not _battle.is_battle_over:
@@ -354,6 +368,24 @@ func _replay_events() -> void:
 				)
 				await get_tree().create_timer(0.3).timeout
 
+			&"stat_changed":
+				var sc_side: int = int(event["side_index"])
+				var sc_slot: int = int(event["slot_index"])
+				var sc_stages: int = int(event["stages"])
+				_update_panel_from_snapshot(
+					sc_side, sc_slot,
+					event.get("snapshot", {}) as Dictionary,
+				)
+				var sc_ph: Node = _get_battlefield_placeholder(sc_side, sc_slot)
+				if sc_stages > 0:
+					var raise_dur: float = _anim_stat_raise(sc_ph)
+					if raise_dur > 0.0:
+						await get_tree().create_timer(raise_dur).timeout
+				elif sc_stages < 0:
+					var lower_dur: float = _anim_stat_lower(sc_ph)
+					if lower_dur > 0.0:
+						await get_tree().create_timer(lower_dur).timeout
+
 			&"digimon_fainted":
 				var faint_side: int = int(event["side_index"])
 				var faint_slot: int = int(event["slot_index"])
@@ -415,6 +447,16 @@ func _replay_events() -> void:
 					result.xp_awards = XPCalculator.calculate_xp_awards(_battle)
 
 				_post_battle_screen.show_results(result)
+
+
+## Remove switch-related events from the queue (used when switch is handled inline).
+func _filter_switch_events() -> void:
+	var filtered: Array[Dictionary] = []
+	for event: Dictionary in _event_queue:
+		var event_type: StringName = event.get("type", &"") as StringName
+		if event_type != &"digimon_switched":
+			filtered.append(event)
+	_event_queue = filtered
 
 
 ## --- Attack Animations ---
@@ -497,6 +539,36 @@ func _anim_hit(placeholder: Node) -> float:
 	tween.tween_property(ctrl, "position", origin, 0.04)
 	tween.tween_property(ctrl, "modulate", Color.WHITE, 0.1)
 	return 0.3
+
+
+## Stat raise: green tint flash + slight upward bounce.
+func _anim_stat_raise(placeholder: Node) -> float:
+	if placeholder is not Control:
+		return 0.0
+	var ctrl: Control = placeholder as Control
+	var origin: Vector2 = ctrl.position
+
+	var tween: Tween = create_tween()
+	tween.tween_property(ctrl, "modulate", Color(0.4, 1.4, 0.4), 0.08)
+	tween.tween_property(ctrl, "position", origin + Vector2(0, -6), 0.08)
+	tween.tween_property(ctrl, "position", origin, 0.12)
+	tween.tween_property(ctrl, "modulate", Color.WHITE, 0.12)
+	return 0.35
+
+
+## Stat lower: red tint flash + slight downward dip.
+func _anim_stat_lower(placeholder: Node) -> float:
+	if placeholder is not Control:
+		return 0.0
+	var ctrl: Control = placeholder as Control
+	var origin: Vector2 = ctrl.position
+
+	var tween: Tween = create_tween()
+	tween.tween_property(ctrl, "modulate", Color(1.4, 0.4, 0.4), 0.08)
+	tween.tween_property(ctrl, "position", origin + Vector2(0, 6), 0.08)
+	tween.tween_property(ctrl, "position", origin, 0.12)
+	tween.tween_property(ctrl, "modulate", Color.WHITE, 0.12)
+	return 0.35
 
 
 ## Switch out: shrink sprite to nothing.
@@ -662,6 +734,7 @@ func _on_switch_chosen(party_index: int) -> void:
 		if out_dur > 0.0:
 			await get_tree().create_timer(out_dur).timeout
 
+		_event_queue.clear()
 		var switch_action := BattleAction.new()
 		switch_action.action_type = BattleAction.ActionType.SWITCH
 		switch_action.user_side = _current_input_side
@@ -675,6 +748,11 @@ func _on_switch_chosen(party_index: int) -> void:
 		var in_dur: float = _anim_switch_in(ph)
 		if in_dur > 0.0:
 			await get_tree().create_timer(in_dur).timeout
+
+		# Replay ON_ENTRY ability events (skip switch events handled above)
+		_filter_switch_events()
+		if not _event_queue.is_empty():
+			await _replay_events()
 
 		# Check for more forced switches
 		if _needs_forced_switch():
@@ -789,6 +867,22 @@ func _on_hp_restored(side_index: int, slot_index: int, _amount: int) -> void:
 		"type": &"hp_restored",
 		"side_index": side_index,
 		"slot_index": slot_index,
+		"snapshot": _snapshot_digimon(side_index, slot_index),
+	})
+
+
+func _on_stat_changed(
+	side_index: int,
+	slot_index: int,
+	stat_key: StringName,
+	stages: int,
+) -> void:
+	_event_queue.append({
+		"type": &"stat_changed",
+		"side_index": side_index,
+		"slot_index": slot_index,
+		"stat_key": stat_key,
+		"stages": stages,
 		"snapshot": _snapshot_digimon(side_index, slot_index),
 	})
 
