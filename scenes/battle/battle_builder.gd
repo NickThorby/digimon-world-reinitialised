@@ -2,23 +2,23 @@ extends Control
 ## Battle Builder — debug scene for composing teams and launching battles.
 
 const BATTLE_SCENE_PATH := "res://scenes/battle/battle_scene.tscn"
+const PICKER_SCENE_PATH := "res://scenes/battle/digimon_picker.tscn"
 const SLOT_PANEL_SCENE := preload("res://ui/components/digimon_slot_panel.tscn")
-const PICKER_POPUP_SCENE := preload("res://ui/components/digimon_picker_popup.tscn")
 const TEAM_SAVE_POPUP_SCENE := preload("res://ui/components/team_save_popup.tscn")
 
-@onready var _format_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/FormatRow/FormatOption
+@onready var _format_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/FormatRow/FormatOption
 @onready var _side_selector: TabBar = $MarginContainer/VBox/HSplit/LeftPanel/SideSelector
 @onready var _team_list: VBoxContainer = $MarginContainer/VBox/HSplit/LeftPanel/TeamList
 @onready var _add_digimon_button: Button = $MarginContainer/VBox/HSplit/LeftPanel/AddDigimonButton
-@onready var _controller_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/ControllerRow/ControllerOption
-@onready var _wild_toggle: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/WildRow/WildToggle
-@onready var _xp_toggle: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/XPRow/XPToggle
-@onready var _launch_button: Button = $MarginContainer/VBox/HSplit/RightPanel/LaunchColumn/LaunchButton
-@onready var _back_button: Button = $MarginContainer/VBox/HeaderBar/BackButton
+@onready var _controller_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/ControllerRow/ControllerOption
+@onready var _wild_toggle: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/WildRow/WildToggle
+@onready var _xp_toggle: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/XPRow/XPToggle
+@onready var _launch_button: Button = $MarginContainer/VBox/BottomBar/LaunchButton
+@onready var _back_button: Button = $MarginContainer/VBox/HeaderBar/HBox/BackButton
 @onready var _save_team_button: Button = $MarginContainer/VBox/HSplit/LeftPanel/TeamButtonRow/SaveTeamButton
 @onready var _load_team_button: Button = $MarginContainer/VBox/HSplit/LeftPanel/TeamButtonRow/LoadTeamButton
-@onready var _validation_label: RichTextLabel = $MarginContainer/VBox/HSplit/RightPanel/LaunchColumn/ValidationLabel
-@onready var _side_label: Label = $MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/SideLabel
+@onready var _validation_label: RichTextLabel = $MarginContainer/VBox/HSplit/RightPanel/ValidationLabel
+@onready var _side_label: Label = $MarginContainer/VBox/HSplit/RightPanel/SideLabel
 
 var _config: BattleConfig = BattleConfig.new()
 var _current_side: int = 0
@@ -26,12 +26,54 @@ var _editing_index: int = -1
 
 
 func _ready() -> void:
+	var returning_from_picker: bool = Game.picker_context.size() > 0
+	if returning_from_picker:
+		_restore_from_picker()
+
 	_setup_format_options()
 	_connect_signals()
-	_config.apply_preset(BattleConfig.FormatPreset.SINGLES_1V1)
+
+	if not returning_from_picker:
+		_config.apply_preset(BattleConfig.FormatPreset.SINGLES_1V1)
+
+	if returning_from_picker:
+		_sync_format_selector()
+
 	_update_side_selector()
 	_update_team_display()
 	_update_controller_display()
+
+
+func _restore_from_picker() -> void:
+	var ctx: Dictionary = Game.picker_context
+	var result: Variant = Game.picker_result
+	Game.picker_result = null
+	Game.picker_context = {}
+
+	# Always restore config and side from context
+	if ctx.has("config"):
+		_config = ctx["config"] as BattleConfig
+	_current_side = int(ctx.get("side", 0))
+
+	# If user cancelled (null result), just restore state without adding
+	if result == null or result is not DigimonState:
+		return
+
+	var state: DigimonState = result as DigimonState
+	var side: int = int(ctx.get("side", 0))
+	var editing_idx: int = int(ctx.get("editing_index", -1))
+
+	if side >= _config.side_configs.size():
+		return
+
+	var party: Array = _config.side_configs[side].get("party", [])
+
+	if editing_idx >= 0 and editing_idx < party.size():
+		party[editing_idx] = state
+	else:
+		party.append(state)
+
+	_config.side_configs[side]["party"] = party
 
 
 func _setup_format_options() -> void:
@@ -42,6 +84,20 @@ func _setup_format_options() -> void:
 	_format_option.add_item("Triples 3v3")
 	_format_option.add_item("FFA 3-player")
 	_format_option.add_item("FFA 4-player")
+
+
+func _sync_format_selector() -> void:
+	var preset_map: Dictionary = {
+		BattleConfig.FormatPreset.SINGLES_1V1: 0,
+		BattleConfig.FormatPreset.DOUBLES_2V2: 1,
+		BattleConfig.FormatPreset.DOUBLES_MULTI: 2,
+		BattleConfig.FormatPreset.TRIPLES_3V3: 3,
+		BattleConfig.FormatPreset.FFA_3: 4,
+		BattleConfig.FormatPreset.FFA_4: 5,
+	}
+	var idx: int = preset_map.get(_config.format_preset, 0)
+	_format_option.selected = idx
+	_xp_toggle.button_pressed = _config.xp_enabled
 
 
 func _connect_signals() -> void:
@@ -83,7 +139,7 @@ func _on_side_selected(index: int) -> void:
 
 func _on_add_digimon() -> void:
 	_editing_index = -1
-	_open_picker()
+	_navigate_to_picker()
 
 
 func _on_controller_selected(index: int) -> void:
@@ -168,35 +224,15 @@ func _free_team_popup() -> void:
 			child.queue_free()
 
 
-func _open_picker(existing: DigimonState = null) -> void:
-	var picker: DigimonPickerPopup = PICKER_POPUP_SCENE.instantiate() as DigimonPickerPopup
-	add_child(picker)
-	picker.digimon_confirmed.connect(_on_digimon_picked)
-	picker.cancelled.connect(func() -> void: picker.queue_free())
-	if existing != null:
-		picker.prepopulate(existing)
-	picker.popup_centered()
-
-
-func _on_digimon_picked(state: DigimonState) -> void:
-	if _current_side >= _config.side_configs.size():
-		return
-
-	var party: Array = _config.side_configs[_current_side].get("party", [])
-
-	if _editing_index >= 0 and _editing_index < party.size():
-		party[_editing_index] = state
-	else:
-		party.append(state)
-
-	_config.side_configs[_current_side]["party"] = party
-	_update_team_display()
-	_clear_validation()
-
-	# Clean up picker
-	for child: Node in get_children():
-		if child is DigimonPickerPopup:
-			child.queue_free()
+func _navigate_to_picker(existing: DigimonState = null) -> void:
+	Game.picker_context = {
+		"side": _current_side,
+		"editing_index": _editing_index,
+		"existing_state": existing,
+		"config": _config,
+	}
+	Game.picker_result = null
+	SceneManager.change_scene(PICKER_SCENE_PATH)
 
 
 func _update_side_selector() -> void:
@@ -218,6 +254,11 @@ func _update_team_display() -> void:
 		return
 
 	var party: Array = _config.side_configs[_current_side].get("party", [])
+
+	if party.size() == 0:
+		_add_empty_placeholder()
+		return
+
 	for i: int in party.size():
 		var state: DigimonState = party[i] as DigimonState
 		if state == null:
@@ -227,6 +268,16 @@ func _update_team_display() -> void:
 		panel.setup(i, state)
 		panel.edit_pressed.connect(_on_slot_edit)
 		panel.remove_pressed.connect(_on_slot_remove)
+
+
+func _add_empty_placeholder() -> void:
+	var placeholder := Label.new()
+	placeholder.text = "No Digimon added yet.\nClick 'Add Digimon' to get started."
+	placeholder.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	placeholder.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	placeholder.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	placeholder.add_theme_color_override("font_color", Color(0.631, 0.631, 0.667, 1))
+	_team_list.add_child(placeholder)
 
 
 func _update_controller_display() -> void:
@@ -248,7 +299,7 @@ func _on_slot_edit(index: int) -> void:
 	_editing_index = index
 	var party: Array = _config.side_configs[_current_side].get("party", [])
 	var existing: DigimonState = party[index] as DigimonState if index < party.size() else null
-	_open_picker(existing)
+	_navigate_to_picker(existing)
 
 
 func _on_slot_remove(index: int) -> void:

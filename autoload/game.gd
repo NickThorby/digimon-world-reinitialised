@@ -10,6 +10,11 @@ var state: GameState = null
 ## Battle configuration for the next battle (set by builder, consumed by battle scene).
 var battle_config: BattleConfig = null
 
+## Context for digimon picker scene (set by builder before navigating).
+var picker_context: Dictionary = {}
+## Result from digimon picker (set by picker on confirm, null on cancel).
+var picker_result: Variant = null
+
 
 ## Start a new game with fresh state.
 func new_game() -> void:

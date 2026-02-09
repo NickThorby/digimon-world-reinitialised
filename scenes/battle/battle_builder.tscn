@@ -1,7 +1,29 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scenes/battle/battle_builder.gd" id="1"]
 [ext_resource type="Theme" path="res://ui/theme/game_theme.tres" id="2"]
+
+[sub_resource type="StyleBoxFlat" id="launch_button_normal"]
+bg_color = Color(0.024, 0.714, 0.831, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+
+[sub_resource type="StyleBoxFlat" id="launch_button_hover"]
+bg_color = Color(0.08, 0.78, 0.9, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
 
 [node name="BattleBuilder" type="Control"]
 layout_mode = 3
@@ -31,24 +53,31 @@ offset_bottom = -20.0
 [node name="VBox" type="VBoxContainer" parent="MarginContainer"]
 layout_mode = 2
 
-[node name="HeaderBar" type="HBoxContainer" parent="MarginContainer/VBox"]
+[node name="HeaderBar" type="MarginContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+theme_override_constants/margin_bottom = 12
+
+[node name="HBox" type="HBoxContainer" parent="MarginContainer/VBox/HeaderBar"]
 layout_mode = 2
 
-[node name="BackButton" type="Button" parent="MarginContainer/VBox/HeaderBar" unique_name_in_owner=true]
+[node name="BackButton" type="Button" parent="MarginContainer/VBox/HeaderBar/HBox" unique_name_in_owner=true]
 layout_mode = 2
-custom_minimum_size = Vector2(80, 0)
-text = "Back"
+theme_override_colors/font_color = Color(0.631, 0.631, 0.667, 1)
+theme_override_colors/font_hover_color = Color(0.133, 0.827, 0.933, 1)
+text = "< Back to Menu"
+flat = true
 
-[node name="Title" type="Label" parent="MarginContainer/VBox/HeaderBar"]
+[node name="Title" type="Label" parent="MarginContainer/VBox/HeaderBar/HBox"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.024, 0.714, 0.831, 1)
+theme_override_font_sizes/font_size = 28
 text = "Battle Builder"
 horizontal_alignment = 1
 
-[node name="HeaderSpacer" type="Control" parent="MarginContainer/VBox/HeaderBar"]
+[node name="HeaderSpacer" type="Control" parent="MarginContainer/VBox/HeaderBar/HBox"]
 layout_mode = 2
-custom_minimum_size = Vector2(80, 0)
+custom_minimum_size = Vector2(120, 0)
 
 [node name="HSplit" type="HSplitContainer" parent="MarginContainer/VBox"]
 layout_mode = 2
@@ -83,59 +112,55 @@ layout_mode = 2
 size_flags_horizontal = 3
 text = "Load Team"
 
-[node name="RightPanel" type="HBoxContainer" parent="MarginContainer/VBox/HSplit"]
+[node name="RightPanel" type="VBoxContainer" parent="MarginContainer/VBox/HSplit"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-custom_minimum_size = Vector2(500, 0)
+custom_minimum_size = Vector2(350, 0)
 
-[node name="SettingsColumn" type="VBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="GlobalLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn"]
+[node name="GlobalLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 text = "Battle Settings"
 
-[node name="FormatRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn"]
+[node name="FormatRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel"]
 layout_mode = 2
 
-[node name="FormatLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/FormatRow"]
+[node name="FormatLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/FormatRow"]
 layout_mode = 2
 text = "Format:"
 
-[node name="FormatOption" type="OptionButton" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/FormatRow" unique_name_in_owner=true]
+[node name="FormatOption" type="OptionButton" parent="MarginContainer/VBox/HSplit/RightPanel/FormatRow" unique_name_in_owner=true]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="XPRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn"]
+[node name="XPRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel"]
 layout_mode = 2
 
-[node name="XPLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/XPRow"]
+[node name="XPLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/XPRow"]
 layout_mode = 2
 text = "XP Enabled:"
 
-[node name="XPToggle" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/XPRow" unique_name_in_owner=true]
+[node name="XPToggle" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/XPRow" unique_name_in_owner=true]
 layout_mode = 2
 button_pressed = true
 
-[node name="SettingsSeparator" type="HSeparator" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn"]
+[node name="SettingsSeparator" type="HSeparator" parent="MarginContainer/VBox/HSplit/RightPanel"]
 layout_mode = 2
 
-[node name="SideLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn" unique_name_in_owner=true]
+[node name="SideLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel" unique_name_in_owner=true]
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 text = "Side 1 Settings"
 
-[node name="ControllerRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn"]
+[node name="ControllerRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel"]
 layout_mode = 2
 
-[node name="ControllerLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/ControllerRow"]
+[node name="ControllerLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/ControllerRow"]
 layout_mode = 2
 text = "Controller:"
 
-[node name="ControllerOption" type="OptionButton" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/ControllerRow" unique_name_in_owner=true]
+[node name="ControllerOption" type="OptionButton" parent="MarginContainer/VBox/HSplit/RightPanel/ControllerRow" unique_name_in_owner=true]
 layout_mode = 2
 size_flags_horizontal = 3
 item_count = 2
@@ -143,31 +168,36 @@ popup/item_0/text = "Player"
 popup/item_1/text = "AI"
 popup/item_1/id = 1
 
-[node name="WildRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn"]
+[node name="WildRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel"]
 layout_mode = 2
 
-[node name="WildLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/WildRow"]
+[node name="WildLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/WildRow"]
 layout_mode = 2
 text = "Wild Battle:"
 
-[node name="WildToggle" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/WildRow" unique_name_in_owner=true]
+[node name="WildToggle" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/WildRow" unique_name_in_owner=true]
 layout_mode = 2
 
-[node name="VSeparator" type="VSeparator" parent="MarginContainer/VBox/HSplit/RightPanel"]
-layout_mode = 2
-
-[node name="LaunchColumn" type="VBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="LaunchButton" type="Button" parent="MarginContainer/VBox/HSplit/RightPanel/LaunchColumn" unique_name_in_owner=true]
-layout_mode = 2
-custom_minimum_size = Vector2(0, 40)
-text = "Launch Battle"
-
-[node name="ValidationLabel" type="RichTextLabel" parent="MarginContainer/VBox/HSplit/RightPanel/LaunchColumn" unique_name_in_owner=true]
+[node name="ValidationLabel" type="RichTextLabel" parent="MarginContainer/VBox/HSplit/RightPanel" unique_name_in_owner=true]
 layout_mode = 2
 size_flags_vertical = 3
 bbcode_enabled = true
 text = ""
 fit_content = true
+
+[node name="BottomBar" type="HBoxContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 50)
+
+[node name="LaunchButton" type="Button" parent="MarginContainer/VBox/BottomBar" unique_name_in_owner=true]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.035, 0.035, 0.043, 1)
+theme_override_colors/font_hover_color = Color(0.035, 0.035, 0.043, 1)
+theme_override_colors/font_pressed_color = Color(0.035, 0.035, 0.043, 1)
+theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("launch_button_normal")
+theme_override_styles/hover = SubResource("launch_button_hover")
+theme_override_styles/pressed = SubResource("launch_button_normal")
+text = "Launch Battle"
