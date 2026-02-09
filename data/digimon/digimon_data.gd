@@ -90,9 +90,9 @@ func get_technique_keys_at_level(level_threshold: int) -> Array[StringName]:
 func get_all_technique_keys() -> Array[StringName]:
 	var keys: Array[StringName] = []
 	for entry: Dictionary in technique_entries:
-		var key: StringName = entry.get("key", &"") as StringName
-		if key != &"":
-			keys.append(key)
+		var tech_key: StringName = entry.get("key", &"") as StringName
+		if tech_key != &"":
+			keys.append(tech_key)
 	return keys
 
 

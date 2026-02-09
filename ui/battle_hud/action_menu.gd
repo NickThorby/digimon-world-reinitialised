@@ -5,11 +5,11 @@ extends PanelContainer
 
 signal action_chosen(action_type: BattleAction.ActionType)
 
-@onready var _technique_button: Button = %TechniqueButton
-@onready var _switch_button: Button = %SwitchButton
-@onready var _rest_button: Button = %RestButton
-@onready var _run_button: Button = %RunButton
-@onready var _item_button: Button = %ItemButton
+@onready var _technique_button: Button = $HBox/TechniqueButton
+@onready var _switch_button: Button = $HBox/SwitchButton
+@onready var _rest_button: Button = $HBox/RestButton
+@onready var _run_button: Button = $HBox/RunButton
+@onready var _item_button: Button = $HBox/ItemButton
 
 
 func _ready() -> void:

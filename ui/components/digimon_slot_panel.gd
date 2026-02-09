@@ -7,11 +7,11 @@ extends PanelContainer
 signal edit_pressed(index: int)
 signal remove_pressed(index: int)
 
-@onready var _name_label: Label = %NameLabel
-@onready var _level_label: Label = %LevelLabel
-@onready var _element_label: Label = %ElementLabel
-@onready var _edit_button: Button = %EditButton
-@onready var _remove_button: Button = %RemoveButton
+@onready var _name_label: Label = $HBox/InfoVBox/TopRow/NameLabel
+@onready var _level_label: Label = $HBox/InfoVBox/TopRow/LevelLabel
+@onready var _element_label: Label = $HBox/InfoVBox/ElementLabel
+@onready var _edit_button: Button = $HBox/ButtonVBox/EditButton
+@onready var _remove_button: Button = $HBox/ButtonVBox/RemoveButton
 
 var _index: int = -1
 var _digimon_state: DigimonState = null

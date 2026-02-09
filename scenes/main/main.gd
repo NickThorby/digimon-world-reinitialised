@@ -3,11 +3,11 @@ extends Node2D
 
 const BATTLE_BUILDER_PATH := "res://scenes/battle/battle_builder.tscn"
 
-@onready var _builder_button: Button = %BuilderButton
-
 
 func _ready() -> void:
-	_builder_button.pressed.connect(_on_builder_pressed)
+	var builder_button: Button = get_node("CentreContainer/VBox/BuilderButton") as Button
+	if builder_button:
+		builder_button.pressed.connect(_on_builder_pressed)
 	print("Digimon World: Reinitialised — main scene loaded.")
 
 

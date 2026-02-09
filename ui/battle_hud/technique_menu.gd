@@ -6,8 +6,8 @@ extends PanelContainer
 signal technique_chosen(technique_key: StringName)
 signal back_pressed
 
-@onready var _technique_container: VBoxContainer = %TechniqueContainer
-@onready var _back_button: Button = %BackButton
+@onready var _technique_container: VBoxContainer = $VBox/TechniqueContainer
+@onready var _back_button: Button = $VBox/BackButton
 
 
 func _ready() -> void:

@@ -7,13 +7,13 @@ extends Window
 signal digimon_confirmed(state: DigimonState)
 signal cancelled
 
-@onready var _search_field: LineEdit = %SearchField
-@onready var _species_list: ItemList = %SpeciesList
-@onready var _level_spinbox: SpinBox = %LevelSpinBox
-@onready var _technique_list: ItemList = %TechniqueList
-@onready var _confirm_button: Button = %ConfirmButton
-@onready var _cancel_button: Button = %CancelButton
-@onready var _ability_option: OptionButton = %AbilityOption
+@onready var _search_field: LineEdit = $MarginContainer/VBox/SearchField
+@onready var _species_list: ItemList = $MarginContainer/VBox/SpeciesList
+@onready var _level_spinbox: SpinBox = $MarginContainer/VBox/LevelRow/LevelSpinBox
+@onready var _technique_list: ItemList = $MarginContainer/VBox/TechniqueList
+@onready var _confirm_button: Button = $MarginContainer/VBox/ButtonRow/ConfirmButton
+@onready var _cancel_button: Button = $MarginContainer/VBox/ButtonRow/CancelButton
+@onready var _ability_option: OptionButton = $MarginContainer/VBox/AbilityRow/AbilityOption
 
 var _filtered_keys: Array[StringName] = []
 var _selected_key: StringName = &""

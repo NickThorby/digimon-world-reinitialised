@@ -5,9 +5,9 @@ extends Control
 
 signal continue_pressed
 
-@onready var _outcome_label: Label = %OutcomeLabel
-@onready var _xp_container: VBoxContainer = %XPContainer
-@onready var _continue_button: Button = %ContinueButton
+@onready var _outcome_label: Label = $Panel/VBox/OutcomeLabel
+@onready var _xp_container: VBoxContainer = $Panel/VBox/XPContainer
+@onready var _continue_button: Button = $Panel/VBox/ContinueButton
 
 
 func _ready() -> void:

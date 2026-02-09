@@ -12,17 +12,17 @@ enum BattlePhase {
 	ENDED,
 }
 
-@onready var _ally_panels: HBoxContainer = %AllyPanels
-@onready var _foe_panels: HBoxContainer = %FoePanels
-@onready var _action_menu: ActionMenu = %ActionMenu
-@onready var _technique_menu: TechniqueMenu = %TechniqueMenu
-@onready var _switch_menu: SwitchMenu = %SwitchMenu
-@onready var _target_selector: TargetSelector = %TargetSelector
-@onready var _battle_log: BattleLog = %BattleLog
-@onready var _post_battle_screen: PostBattleScreen = %PostBattleScreen
-@onready var _turn_label: Label = %TurnLabel
-@onready var _near_side: HBoxContainer = %NearSide
-@onready var _far_side: HBoxContainer = %FarSide
+@onready var _ally_panels: HBoxContainer = $BattleHUD/AllyPanels
+@onready var _foe_panels: HBoxContainer = $BattleHUD/FoePanels
+@onready var _action_menu: ActionMenu = $BattleHUD/ActionMenu
+@onready var _technique_menu: TechniqueMenu = $BattleHUD/TechniqueMenu
+@onready var _switch_menu: SwitchMenu = $BattleHUD/SwitchMenu
+@onready var _target_selector: TargetSelector = $BattleHUD/TargetSelector
+@onready var _battle_log: BattleLog = $BattleHUD/BattleLog
+@onready var _post_battle_screen: PostBattleScreen = $PostBattleScreen
+@onready var _turn_label: Label = $BattleHUD/TopBar/TurnLabel
+@onready var _near_side: HBoxContainer = $BattleField/NearSide
+@onready var _far_side: HBoxContainer = $BattleField/FarSide
 
 var _battle: BattleState = null
 var _engine: BattleEngine = BattleEngine.new()

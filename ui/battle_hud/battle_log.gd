@@ -3,7 +3,7 @@ extends PanelContainer
 ## Scrolling text log for battle messages.
 
 
-@onready var _text: RichTextLabel = %LogText
+@onready var _text: RichTextLabel = $LogText
 
 var _max_lines: int = 100
 

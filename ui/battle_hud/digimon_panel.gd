@@ -3,13 +3,13 @@ extends PanelContainer
 ## Displays name, level, HP bar, energy bar, and status icons for one Digimon.
 
 
-@onready var _name_label: Label = %NameLabel
-@onready var _level_label: Label = %LevelLabel
-@onready var _hp_bar: ProgressBar = %HPBar
-@onready var _hp_label: Label = %HPLabel
-@onready var _energy_bar: ProgressBar = %EnergyBar
-@onready var _energy_label: Label = %EnergyLabel
-@onready var _status_label: Label = %StatusLabel
+@onready var _name_label: Label = $VBox/TopRow/NameLabel
+@onready var _level_label: Label = $VBox/TopRow/LevelLabel
+@onready var _hp_bar: ProgressBar = $VBox/HPRow/HPBar
+@onready var _hp_label: Label = $VBox/HPRow/HPLabel
+@onready var _energy_bar: ProgressBar = $VBox/EnergyRow/EnergyBar
+@onready var _energy_label: Label = $VBox/EnergyRow/EnergyLabel
+@onready var _status_label: Label = $VBox/StatusLabel
 
 var _tween: Tween = null
 

@@ -6,8 +6,8 @@ extends PanelContainer
 signal target_chosen(side_index: int, slot_index: int)
 signal back_pressed
 
-@onready var _target_container: VBoxContainer = %TargetContainer
-@onready var _back_button: Button = %BackButton
+@onready var _target_container: VBoxContainer = $VBox/TargetContainer
+@onready var _back_button: Button = $VBox/BackButton
 
 
 func _ready() -> void:
