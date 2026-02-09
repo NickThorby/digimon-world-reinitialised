@@ -4,6 +4,7 @@ extends Control
 const BATTLE_SCENE_PATH := "res://scenes/battle/battle_scene.tscn"
 const SLOT_PANEL_SCENE := preload("res://ui/components/digimon_slot_panel.tscn")
 const PICKER_POPUP_SCENE := preload("res://ui/components/digimon_picker_popup.tscn")
+const TEAM_SAVE_POPUP_SCENE := preload("res://ui/components/team_save_popup.tscn")
 
 @onready var _format_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/FormatRow/FormatOption
 @onready var _side_selector: TabBar = $MarginContainer/VBox/HSplit/LeftPanel/SideSelector
@@ -125,33 +126,45 @@ func _on_save_team() -> void:
 		if member is DigimonState:
 			team.members.append(member as DigimonState)
 
-	var slot_name: String = "team_%d" % Time.get_unix_time_from_system()
-	BuilderSaveManager.save_team(team, slot_name)
-	_show_validation_message("Team saved as '%s'" % slot_name)
+	_open_team_popup(TeamSavePopup.PopupMode.SAVE, team)
 
 
 func _on_load_team() -> void:
-	var slots: Array[String] = BuilderSaveManager.get_team_slots()
-	if slots.size() == 0:
-		_show_validation_message("No saved teams found.")
-		return
+	_open_team_popup(TeamSavePopup.PopupMode.LOAD)
 
-	# Load most recent team
-	var latest_slot: String = slots[slots.size() - 1]
-	var team: BuilderTeamState = BuilderSaveManager.load_team(latest_slot)
-	if team == null:
-		_show_validation_message("Failed to load team.")
-		return
 
+func _open_team_popup(mode: TeamSavePopup.PopupMode, team: BuilderTeamState = null) -> void:
+	var popup: TeamSavePopup = TEAM_SAVE_POPUP_SCENE.instantiate() as TeamSavePopup
+	add_child(popup)
+	popup.team_saved.connect(_on_team_saved)
+	popup.team_loaded.connect(_on_team_loaded)
+	popup.cancelled.connect(func() -> void: popup.queue_free())
+	popup.setup(mode, team)
+	popup.popup_centered()
+
+
+func _on_team_saved(slot_name: String, team_name: String) -> void:
+	_show_validation_message("Saved '%s'" % team_name)
+	_free_team_popup()
+
+
+func _on_team_loaded(team: BuilderTeamState) -> void:
 	if _current_side >= _config.side_configs.size():
+		_free_team_popup()
 		return
-
 	var party: Array[DigimonState] = []
 	for member: DigimonState in team.members:
 		party.append(member)
 	_config.side_configs[_current_side]["party"] = party
 	_update_team_display()
-	_show_validation_message("Loaded team '%s' (%d members)" % [team.name, team.members.size()])
+	_show_validation_message("Loaded '%s' (%d members)" % [team.name, team.members.size()])
+	_free_team_popup()
+
+
+func _free_team_popup() -> void:
+	for child: Node in get_children():
+		if child is TeamSavePopup:
+			child.queue_free()
 
 
 func _open_picker(existing: DigimonState = null) -> void:

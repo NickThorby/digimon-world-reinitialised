@@ -109,6 +109,7 @@ func _connect_engine_signals() -> void:
 	_engine.technique_animation_requested.connect(_on_technique_animation_requested)
 	_engine.damage_dealt.connect(_on_damage_dealt)
 	_engine.energy_spent.connect(_on_energy_spent)
+	_engine.energy_restored.connect(_on_energy_restored)
 	_engine.hp_restored.connect(_on_hp_restored)
 	_engine.digimon_fainted.connect(_on_digimon_fainted)
 	_engine.digimon_switched.connect(_on_digimon_switched)
@@ -283,6 +284,7 @@ func _prompt_forced_switch() -> void:
 				switch_action.switch_to_party_index = reserve_idx
 				_engine._resolve_switch(switch_action)
 				_update_placeholder(side.side_index, slot.slot_index)
+				_update_panel(side.side_index, slot.slot_index)
 
 				ph = _get_battlefield_placeholder(side.side_index, slot.slot_index)
 				var in_dur: float = _anim_switch_in(ph)
@@ -337,6 +339,13 @@ func _replay_events() -> void:
 					int(event["side_index"]), int(event["slot_index"]),
 					event.get("snapshot", {}) as Dictionary,
 				)
+
+			&"energy_restored":
+				_update_panel_from_snapshot(
+					int(event["side_index"]), int(event["slot_index"]),
+					event.get("snapshot", {}) as Dictionary,
+				)
+				await get_tree().create_timer(0.3).timeout
 
 			&"hp_restored":
 				_update_panel_from_snapshot(
@@ -766,6 +775,15 @@ func _on_energy_spent(side_index: int, slot_index: int, _amount: int) -> void:
 	})
 
 
+func _on_energy_restored(side_index: int, slot_index: int, _amount: int) -> void:
+	_event_queue.append({
+		"type": &"energy_restored",
+		"side_index": side_index,
+		"slot_index": slot_index,
+		"snapshot": _snapshot_digimon(side_index, slot_index),
+	})
+
+
 func _on_hp_restored(side_index: int, slot_index: int, _amount: int) -> void:
 	_event_queue.append({
 		"type": &"hp_restored",
@@ -988,6 +1006,7 @@ func _update_panel(side_index: int, slot_index: int) -> void:
 		return
 
 	var digimon: BattleDigimonState = _battle.get_digimon_at(side_index, slot_index)
+	panel.visible = (digimon != null)
 	panel.update_from_battle_digimon(digimon)
 
 

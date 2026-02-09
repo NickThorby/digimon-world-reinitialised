@@ -1,0 +1,65 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/components/team_save_popup.gd" id="1"]
+
+[node name="TeamSavePopup" type="Window"]
+title = "Team Manager"
+size = Vector2i(600, 450)
+exclusive = true
+script = ExtResource("1")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+
+[node name="VBox" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+
+[node name="SaveRow" type="HBoxContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+visible = false
+
+[node name="NameLabel" type="Label" parent="MarginContainer/VBox/SaveRow"]
+layout_mode = 2
+text = "Team Name:"
+
+[node name="NameEdit" type="LineEdit" parent="MarginContainer/VBox/SaveRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Enter team name..."
+
+[node name="SaveNewButton" type="Button" parent="MarginContainer/VBox/SaveRow"]
+layout_mode = 2
+text = "Save as New"
+
+[node name="HeaderLabel" type="Label" parent="MarginContainer/VBox"]
+layout_mode = 2
+text = "Saved Teams"
+theme_override_font_sizes/font_size = 16
+
+[node name="ScrollContainer" type="ScrollContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="TeamList" type="VBoxContainer" parent="MarginContainer/VBox/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="EmptyLabel" type="Label" parent="MarginContainer/VBox"]
+layout_mode = 2
+text = "No saved teams."
+horizontal_alignment = 1
+visible = false
+
+[node name="BottomRow" type="HBoxContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+alignment = 2
+
+[node name="CancelButton" type="Button" parent="MarginContainer/VBox/BottomRow"]
+layout_mode = 2
+text = "Cancel"

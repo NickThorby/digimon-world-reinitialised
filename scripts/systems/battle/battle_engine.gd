@@ -14,6 +14,7 @@ signal weather_changed(new_weather: Dictionary)
 signal terrain_changed(new_terrain: Dictionary)
 signal damage_dealt(side_index: int, slot_index: int, amount: int, effectiveness: StringName)
 signal energy_spent(side_index: int, slot_index: int, amount: int)
+signal energy_restored(side_index: int, slot_index: int, amount: int)
 signal hp_restored(side_index: int, slot_index: int, amount: int)
 signal battle_message(text: String)
 signal technique_animation_requested(
@@ -275,6 +276,7 @@ func _resolve_rest(action: BattleAction) -> Array[Dictionary]:
 	var regen_pct: float = _balance.energy_regen_on_rest if _balance else 0.25
 	var amount: int = maxi(floori(float(user.max_energy) * regen_pct), 1)
 	user.restore_energy(amount)
+	energy_restored.emit(user.side_index, user.slot_index, amount)
 
 	# Rest removes bleeding
 	if user.has_status(&"bleeding"):
