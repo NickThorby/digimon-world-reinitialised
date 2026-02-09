@@ -28,7 +28,7 @@ unique_name_in_owner = true
 [node name="ApiUrl" type="LineEdit" parent="ApiUrlContainer"]
 unique_name_in_owner = true
 size_flags_horizontal = 3
-text = "http://localhost:3000/export/game"
+text = "http://localhost:3000/api/export/game"
 placeholder_text = "API URL"
 
 [node name="FilePathContainer" type="HBoxContainer" parent="."]
@@ -74,6 +74,22 @@ text = "Evolutions"
 unique_name_in_owner = true
 button_pressed = true
 text = "Locations"
+
+[node name="ImportSprites" type="CheckBox" parent="."]
+unique_name_in_owner = true
+text = "Sprites"
+
+[node name="SpriteModeContainer" type="HBoxContainer" parent="."]
+
+[node name="SpriteModeLabel" type="Label" parent="SpriteModeContainer"]
+text = "Mode:"
+
+[node name="SpriteMode" type="OptionButton" parent="SpriteModeContainer"]
+unique_name_in_owner = true
+size_flags_horizontal = 3
+item_count = 2
+popup/item_0/text = "Download Missing"
+popup/item_1/text = "Download All"
 
 [node name="ActionSeparator" type="HSeparator" parent="."]
 

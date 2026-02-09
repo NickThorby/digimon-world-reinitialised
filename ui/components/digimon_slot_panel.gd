@@ -47,7 +47,7 @@ func _update_display() -> void:
 	var elements: Array[String] = []
 	for element_key: StringName in data.element_traits:
 		elements.append(str(element_key).capitalize())
-	_element_label.text = " / ".join(elements) if elements.size() > 0 else "Null"
+	_element_label.text = " / ".join(elements) if elements.size() > 0 else "—"
 
 
 func _on_edit_pressed() -> void:

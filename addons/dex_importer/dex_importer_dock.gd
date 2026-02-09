@@ -9,6 +9,7 @@ const ABILITY_FOLDER: String = "res://data/ability"
 const DIGIMON_FOLDER: String = "res://data/digimon"
 const EVOLUTION_FOLDER: String = "res://data/evolution"
 const LOCATIONS_FILE: String = "res://data/locale/locations.json"
+const SPRITE_FOLDER: String = "res://assets/sprites/digimon"
 
 var _client: RefCounted
 var _mapper: RefCounted
@@ -27,6 +28,8 @@ var _file_dialog: EditorFileDialog
 @onready var _import_abilities: CheckBox = %ImportAbilities
 @onready var _import_evolutions: CheckBox = %ImportEvolutions
 @onready var _import_locations: CheckBox = %ImportLocations
+@onready var _import_sprites: CheckBox = %ImportSprites
+@onready var _sprite_mode: OptionButton = %SpriteMode
 @onready var _import_button: Button = %ImportButton
 @onready var _progress_bar: ProgressBar = %ProgressBar
 @onready var _log_output: RichTextLabel = %LogOutput
@@ -41,6 +44,14 @@ func _ready() -> void:
 	_mapper = DexMapper.new()
 	_validator = BrickValidator.new()
 	_writer = ResourceWriter.new()
+
+	# Populate dropdowns (more reliable than .tscn items for @tool plugins)
+	if _source_mode.item_count == 0:
+		_source_mode.add_item("API", 0)
+		_source_mode.add_item("File", 1)
+	if _sprite_mode.item_count == 0:
+		_sprite_mode.add_item("Download Missing", 0)
+		_sprite_mode.add_item("Download All", 1)
 
 	_source_mode.item_selected.connect(_on_source_mode_changed)
 	_import_button.pressed.connect(_on_import_pressed)
@@ -92,7 +103,7 @@ func _on_import_pressed() -> void:
 	var valid_technique_keys: Dictionary = {}
 	var valid_ability_keys: Dictionary = {}
 	var step_count: float = 0.0
-	var total_steps: float = 5.0
+	var total_steps: float = 6.0
 
 	# Step 1: Techniques
 	if _import_techniques.button_pressed and data.has("techniques"):
@@ -124,6 +135,12 @@ func _on_import_pressed() -> void:
 	if _import_locations.button_pressed and data.has("locations"):
 		_set_progress(step_count, total_steps, "Importing locations...")
 		_import_locations_data(data["locations"])
+	step_count += 1.0
+
+	# Step 6: Sprites
+	if _import_sprites.button_pressed and data.has("digimon"):
+		_set_progress(step_count, total_steps, "Downloading sprites...")
+		await _import_sprites_data(data["digimon"])
 	step_count += 1.0
 
 	_set_progress(total_steps, total_steps, "Done!")
@@ -330,6 +347,59 @@ func _import_locations_data(locations_data: Variant) -> void:
 	file.store_string(json_string)
 	file.close()
 	_log("Locations: written to %s" % LOCATIONS_FILE)
+
+
+func _import_sprites_data(digimon_array: Array) -> void:
+	# Derive base URL from API URL (strip /export/game suffix)
+	var api_url: String = _api_url.text.strip_edges()
+	var base_url: String = api_url
+	if base_url.ends_with("/export/game"):
+		base_url = base_url.substr(0, base_url.length() - "/export/game".length())
+	elif base_url.ends_with("/export/game/"):
+		base_url = base_url.substr(0, base_url.length() - "/export/game/".length())
+
+	# Ensure sprite directory exists
+	if not DirAccess.dir_exists_absolute(SPRITE_FOLDER):
+		DirAccess.make_dir_recursive_absolute(SPRITE_FOLDER)
+
+	var download_all: bool = (_sprite_mode.selected == 1)
+	var downloaded: int = 0
+	var skipped: int = 0
+
+	for entry: Variant in digimon_array:
+		if entry is not Dictionary:
+			continue
+		var dex_data: Dictionary = entry as Dictionary
+		var game_id: String = dex_data.get("game_id", "")
+		if game_id.is_empty():
+			continue
+
+		var has_sprite: bool = dex_data.get("has_sprite", false) as bool
+		if not has_sprite:
+			continue
+
+		var file_path: String = SPRITE_FOLDER + "/" + game_id + ".png"
+
+		# Skip if exists and mode is "Download Missing"
+		if not download_all and FileAccess.file_exists(file_path):
+			skipped += 1
+			continue
+
+		var png_bytes: PackedByteArray = await _client.download_sprite(
+			base_url, game_id, self
+		)
+		if png_bytes.is_empty():
+			continue
+
+		var file: FileAccess = FileAccess.open(file_path, FileAccess.WRITE)
+		if file == null:
+			_log_error("Failed to write sprite: %s" % file_path)
+			continue
+		file.store_buffer(png_bytes)
+		file.close()
+		downloaded += 1
+
+	_log("Sprites: %d downloaded, %d skipped" % [downloaded, skipped])
 
 
 func _remove_stale_files(folder: String, imported_files: Array[String]) -> void:

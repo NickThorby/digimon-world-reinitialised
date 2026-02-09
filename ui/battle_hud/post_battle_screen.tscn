@@ -29,6 +29,11 @@ layout_mode = 2
 text = "Victory!"
 horizontal_alignment = 1
 
+[node name="TurnCountLabel" type="Label" parent="Panel/VBox" unique_name_in_owner=true]
+layout_mode = 2
+text = ""
+horizontal_alignment = 1
+
 [node name="Separator" type="HSeparator" parent="Panel/VBox"]
 layout_mode = 2
 
@@ -38,4 +43,4 @@ size_flags_vertical = 3
 
 [node name="ContinueButton" type="Button" parent="Panel/VBox" unique_name_in_owner=true]
 layout_mode = 2
-text = "Continue"
+text = "Return to Builder"

@@ -49,6 +49,30 @@ func fetch_from_file(path: String) -> Dictionary:
 	return _parse_json(json_string)
 
 
+## Downloads a sprite PNG from the dex API. Returns raw bytes, or empty on failure.
+func download_sprite(base_url: String, game_id: String, parent: Node) -> PackedByteArray:
+	var url: String = base_url.trim_suffix("/") + "/sprites/" + game_id
+	var http: HTTPRequest = HTTPRequest.new()
+	parent.add_child(http)
+
+	var error: int = http.request(url)
+	if error != OK:
+		http.queue_free()
+		return PackedByteArray()
+
+	var response: Array = await http.request_completed
+	http.queue_free()
+
+	var result: int = response[0]
+	var code: int = response[1]
+	var body: PackedByteArray = response[3]
+
+	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
+		return PackedByteArray()
+
+	return body
+
+
 func _parse_json(json_string: String) -> Dictionary:
 	var json: JSON = JSON.new()
 	var parse_error: int = json.parse(json_string)

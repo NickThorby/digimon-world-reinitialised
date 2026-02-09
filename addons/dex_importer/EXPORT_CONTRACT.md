@@ -198,6 +198,7 @@ Bulk export of the entire game-relevant dataset. No pagination. Single JSON resp
 | `jp_name` | `string` | Romanised Japanese. |
 | `dub_name` | `string` | English dub name. |
 | `name` | `string?` | Optional game-specific override. |
+| `has_sprite` | `bool` | Whether a sprite image exists for this Digimon. |
 | `level` | `int` | Evolution level (1-10). |
 | `attribute` | `string` | PascalCase: `None`, `Vaccine`, `Virus`, `Data`, `Free`, `Variable`, `Unknown`. |
 | `bst` | `int` | Base Stat Total. |
@@ -271,6 +272,19 @@ The game importer validates:
 5. **Evolutions**: Always imported.
 6. **Locations**: Skipped if empty/null.
 7. **Traits**: Each `digimon.traits` entry must have both `name` and `category`. Entries missing either field are skipped.
+
+---
+
+## Sprite Download
+
+### `GET /sprites/:game_id`
+
+Returns the PNG sprite image for the given `game_id`. Public endpoint (no auth required).
+
+- **200**: PNG binary data
+- **404**: No sprite exists for this Digimon
+
+The importer uses the base URL (derived from the API URL by stripping `/export/game`) combined with this path to download sprites.
 
 ---
 

@@ -96,6 +96,15 @@ func get_all_technique_keys() -> Array[StringName]:
 	return keys
 
 
+## Returns the sprite texture if one exists at the convention path.
+var sprite_texture: Texture2D:
+	get:
+		var path: String = "res://assets/sprites/digimon/%s.png" % key
+		if ResourceLoader.exists(path):
+			return load(path) as Texture2D
+		return null
+
+
 ## Returns the display name based on player preference settings.
 var display_name: String:
 	get:

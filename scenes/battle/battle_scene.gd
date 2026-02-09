@@ -1,5 +1,6 @@
 extends Node2D
 ## Battle scene — integrates engine, AI, and UI for a full battle flow.
+## Uses an event queue to replay engine signals with delays and animations.
 
 const DIGIMON_PANEL_SCENE := preload("res://ui/battle_hud/digimon_panel.tscn")
 const BUILDER_PATH := "res://scenes/battle/battle_builder.tscn"
@@ -40,6 +41,9 @@ var _selected_technique_key: StringName = &""
 # Digimon panel references
 var _ally_panel_map: Dictionary = {}  # "side_slot" -> DigimonPanel
 var _foe_panel_map: Dictionary = {}
+
+# Event queue for async replay
+var _event_queue: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -97,6 +101,7 @@ func _connect_engine_signals() -> void:
 	_engine.turn_started.connect(_on_turn_started)
 	_engine.turn_ended.connect(_on_turn_ended)
 	_engine.battle_ended.connect(_on_battle_ended)
+	_engine.action_resolved.connect(_on_action_resolved)
 
 
 func _connect_ui_signals() -> void:
@@ -153,8 +158,8 @@ func _advance_input() -> void:
 		_advance_input()
 		return
 
-	var name: String = digimon.data.display_name if digimon.data else "???"
-	_battle_log.add_message("What will %s do?" % name)
+	var digimon_name: String = digimon.data.display_name if digimon.data else "???"
+	_battle_log.add_message("What will %s do?" % digimon_name)
 
 	# Check if switch is possible
 	var side: SideState = _battle.sides[_current_input_side]
@@ -179,11 +184,14 @@ func _execute_turn() -> void:
 	_phase = BattlePhase.EXECUTING
 	_hide_all_menus()
 
-	_engine.execute_turn(_pending_actions)
+	_event_queue.clear()
+	_engine.execute_turn(_pending_actions)  # Synchronous — populates event queue
+
+	await _replay_events()  # Async — plays with delays
 
 	# After execution, check state
 	if _battle.is_battle_over:
-		return  # battle_ended signal handles this
+		return  # battle_ended event handles this
 
 	# Check for forced replacements
 	if _needs_forced_switch():
@@ -233,6 +241,159 @@ func _prompt_forced_switch() -> void:
 	# After all forced switches, return to input
 	if not _battle.is_battle_over:
 		_start_input_phase()
+
+
+## --- Event Replay ---
+
+
+func _replay_events() -> void:
+	for event: Dictionary in _event_queue:
+		var event_type: StringName = event.get("type", &"") as StringName
+
+		match event_type:
+			&"battle_message":
+				_battle_log.add_message(event["text"] as String)
+				await get_tree().create_timer(0.4).timeout
+
+			&"action_resolved":
+				var action: BattleAction = event.get("action") as BattleAction
+				if action != null and action.action_type == BattleAction.ActionType.TECHNIQUE:
+					var tech: TechniqueData = Atlas.techniques.get(
+						action.technique_key
+					) as TechniqueData
+					if tech != null:
+						var duration: float = await _play_attack_animation(
+							action.user_side, action.user_slot, tech.technique_class
+						)
+						if duration > 0.0:
+							await get_tree().create_timer(duration).timeout
+
+			&"damage_dealt":
+				_update_panel(
+					int(event["side_index"]), int(event["slot_index"])
+				)
+				await get_tree().create_timer(0.4).timeout
+
+			&"energy_spent":
+				_update_panel(
+					int(event["side_index"]), int(event["slot_index"])
+				)
+
+			&"hp_restored":
+				_update_panel(
+					int(event["side_index"]), int(event["slot_index"])
+				)
+				await get_tree().create_timer(0.3).timeout
+
+			&"digimon_fainted":
+				_update_panel(
+					int(event["side_index"]), int(event["slot_index"])
+				)
+				await get_tree().create_timer(0.5).timeout
+
+			&"digimon_switched":
+				var side_idx: int = int(event["side_index"])
+				var slot_idx: int = int(event["slot_index"])
+				_update_panel(side_idx, slot_idx)
+				_update_placeholder(side_idx, slot_idx)
+				await get_tree().create_timer(0.3).timeout
+
+			&"status_applied", &"status_removed":
+				_update_panel(
+					int(event["side_index"]), int(event["slot_index"])
+				)
+
+			&"turn_started":
+				_turn_label.text = "Turn %d" % int(event["turn_number"])
+
+			&"turn_ended":
+				_update_all_panels()
+
+			&"battle_ended":
+				_phase = BattlePhase.ENDED
+				_hide_all_menus()
+				var result: BattleResult = event.get("result") as BattleResult
+
+				# Write back to source states
+				for side: SideState in _battle.sides:
+					for slot: SlotState in side.slots:
+						if slot.digimon != null:
+							slot.digimon.current_energy = slot.digimon.max_energy
+							slot.digimon.write_back()
+
+				# XP awards
+				if _battle.config.xp_enabled and result.outcome == BattleResult.Outcome.WIN:
+					result.xp_awards = XPCalculator.calculate_xp_awards(_battle)
+
+				_post_battle_screen.show_results(result)
+
+
+## --- Attack Animations ---
+
+
+func _play_attack_animation(
+	user_side: int,
+	user_slot: int,
+	technique_class: Registry.TechniqueClass,
+) -> float:
+	var placeholder: Node = _get_battlefield_placeholder(user_side, user_slot)
+	if placeholder == null:
+		return 0.0
+
+	match technique_class:
+		Registry.TechniqueClass.PHYSICAL:
+			return _anim_physical_lunge(placeholder)
+		Registry.TechniqueClass.SPECIAL:
+			return _anim_special_flash(placeholder)
+		Registry.TechniqueClass.STATUS:
+			return _anim_status_tint(placeholder)
+	return 0.0
+
+
+## Physical: lunge forward and snap back.
+func _anim_physical_lunge(placeholder: Node) -> float:
+	if placeholder is not Control:
+		return 0.0
+	var ctrl: Control = placeholder as Control
+	var original_pos: Vector2 = ctrl.position
+	var is_ally: bool = ctrl.get_parent() == _near_side
+	var offset: Vector2 = Vector2(0, -20) if is_ally else Vector2(0, 20)
+
+	var tween: Tween = create_tween()
+	tween.tween_property(ctrl, "position", original_pos + offset, 0.1)
+	tween.tween_property(ctrl, "position", original_pos, 0.2)
+	return 0.3
+
+
+## Special: bright flash/pulse via modulate.
+func _anim_special_flash(placeholder: Node) -> float:
+	if placeholder is not Control:
+		return 0.0
+	var ctrl: Control = placeholder as Control
+
+	var tween: Tween = create_tween()
+	tween.tween_property(ctrl, "modulate", Color(2.0, 2.0, 2.0), 0.1)
+	tween.tween_property(ctrl, "modulate", Color.WHITE, 0.3)
+	return 0.4
+
+
+## Status: yellow tint and fade back.
+func _anim_status_tint(placeholder: Node) -> float:
+	if placeholder is not Control:
+		return 0.0
+	var ctrl: Control = placeholder as Control
+
+	var tween: Tween = create_tween()
+	tween.tween_property(ctrl, "modulate", Color(1.2, 1.2, 0.4), 0.1)
+	tween.tween_property(ctrl, "modulate", Color.WHITE, 0.2)
+	return 0.3
+
+
+func _get_battlefield_placeholder(side_index: int, slot_index: int) -> Node:
+	var is_ally: bool = _battle.are_allies(0, side_index)
+	var container: HBoxContainer = _near_side if is_ally else _far_side
+	var node_name: String = "Slot_%d_%d" % [side_index, slot_index]
+	return container.get_node_or_null(node_name)
 
 
 ## --- UI Signal Handlers ---
@@ -376,11 +537,19 @@ func _on_continue_pressed() -> void:
 	SceneManager.change_scene(BUILDER_PATH)
 
 
-## --- Engine Signal Handlers ---
+## --- Engine Signal Handlers (Queue Events) ---
 
 
 func _on_battle_message(text: String) -> void:
-	_battle_log.add_message(text)
+	_event_queue.append({"type": &"battle_message", "text": text})
+
+
+func _on_action_resolved(action: BattleAction, results: Array[Dictionary]) -> void:
+	_event_queue.append({
+		"type": &"action_resolved",
+		"action": action,
+		"results": results,
+	})
 
 
 func _on_damage_dealt(
@@ -389,19 +558,35 @@ func _on_damage_dealt(
 	_amount: int,
 	_effectiveness: StringName,
 ) -> void:
-	_update_panel(side_index, slot_index)
+	_event_queue.append({
+		"type": &"damage_dealt",
+		"side_index": side_index,
+		"slot_index": slot_index,
+	})
 
 
 func _on_energy_spent(side_index: int, slot_index: int, _amount: int) -> void:
-	_update_panel(side_index, slot_index)
+	_event_queue.append({
+		"type": &"energy_spent",
+		"side_index": side_index,
+		"slot_index": slot_index,
+	})
 
 
 func _on_hp_restored(side_index: int, slot_index: int, _amount: int) -> void:
-	_update_panel(side_index, slot_index)
+	_event_queue.append({
+		"type": &"hp_restored",
+		"side_index": side_index,
+		"slot_index": slot_index,
+	})
 
 
 func _on_digimon_fainted(side_index: int, slot_index: int) -> void:
-	_update_panel(side_index, slot_index)
+	_event_queue.append({
+		"type": &"digimon_fainted",
+		"side_index": side_index,
+		"slot_index": slot_index,
+	})
 
 
 func _on_digimon_switched(
@@ -409,8 +594,11 @@ func _on_digimon_switched(
 	slot_index: int,
 	_new_digimon: BattleDigimonState,
 ) -> void:
-	_update_panel(side_index, slot_index)
-	_update_placeholder(side_index, slot_index)
+	_event_queue.append({
+		"type": &"digimon_switched",
+		"side_index": side_index,
+		"slot_index": slot_index,
+	})
 
 
 func _on_status_applied(
@@ -418,7 +606,11 @@ func _on_status_applied(
 	slot_index: int,
 	_status_key: StringName,
 ) -> void:
-	_update_panel(side_index, slot_index)
+	_event_queue.append({
+		"type": &"status_applied",
+		"side_index": side_index,
+		"slot_index": slot_index,
+	})
 
 
 func _on_status_removed(
@@ -426,34 +618,29 @@ func _on_status_removed(
 	slot_index: int,
 	_status_key: StringName,
 ) -> void:
-	_update_panel(side_index, slot_index)
+	_event_queue.append({
+		"type": &"status_removed",
+		"side_index": side_index,
+		"slot_index": slot_index,
+	})
 
 
 func _on_turn_started(turn_number: int) -> void:
-	_turn_label.text = "Turn %d" % turn_number
+	_event_queue.append({
+		"type": &"turn_started",
+		"turn_number": turn_number,
+	})
 
 
 func _on_turn_ended(_turn_number: int) -> void:
-	_update_all_panels()
+	_event_queue.append({"type": &"turn_ended"})
 
 
 func _on_battle_ended(result: BattleResult) -> void:
-	_phase = BattlePhase.ENDED
-	_hide_all_menus()
-
-	# Write back to source states
-	for side: SideState in _battle.sides:
-		for slot: SlotState in side.slots:
-			if slot.digimon != null:
-				# Restore energy to 100% post-battle
-				slot.digimon.current_energy = slot.digimon.max_energy
-				slot.digimon.write_back()
-
-	# XP awards
-	if _battle.config.xp_enabled and result.outcome == BattleResult.Outcome.WIN:
-		result.xp_awards = XPCalculator.calculate_xp_awards(_battle)
-
-	_post_battle_screen.show_results(result)
+	_event_queue.append({
+		"type": &"battle_ended",
+		"result": result,
+	})
 
 
 ## --- Panel Management ---
@@ -500,10 +687,29 @@ func _setup_battlefield_placeholders() -> void:
 			var vbox := VBoxContainer.new()
 			vbox.custom_minimum_size = Vector2(80, 100)
 
-			var rect := ColorRect.new()
-			rect.custom_minimum_size = Vector2(60, 60)
-			rect.color = Color(0.3, 0.7, 0.3) if is_ally else Color(0.7, 0.3, 0.3)
-			vbox.add_child(rect)
+			# Try sprite first, fall back to ColorRect
+			var sprite_added: bool = false
+			if slot.digimon != null and slot.digimon.data != null:
+				var sprite_tex: Texture2D = null
+				if "sprite_texture" in slot.digimon.data:
+					sprite_tex = slot.digimon.data.sprite_texture
+				if sprite_tex != null:
+					var tex_rect := TextureRect.new()
+					tex_rect.texture = sprite_tex
+					tex_rect.custom_minimum_size = Vector2(60, 60)
+					tex_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+					tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+					tex_rect.flip_h = not is_ally
+					tex_rect.name = "SpriteRect"
+					vbox.add_child(tex_rect)
+					sprite_added = true
+
+			if not sprite_added:
+				var rect := ColorRect.new()
+				rect.custom_minimum_size = Vector2(60, 60)
+				rect.color = Color(0.3, 0.7, 0.3) if is_ally else Color(0.7, 0.3, 0.3)
+				rect.name = "ColorRect"
+				vbox.add_child(rect)
 
 			var label := Label.new()
 			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -556,5 +762,29 @@ func _update_placeholder(side_index: int, slot_index: int) -> void:
 	var digimon: BattleDigimonState = _battle.get_digimon_at(side_index, slot_index)
 	if digimon != null and digimon.data != null:
 		label.text = digimon.data.display_name
+
+		# Update sprite/colour
+		var old_sprite: Node = vbox.get_node_or_null("SpriteRect")
+		var old_color: Node = vbox.get_node_or_null("ColorRect")
+
+		var sprite_tex: Texture2D = null
+		if "sprite_texture" in digimon.data:
+			sprite_tex = digimon.data.sprite_texture
+
+		if sprite_tex != null:
+			if old_sprite is TextureRect:
+				(old_sprite as TextureRect).texture = sprite_tex
+				(old_sprite as TextureRect).flip_h = not is_ally
+			elif old_color != null:
+				old_color.queue_free()
+				var tex_rect := TextureRect.new()
+				tex_rect.texture = sprite_tex
+				tex_rect.custom_minimum_size = Vector2(60, 60)
+				tex_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+				tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+				tex_rect.flip_h = not is_ally
+				tex_rect.name = "SpriteRect"
+				vbox.add_child(tex_rect)
+				vbox.move_child(tex_rect, 0)
 	else:
 		label.text = "(Empty)"

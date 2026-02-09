@@ -18,3 +18,4 @@ data/technique/*.tres
 data/ability/*.tres
 data/evolution/*.tres
 data/locale/locations.json
+assets/sprites/digimon/*.png

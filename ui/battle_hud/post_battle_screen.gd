@@ -6,6 +6,7 @@ extends Control
 signal continue_pressed
 
 @onready var _outcome_label: Label = $Panel/VBox/OutcomeLabel
+@onready var _turn_count_label: Label = $Panel/VBox/TurnCountLabel
 @onready var _xp_container: VBoxContainer = $Panel/VBox/XPContainer
 @onready var _continue_button: Button = $Panel/VBox/ContinueButton
 
@@ -27,6 +28,9 @@ func show_results(result: BattleResult) -> void:
 			_outcome_label.text = "Draw"
 		BattleResult.Outcome.FLED:
 			_outcome_label.text = "Escaped!"
+
+	# Turn count
+	_turn_count_label.text = "Turns: %d" % result.turn_count
 
 	# XP awards
 	for child: Node in _xp_container.get_children():

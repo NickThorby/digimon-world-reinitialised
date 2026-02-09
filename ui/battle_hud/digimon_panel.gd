@@ -11,7 +11,8 @@ extends PanelContainer
 @onready var _energy_label: Label = $VBox/EnergyRow/EnergyLabel
 @onready var _status_label: Label = $VBox/StatusLabel
 
-var _tween: Tween = null
+var _hp_tween: Tween = null
+var _energy_tween: Tween = null
 
 
 ## Update the panel with a BattleDigimonState.
@@ -52,13 +53,20 @@ func update_from_battle_digimon(digimon: BattleDigimonState) -> void:
 		statuses.append(str(status.get("key", "")).capitalize())
 	_status_label.text = " ".join(statuses) if statuses.size() > 0 else ""
 
-	# Animate bars
-	_animate_bar(_hp_bar, float(digimon.current_hp))
-	_animate_bar(_energy_bar, float(digimon.current_energy))
+	# Animate bars independently
+	_animate_hp(float(digimon.current_hp))
+	_animate_energy(float(digimon.current_energy))
 
 
-func _animate_bar(bar: ProgressBar, target_value: float) -> void:
-	if _tween != null:
-		_tween.kill()
-	_tween = create_tween()
-	_tween.tween_property(bar, "value", target_value, 0.3)
+func _animate_hp(target_value: float) -> void:
+	if _hp_tween != null:
+		_hp_tween.kill()
+	_hp_tween = create_tween()
+	_hp_tween.tween_property(_hp_bar, "value", target_value, 0.3)
+
+
+func _animate_energy(target_value: float) -> void:
+	if _energy_tween != null:
+		_energy_tween.kill()
+	_energy_tween = create_tween()
+	_energy_tween.tween_property(_energy_bar, "value", target_value, 0.3)
