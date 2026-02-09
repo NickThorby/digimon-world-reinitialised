@@ -5,18 +5,18 @@ const BATTLE_SCENE_PATH := "res://scenes/battle/battle_scene.tscn"
 const SLOT_PANEL_SCENE := preload("res://ui/components/digimon_slot_panel.tscn")
 const PICKER_POPUP_SCENE := preload("res://ui/components/digimon_picker_popup.tscn")
 
-@onready var _format_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/FormatRow/FormatOption
-@onready var _side_selector: OptionButton = $MarginContainer/VBox/HSplit/LeftPanel/SideSelectorRow/SideSelector
+@onready var _format_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/FormatRow/FormatOption
+@onready var _side_selector: TabBar = $MarginContainer/VBox/HSplit/LeftPanel/SideSelector
 @onready var _team_list: VBoxContainer = $MarginContainer/VBox/HSplit/LeftPanel/TeamList
 @onready var _add_digimon_button: Button = $MarginContainer/VBox/HSplit/LeftPanel/AddDigimonButton
-@onready var _controller_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/ControllerRow/ControllerOption
-@onready var _wild_toggle: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/WildToggle
-@onready var _xp_toggle: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/XPToggle
-@onready var _launch_button: Button = $MarginContainer/VBox/HSplit/RightPanel/LaunchButton
+@onready var _controller_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/ControllerRow/ControllerOption
+@onready var _wild_toggle: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/WildToggle
+@onready var _xp_toggle: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/XPToggle
+@onready var _launch_button: Button = $MarginContainer/VBox/HSplit/RightPanel/LaunchColumn/LaunchButton
 @onready var _back_button: Button = $MarginContainer/VBox/HeaderBar/BackButton
 @onready var _save_team_button: Button = $MarginContainer/VBox/HSplit/LeftPanel/TeamButtonRow/SaveTeamButton
 @onready var _load_team_button: Button = $MarginContainer/VBox/HSplit/LeftPanel/TeamButtonRow/LoadTeamButton
-@onready var _validation_label: RichTextLabel = $MarginContainer/VBox/HSplit/RightPanel/ValidationLabel
+@onready var _validation_label: RichTextLabel = $MarginContainer/VBox/HSplit/RightPanel/LaunchColumn/ValidationLabel
 
 var _config: BattleConfig = BattleConfig.new()
 var _current_side: int = 0
@@ -44,7 +44,7 @@ func _setup_format_options() -> void:
 
 func _connect_signals() -> void:
 	_format_option.item_selected.connect(_on_format_selected)
-	_side_selector.item_selected.connect(_on_side_selected)
+	_side_selector.tab_changed.connect(_on_side_selected)
 	_add_digimon_button.pressed.connect(_on_add_digimon)
 	_controller_option.item_selected.connect(_on_controller_selected)
 	_wild_toggle.toggled.connect(_on_wild_toggled)
@@ -186,13 +186,13 @@ func _on_digimon_picked(state: DigimonState) -> void:
 
 
 func _update_side_selector() -> void:
-	_side_selector.clear()
+	_side_selector.clear_tabs()
 	for i: int in _config.side_count:
 		var team_idx: int = _config.team_assignments[i] if i < _config.team_assignments.size() else i
-		_side_selector.add_item("Side %d (Team %d)" % [i + 1, team_idx + 1])
+		_side_selector.add_tab("Side %d (Team %d)" % [i + 1, team_idx + 1])
 	if _current_side >= _config.side_count:
 		_current_side = 0
-	_side_selector.selected = _current_side
+	_side_selector.current_tab = _current_side
 
 
 func _update_team_display() -> void:

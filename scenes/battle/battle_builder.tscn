@@ -44,16 +44,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 custom_minimum_size = Vector2(350, 0)
 
-[node name="SideSelectorRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/LeftPanel"]
+[node name="SideSelector" type="TabBar" parent="MarginContainer/VBox/HSplit/LeftPanel" unique_name_in_owner=true]
 layout_mode = 2
-
-[node name="SideLabel" type="Label" parent="MarginContainer/VBox/HSplit/LeftPanel/SideSelectorRow"]
-layout_mode = 2
-text = "Editing Side:"
-
-[node name="SideSelector" type="OptionButton" parent="MarginContainer/VBox/HSplit/LeftPanel/SideSelectorRow" unique_name_in_owner=true]
-layout_mode = 2
-size_flags_horizontal = 3
 
 [node name="TeamList" type="VBoxContainer" parent="MarginContainer/VBox/HSplit/LeftPanel" unique_name_in_owner=true]
 layout_mode = 2
@@ -74,30 +66,35 @@ text = "Save Team"
 layout_mode = 2
 text = "Load Team"
 
-[node name="RightPanel" type="VBoxContainer" parent="MarginContainer/VBox/HSplit"]
+[node name="RightPanel" type="HBoxContainer" parent="MarginContainer/VBox/HSplit"]
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(300, 0)
+size_flags_vertical = 0
+custom_minimum_size = Vector2(500, 0)
 
-[node name="FormatRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel"]
+[node name="SettingsColumn" type="VBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="FormatRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn"]
 layout_mode = 2
 
-[node name="FormatLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/FormatRow"]
+[node name="FormatLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/FormatRow"]
 layout_mode = 2
 text = "Format:"
 
-[node name="FormatOption" type="OptionButton" parent="MarginContainer/VBox/HSplit/RightPanel/FormatRow" unique_name_in_owner=true]
+[node name="FormatOption" type="OptionButton" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/FormatRow" unique_name_in_owner=true]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="ControllerRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel"]
+[node name="ControllerRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn"]
 layout_mode = 2
 
-[node name="ControllerLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/ControllerRow"]
+[node name="ControllerLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/ControllerRow"]
 layout_mode = 2
 text = "Controller:"
 
-[node name="ControllerOption" type="OptionButton" parent="MarginContainer/VBox/HSplit/RightPanel/ControllerRow" unique_name_in_owner=true]
+[node name="ControllerOption" type="OptionButton" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn/ControllerRow" unique_name_in_owner=true]
 layout_mode = 2
 size_flags_horizontal = 3
 item_count = 2
@@ -105,25 +102,29 @@ popup/item_0/text = "Player"
 popup/item_1/text = "AI"
 popup/item_1/id = 1
 
-[node name="WildToggle" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel" unique_name_in_owner=true]
+[node name="WildToggle" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn" unique_name_in_owner=true]
 layout_mode = 2
 text = "Wild Battle"
 
-[node name="XPToggle" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel" unique_name_in_owner=true]
+[node name="XPToggle" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/SettingsColumn" unique_name_in_owner=true]
 layout_mode = 2
 button_pressed = true
 text = "XP Enabled"
 
-[node name="Separator" type="HSeparator" parent="MarginContainer/VBox/HSplit/RightPanel"]
+[node name="VSeparator" type="VSeparator" parent="MarginContainer/VBox/HSplit/RightPanel"]
 layout_mode = 2
 
-[node name="LaunchButton" type="Button" parent="MarginContainer/VBox/HSplit/RightPanel" unique_name_in_owner=true]
+[node name="LaunchColumn" type="VBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="LaunchButton" type="Button" parent="MarginContainer/VBox/HSplit/RightPanel/LaunchColumn" unique_name_in_owner=true]
 layout_mode = 2
 text = "Launch Battle"
 
-[node name="ValidationLabel" type="RichTextLabel" parent="MarginContainer/VBox/HSplit/RightPanel" unique_name_in_owner=true]
+[node name="ValidationLabel" type="RichTextLabel" parent="MarginContainer/VBox/HSplit/RightPanel/LaunchColumn" unique_name_in_owner=true]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 80)
+size_flags_vertical = 3
 bbcode_enabled = true
 text = ""
 fit_content = true

@@ -68,6 +68,7 @@ func _ready() -> void:
 	_hide_all_menus()
 	_setup_digimon_panels()
 	_setup_battlefield_placeholders()
+	_position_battlefield()
 	_update_all_panels()
 
 	# Determine player-controlled sides
@@ -788,6 +789,18 @@ func _setup_digimon_panels() -> void:
 				_foe_panel_map[key] = panel
 
 
+func _position_battlefield() -> void:
+	var vp_size: Vector2 = get_viewport_rect().size
+
+	# FarSide: enemy sprites — top-right area
+	_far_side.position = Vector2(vp_size.x * 0.50, vp_size.y * 0.05)
+	_far_side.size = Vector2(vp_size.x * 0.35, vp_size.y * 0.25)
+
+	# NearSide: ally sprites — bottom-left area
+	_near_side.position = Vector2(vp_size.x * 0.08, vp_size.y * 0.38)
+	_near_side.size = Vector2(vp_size.x * 0.35, vp_size.y * 0.25)
+
+
 func _setup_battlefield_placeholders() -> void:
 	# Clear existing
 	for child: Node in _near_side.get_children():
@@ -802,7 +815,8 @@ func _setup_battlefield_placeholders() -> void:
 
 		for slot: SlotState in side.slots:
 			var vbox := VBoxContainer.new()
-			vbox.custom_minimum_size = Vector2(80, 100)
+			vbox.custom_minimum_size = Vector2(88, 104)
+			vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 			# Try sprite first, fall back to ColorRect
 			var sprite_added: bool = false
@@ -813,7 +827,8 @@ func _setup_battlefield_placeholders() -> void:
 				if sprite_tex != null:
 					var tex_rect := TextureRect.new()
 					tex_rect.texture = sprite_tex
-					tex_rect.custom_minimum_size = Vector2(60, 60)
+					tex_rect.custom_minimum_size = Vector2(64, 64)
+					tex_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
 					tex_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 					tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 					tex_rect.flip_h = not is_ally
@@ -823,7 +838,8 @@ func _setup_battlefield_placeholders() -> void:
 
 			if not sprite_added:
 				var rect := ColorRect.new()
-				rect.custom_minimum_size = Vector2(60, 60)
+				rect.custom_minimum_size = Vector2(64, 64)
+				rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
 				rect.color = Color(0.3, 0.7, 0.3) if is_ally else Color(0.7, 0.3, 0.3)
 				rect.name = "ColorRect"
 				vbox.add_child(rect)
@@ -917,7 +933,8 @@ func _update_placeholder(side_index: int, slot_index: int) -> void:
 				old_color.queue_free()
 				var tex_rect := TextureRect.new()
 				tex_rect.texture = sprite_tex
-				tex_rect.custom_minimum_size = Vector2(60, 60)
+				tex_rect.custom_minimum_size = Vector2(64, 64)
+				tex_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
 				tex_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 				tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 				tex_rect.flip_h = not is_ally

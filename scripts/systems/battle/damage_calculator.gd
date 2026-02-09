@@ -1,7 +1,7 @@
 class_name DamageCalculator
 extends RefCounted
 ## Calculates damage for technique execution.
-## Formula: ROUND((7 + level / 200) * power * (ATK / DEF) * modifier)
+## Formula: ROUND((7 + level/200 * power * ATK/DEF) * modifier)
 
 
 static var _balance: GameBalance = null
@@ -76,19 +76,20 @@ static func calculate_damage(
 	# Final modifier
 	var modifier: float = attr_mult * elem_mult * stab * crit * variance_val
 
-	# Core formula: (7 + level/200) * power * (ATK/DEF) * modifier
-	var raw: float = (7.0 + level / 200.0) * power * (atk / def) * modifier
+	# Core formula: (7 + level/200 * power * ATK/DEF) * modifier
+	var base_damage: float = 7.0 + (level / 200.0) * power * (atk / def)
+	var raw: float = base_damage * modifier
 	result.raw_damage = maxi(roundi(raw), 1)
 	result.final_damage = result.raw_damage
 
-	# Determine effectiveness
+	# Determine effectiveness (immune must be checked first)
 	var total_type_mult: float = attr_mult * elem_mult
-	if total_type_mult > 1.5:
+	if total_type_mult <= 0.0:
+		result.effectiveness = &"immune"
+	elif total_type_mult >= 1.5:
 		result.effectiveness = &"super_effective"
 	elif total_type_mult < 0.75:
 		result.effectiveness = &"not_very_effective"
-	elif total_type_mult <= 0.0:
-		result.effectiveness = &"immune"
 	else:
 		result.effectiveness = &"neutral"
 
