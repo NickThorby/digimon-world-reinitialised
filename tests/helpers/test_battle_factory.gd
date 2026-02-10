@@ -499,6 +499,41 @@ static func _inject_abilities() -> void:
 		Registry.StackLimit.ONCE_PER_TURN,
 		[],
 	)
+	# ON_EXIT: boost DEF +1 on switch-out
+	Atlas.abilities[&"test_ability_on_exit"] = _make_ability(
+		&"test_ability_on_exit", "Test Exit Ability",
+		Registry.AbilityTrigger.ON_EXIT,
+		Registry.StackLimit.ONCE_PER_SWITCH,
+		[{"brick": "statModifier", "modifierType": "stage", "stats": ["def"], "stages": 1, "target": "self"}],
+	)
+	# ON_BEFORE_HIT: boost DEF +1 before being hit
+	Atlas.abilities[&"test_ability_on_before_hit"] = _make_ability(
+		&"test_ability_on_before_hit", "Test Before Hit Ability",
+		Registry.AbilityTrigger.ON_BEFORE_HIT,
+		Registry.StackLimit.ONCE_PER_TURN,
+		[{"brick": "statModifier", "modifierType": "stage", "stats": ["def"], "stages": 1, "target": "self"}],
+	)
+	# ON_AFTER_HIT: boost SPE +1 after being hit
+	Atlas.abilities[&"test_ability_on_after_hit"] = _make_ability(
+		&"test_ability_on_after_hit", "Test After Hit Ability",
+		Registry.AbilityTrigger.ON_AFTER_HIT,
+		Registry.StackLimit.ONCE_PER_TURN,
+		[{"brick": "statModifier", "modifierType": "stage", "stats": ["spe"], "stages": 1, "target": "self"}],
+	)
+	# ON_STAT_CHANGE: boost SPE +1 when any stat changes
+	Atlas.abilities[&"test_ability_on_stat_change"] = _make_ability(
+		&"test_ability_on_stat_change", "Test Stat Change Ability",
+		Registry.AbilityTrigger.ON_STAT_CHANGE,
+		Registry.StackLimit.ONCE_PER_TURN,
+		[{"brick": "statModifier", "modifierType": "stage", "stats": ["spe"], "stages": 1, "target": "self"}],
+	)
+	# ON_STATUS_INFLICTED: boost ATK +1 when user inflicts a status on a foe
+	Atlas.abilities[&"test_ability_on_status_inflicted"] = _make_ability(
+		&"test_ability_on_status_inflicted", "Test Status Inflicted Ability",
+		Registry.AbilityTrigger.ON_STATUS_INFLICTED,
+		Registry.StackLimit.ONCE_PER_TURN,
+		[{"brick": "statModifier", "modifierType": "stage", "stats": ["atk"], "stages": 1, "target": "self"}],
+	)
 	# CONTINUOUS damageModifier: 1.5x fire damage when HP < 50%
 	Atlas.abilities[&"test_ability_blaze"] = _make_ability(
 		&"test_ability_blaze", "Test Blaze",

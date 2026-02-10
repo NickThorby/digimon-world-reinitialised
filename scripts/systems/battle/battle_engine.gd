@@ -162,10 +162,11 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 	# Bleeding deals self-damage when using a technique
 	if user.has_status(&"bleeding"):
 		var bleed_dmg: int = maxi(user.max_hp / 8, 1)
-		var actual_bleed: int = user.apply_damage(bleed_dmg)
 		battle_message.emit("%s is bleeding!" % _get_digimon_name(user))
-		damage_dealt.emit(user.side_index, user.slot_index, actual_bleed, &"bleeding")
-		if _check_faint_or_threshold(user, null):
+		var bleed_result: Dictionary = _apply_damage_and_emit(
+			user, bleed_dmg, &"bleeding",
+		)
+		if bleed_result["fainted"]:
 			return [{"bleeding_faint": true}]
 
 	# Spend energy — handle overexertion
@@ -185,13 +186,13 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 		energy_spent.emit(user.side_index, user.slot_index, energy_cost)
 
 		# Apply overexertion self-damage
-		var actual_self_damage: int = user.apply_damage(overexertion_damage)
+		var overexert_result: Dictionary = _apply_damage_and_emit(
+			user, overexertion_damage, &"overexertion",
+		)
 		battle_message.emit("%s overexerted and took %d damage!" % [
-			_get_digimon_name(user), actual_self_damage,
+			_get_digimon_name(user), int(overexert_result["actual"]),
 		])
-		damage_dealt.emit(user.side_index, user.slot_index, actual_self_damage, &"overexertion")
-
-		if _check_faint_or_threshold(user, null):
+		if overexert_result["fainted"]:
 			return [{"overexertion_faint": true}]
 	else:
 		user.spend_energy(energy_cost)
@@ -226,6 +227,14 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 				battle_message.emit("It missed %s!" % _get_digimon_name(target))
 				all_results.append({"missed": true})
 				continue
+
+		# Fire ON_BEFORE_HIT abilities and gear for the target
+		_fire_ability_trigger(Registry.AbilityTrigger.ON_BEFORE_HIT, {
+			"subject": target, "attacker": user, "technique": technique,
+		})
+		_fire_gear_trigger(Registry.AbilityTrigger.ON_BEFORE_HIT, {
+			"subject": target, "attacker": user, "technique": technique,
+		})
 
 		# Execute bricks
 		var brick_results: Array[Dictionary] = BrickExecutor.execute_bricks(
@@ -276,6 +285,22 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 						Registry.AbilityTrigger.ON_STATUS_APPLIED,
 						{"subject": target, "status_key": status_key},
 					)
+					# Fire ON_STATUS_INFLICTED for the user (when inflicting on a foe)
+					if _battle.are_foes(user.side_index, target.side_index):
+						_fire_ability_trigger(
+							Registry.AbilityTrigger.ON_STATUS_INFLICTED, {
+								"subject": user,
+								"target": target,
+								"status_key": status_key,
+							},
+						)
+						_fire_gear_trigger(
+							Registry.AbilityTrigger.ON_STATUS_INFLICTED, {
+								"subject": user,
+								"target": target,
+								"status_key": status_key,
+							},
+						)
 
 			# Stat modifier results from technique bricks
 			var tech_stat_changes: Variant = brick_result.get("stat_changes")
@@ -298,11 +323,35 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 						_get_digimon_name(sc_target), sc_key,
 						int(change.get("stages", 0)), sc_actual,
 					)
+					# Fire ON_STAT_CHANGE for the affected Digimon
+					if sc_actual != 0:
+						_fire_ability_trigger(
+							Registry.AbilityTrigger.ON_STAT_CHANGE, {
+								"subject": sc_target,
+								"stat_key": sc_key,
+								"stages": sc_actual,
+							},
+						)
+						_fire_gear_trigger(
+							Registry.AbilityTrigger.ON_STAT_CHANGE, {
+								"subject": sc_target,
+								"stat_key": sc_key,
+								"stages": sc_actual,
+							},
+						)
 
 			# Field effect results
 			_emit_field_effect_signals(brick_result)
 
 		all_results.append_array(brick_results)
+
+		# Fire ON_AFTER_HIT abilities and gear for the target
+		_fire_ability_trigger(Registry.AbilityTrigger.ON_AFTER_HIT, {
+			"subject": target, "attacker": user, "technique": technique,
+		})
+		_fire_gear_trigger(Registry.AbilityTrigger.ON_AFTER_HIT, {
+			"subject": target, "attacker": user, "technique": technique,
+		})
 
 		# Fire damage-related ability and gear triggers
 		if dealt_damage:
@@ -349,6 +398,15 @@ func _resolve_switch(action: BattleAction) -> Array[Dictionary]:
 		return []
 
 	var outgoing: BattleDigimonState = slot.digimon
+
+	# Fire ON_EXIT abilities and gear before resetting volatiles
+	if outgoing != null and not outgoing.is_fainted:
+		_fire_ability_trigger(
+			Registry.AbilityTrigger.ON_EXIT, {"subject": outgoing},
+		)
+		_fire_gear_trigger(
+			Registry.AbilityTrigger.ON_EXIT, {"subject": outgoing},
+		)
 
 	# Reset volatiles and escalation counters on outgoing
 	if outgoing != null:
@@ -697,6 +755,22 @@ func _process_item_result(
 				_get_digimon_name(sc_target), sc_key,
 				int(change.get("stages", 0)), sc_actual,
 			)
+			# Fire ON_STAT_CHANGE for item stat modifications
+			if sc_actual != 0:
+				_fire_ability_trigger(
+					Registry.AbilityTrigger.ON_STAT_CHANGE, {
+						"subject": sc_target,
+						"stat_key": sc_key,
+						"stages": sc_actual,
+					},
+				)
+				_fire_gear_trigger(
+					Registry.AbilityTrigger.ON_STAT_CHANGE, {
+						"subject": sc_target,
+						"stat_key": sc_key,
+						"stages": sc_actual,
+					},
+				)
 
 
 ## Estimate max HP for a reserve DigimonState (not on field).
@@ -890,6 +964,22 @@ func _process_ability_result(
 				_get_digimon_name(sc_target), sc_key,
 				int(change.get("stages", 0)), sc_actual,
 			)
+			# Fire ON_STAT_CHANGE for ability/gear stat modifications
+			if sc_actual != 0:
+				_fire_ability_trigger(
+					Registry.AbilityTrigger.ON_STAT_CHANGE, {
+						"subject": sc_target,
+						"stat_key": sc_key,
+						"stages": sc_actual,
+					},
+				)
+				_fire_gear_trigger(
+					Registry.AbilityTrigger.ON_STAT_CHANGE, {
+						"subject": sc_target,
+						"stat_key": sc_key,
+						"stages": sc_actual,
+					},
+				)
 
 	if result.get("applied", false):
 		var status_key: StringName = result.get("status", &"") as StringName
@@ -903,11 +993,15 @@ func _process_ability_result(
 
 	if result.get("damage", 0) > 0:
 		var dmg: int = int(result["damage"])
-		var eff: StringName = result.get("effectiveness", &"neutral") as StringName
+		var eff: StringName = result.get(
+			"effectiveness", &"neutral",
+		) as StringName
+		# Damage already applied by BrickExecutor; just emit the signal
 		damage_dealt.emit(target.side_index, target.slot_index, dmg, eff)
 
 	if result.get("healing", 0) > 0:
 		var heal: int = int(result["healing"])
+		# Healing already applied by BrickExecutor; just emit the signal
 		hp_restored.emit(target.side_index, target.slot_index, heal)
 
 
@@ -1219,56 +1313,61 @@ func _tick_status_conditions(digimon: BattleDigimonState) -> bool:
 		match key_str:
 			"burned":
 				var dot: int = maxi(digimon.max_hp / 16, 1)
-				digimon.apply_damage(dot)
-				battle_message.emit("%s is hurt by its burn!" % _get_digimon_name(digimon))
-				damage_dealt.emit(digimon.side_index, digimon.slot_index, dot, &"burn")
-				if _check_faint_or_threshold(digimon, null):
+				battle_message.emit(
+					"%s is hurt by its burn!" % _get_digimon_name(digimon),
+				)
+				var dot_result: Dictionary = _apply_damage_and_emit(
+					digimon, dot, &"burn",
+				)
+				if dot_result["fainted"]:
 					return true
 			"frostbitten":
 				var dot: int = maxi(digimon.max_hp / 16, 1)
-				digimon.apply_damage(dot)
 				battle_message.emit(
-					"%s is hurt by frostbite!" % _get_digimon_name(digimon)
+					"%s is hurt by frostbite!" % _get_digimon_name(digimon),
 				)
-				damage_dealt.emit(digimon.side_index, digimon.slot_index, dot, &"frostbite")
-				if _check_faint_or_threshold(digimon, null):
+				var dot_result: Dictionary = _apply_damage_and_emit(
+					digimon, dot, &"frostbite",
+				)
+				if dot_result["fainted"]:
 					return true
 			"poisoned":
 				var dot: int = maxi(digimon.max_hp / 8, 1)
-				digimon.apply_damage(dot)
 				battle_message.emit(
-					"%s is hurt by poison!" % _get_digimon_name(digimon)
+					"%s is hurt by poison!" % _get_digimon_name(digimon),
 				)
-				damage_dealt.emit(digimon.side_index, digimon.slot_index, dot, &"poison")
-				if _check_faint_or_threshold(digimon, null):
+				var dot_result: Dictionary = _apply_damage_and_emit(
+					digimon, dot, &"poison",
+				)
+				if dot_result["fainted"]:
 					return true
 			"badly_burned", "badly_poisoned":
 				var turn_idx: int = int(status.get("escalation_turn", 0))
 				var fractions: Array[float] = Registry.ESCALATION_FRACTIONS
 				var frac: float = fractions[mini(turn_idx, fractions.size() - 1)]
 				var dot: int = maxi(floori(float(digimon.max_hp) * frac), 1)
-				digimon.apply_damage(dot)
 				var label: String = "burn" if key_str == "badly_burned" \
 					else "poison"
 				battle_message.emit(
 					"%s is hurt by severe %s!" % [
 						_get_digimon_name(digimon), label,
-					]
+					],
 				)
-				damage_dealt.emit(
-					digimon.side_index, digimon.slot_index,
-					dot, StringName(label),
+				var dot_result: Dictionary = _apply_damage_and_emit(
+					digimon, dot, StringName(label),
 				)
 				status["escalation_turn"] = turn_idx + 1
-				if _check_faint_or_threshold(digimon, null):
+				if dot_result["fainted"]:
 					return true
 			"seeded":
 				var dot: int = maxi(digimon.max_hp / 8, 1)
-				digimon.apply_damage(dot)
 				battle_message.emit(
-					"%s had its energy drained by the seed!" % _get_digimon_name(digimon)
+					"%s had its energy drained by the seed!" \
+						% _get_digimon_name(digimon),
 				)
-				damage_dealt.emit(digimon.side_index, digimon.slot_index, dot, &"seeded")
+				var dot_result: Dictionary = _apply_damage_and_emit(
+					digimon, dot, &"seeded",
+				)
 				# Heal the seeder
 				var seeder_side: int = int(status.get("seeder_side", -1))
 				var seeder_slot: int = int(status.get("seeder_slot", -1))
@@ -1277,30 +1376,34 @@ func _tick_status_conditions(digimon: BattleDigimonState) -> bool:
 						seeder_side, seeder_slot,
 					)
 					if seeder != null and not seeder.is_fainted:
-						var healed: int = seeder.restore_hp(dot)
-						if healed > 0:
-							hp_restored.emit(seeder.side_index, seeder.slot_index, healed)
-				if _check_faint_or_threshold(digimon, null):
+						_apply_healing_and_emit(
+							seeder, dot, &"seeded",
+						)
+				if dot_result["fainted"]:
 					return true
 			"regenerating":
 				var heal: int = maxi(digimon.max_hp / 16, 1)
-				digimon.restore_hp(heal)
 				battle_message.emit(
-					"%s regenerated some HP." % _get_digimon_name(digimon)
+					"%s regenerated some HP." % _get_digimon_name(digimon),
 				)
-				hp_restored.emit(digimon.side_index, digimon.slot_index, heal)
+				_apply_healing_and_emit(digimon, heal, &"regenerating")
 			"perishing":
 				var countdown: int = int(status.get("countdown", 3)) - 1
 				status["countdown"] = countdown
 				battle_message.emit(
-					"%s's perish count fell to %d!" % [_get_digimon_name(digimon), countdown]
+					"%s's perish count fell to %d!" % [
+						_get_digimon_name(digimon), countdown,
+					],
 				)
 				if countdown <= 0:
-					digimon.apply_damage(digimon.current_hp)
 					battle_message.emit(
-						"%s was taken by the perish count!" % _get_digimon_name(digimon)
+						"%s was taken by the perish count!" \
+							% _get_digimon_name(digimon),
 					)
-					if _check_faint_or_threshold(digimon, null):
+					var perish_result: Dictionary = _apply_damage_and_emit(
+						digimon, digimon.current_hp, &"perishing",
+					)
+					if perish_result["fainted"]:
 						return true
 
 		# Tick duration
@@ -1376,6 +1479,49 @@ func _check_faint_or_threshold(
 		"subject": digimon,
 	})
 	return false
+
+
+## Unified damage application: apply damage, emit signal, check faint/threshold.
+## Returns {actual: int, fainted: bool}.
+func _apply_damage_and_emit(
+	target: BattleDigimonState,
+	amount: int,
+	source_label: StringName,
+	attacker: BattleDigimonState = null,
+	fire_triggers: bool = false,
+	technique: TechniqueData = null,
+) -> Dictionary:
+	var actual: int = target.apply_damage(amount)
+	damage_dealt.emit(target.side_index, target.slot_index, actual, source_label)
+	if fire_triggers and actual > 0:
+		_fire_ability_trigger(Registry.AbilityTrigger.ON_TAKE_DAMAGE, {
+			"subject": target, "attacker": attacker, "technique": technique,
+		})
+		_fire_gear_trigger(Registry.AbilityTrigger.ON_TAKE_DAMAGE, {
+			"subject": target, "attacker": attacker, "technique": technique,
+		})
+		if attacker != null:
+			_fire_ability_trigger(Registry.AbilityTrigger.ON_DEAL_DAMAGE, {
+				"subject": attacker, "target": target, "technique": technique,
+			})
+			_fire_gear_trigger(Registry.AbilityTrigger.ON_DEAL_DAMAGE, {
+				"subject": attacker, "target": target, "technique": technique,
+			})
+	var fainted: bool = _check_faint_or_threshold(target, attacker)
+	return {"actual": actual, "fainted": fainted}
+
+
+## Unified healing application: restore HP, emit signal.
+## Returns the actual amount healed.
+func _apply_healing_and_emit(
+	target: BattleDigimonState,
+	amount: int,
+	source_label: StringName,
+) -> int:
+	var actual: int = target.restore_hp(amount)
+	if actual > 0:
+		hp_restored.emit(target.side_index, target.slot_index, actual)
+	return actual
 
 
 ## Retarget a technique action if the original target has fainted.
@@ -1508,17 +1654,15 @@ func _tick_weather_damage() -> void:
 		var damage: int = maxi(
 			floori(float(digimon.max_hp) * percent), 1,
 		)
-		var actual: int = digimon.apply_damage(damage)
+		var weather_result: Dictionary = _apply_damage_and_emit(
+			digimon, damage, &"weather",
+		)
 		battle_message.emit(
 			"%s is buffeted by the %s! (%d damage)" % [
-				_get_digimon_name(digimon), str(weather_key), actual,
+				_get_digimon_name(digimon), str(weather_key),
+				int(weather_result["actual"]),
 			],
 		)
-		damage_dealt.emit(
-			digimon.side_index, digimon.slot_index,
-			actual, &"weather",
-		)
-		_check_faint_or_threshold(digimon, null)
 
 
 ## Apply entry hazards to a Digimon switching in.
@@ -1563,18 +1707,17 @@ func _apply_entry_hazards(digimon: BattleDigimonState) -> void:
 				floori(float(digimon.max_hp) * percent * float(layers) \
 					* resistance), 1,
 			)
-			var actual: int = digimon.apply_damage(damage)
+			var hazard_result: Dictionary = _apply_damage_and_emit(
+				digimon, damage, &"hazard",
+			)
 			battle_message.emit(
 				"%s was hurt by %s! (%d damage)" % [
-					_get_digimon_name(digimon), str(key), actual,
+					_get_digimon_name(digimon), str(key),
+					int(hazard_result["actual"]),
 				],
 			)
-			damage_dealt.emit(
-				digimon.side_index, digimon.slot_index,
-				actual, &"hazard",
-			)
 			hazard_applied.emit(digimon.side_index, key)
-			if _check_faint_or_threshold(digimon, null):
+			if hazard_result["fainted"]:
 				return
 
 		elif hazard.has("stat"):
