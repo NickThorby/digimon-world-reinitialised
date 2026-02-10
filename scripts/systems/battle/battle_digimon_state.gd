@@ -50,6 +50,9 @@ var volatiles: Dictionary = {
 	"encore_technique_key": &"",
 	"semi_invulnerable": &"",
 	"charges": {},
+	"recharging": false,
+	"multi_turn_lock": {},
+	"charging": {},
 }
 
 ## Counters that persist through switches within the same battle.
@@ -272,6 +275,9 @@ func reset_volatiles() -> void:
 		"encore_technique_key": &"",
 		"semi_invulnerable": &"",
 		"charges": volatiles.get("charges", {}),  # Charges persist through switches
+		"recharging": false,
+		"multi_turn_lock": {},
+		"charging": {},
 	}
 	# Reset stat stages
 	for key: StringName in stat_stages:

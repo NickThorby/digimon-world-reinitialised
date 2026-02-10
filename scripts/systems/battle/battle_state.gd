@@ -21,6 +21,11 @@ var is_battle_over: bool = false
 ## Battle result (populated when battle ends).
 var result: BattleResult = null
 
+## Pending delayed effects (delayed attacks, delayed healing).
+## Each entry: {type, resolve_turn, user_side, user_slot, technique_key,
+## target_side, target_slot, bypasses_protection, percent}
+var pending_effects: Array[Dictionary] = []
+
 ## Seeded PRNG for deterministic randomness.
 var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 

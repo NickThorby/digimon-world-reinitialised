@@ -83,6 +83,13 @@ func execute_turn(actions: Array[BattleAction]) -> void:
 		if user == null or user.is_fainted:
 			continue
 
+		# Pre-action state checks (recharging, multi-turn lock, charging)
+		var pre_action: Dictionary = _check_pre_action_state(user, action)
+		if pre_action.get("skip_action", false):
+			continue
+		if pre_action.get("override_technique", &"") != &"":
+			action.technique_key = pre_action["override_technique"] as StringName
+
 		# Retarget if the chosen target has fainted
 		if action.action_type == BattleAction.ActionType.TECHNIQUE:
 			_retarget_if_fainted(action, user)
@@ -219,6 +226,76 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 		user.spend_energy(energy_cost)
 		energy_spent.emit(user.side_index, user.slot_index, energy_cost)
 
+	# Pre-scan turn economy / charge requirement
+	var turn_econ: Dictionary = BrickExecutor.evaluate_turn_economy(technique)
+
+	# Skip turn economy initialisation if pre-action already handled it
+	var skip_init: bool = user.volatiles.get("skip_turn_economy_init", false)
+	user.volatiles.erase("skip_turn_economy_init")
+
+	# First-turn charge: if charge_requirement present and NOT already charging
+	var charge_req: Variant = turn_econ.get("charge_requirement")
+	if charge_req is Dictionary and not skip_init:
+		var cr: Dictionary = charge_req as Dictionary
+		var already_charging: Variant = user.volatiles.get("charging")
+		var not_charging: bool = not (already_charging is Dictionary) \
+			or (already_charging as Dictionary).is_empty()
+		if not_charging:
+			# Check weather/terrain skip
+			var skip_weather: String = cr.get("skip_in_weather", "")
+			var skip_terrain: String = cr.get("skip_in_terrain", "")
+			var weather_skip: bool = skip_weather != "" \
+				and _battle.field.has_weather(StringName(skip_weather))
+			var terrain_skip: bool = skip_terrain != "" \
+				and _battle.field.has_terrain(StringName(skip_terrain))
+			if not weather_skip and not terrain_skip:
+				# Begin charging — no bricks execute this turn
+				user.volatiles["charging"] = {
+					"technique_key": action.technique_key,
+					"turns_remaining": int(cr.get("turns_to_charge", 1)),
+					"skip_in_weather": skip_weather,
+					"skip_in_terrain": skip_terrain,
+				}
+				var semi_inv: String = cr.get("semi_invulnerable", "")
+				if semi_inv != "":
+					user.volatiles["semi_invulnerable"] = \
+						StringName(semi_inv)
+				battle_message.emit(
+					"%s began charging!" % _get_digimon_name(user),
+				)
+				return [{"charging_started": true}]
+
+	# First-turn multi-turn with semi-invulnerable (Fly pattern)
+	var multi_turn: Variant = turn_econ.get("multi_turn")
+	var semi_inv_key: String = turn_econ.get("semi_invulnerable", "")
+	if multi_turn is Dictionary and not skip_init:
+		var mt: Dictionary = multi_turn as Dictionary
+		var already_locked: Variant = user.volatiles.get("multi_turn_lock")
+		var not_locked: bool = not (already_locked is Dictionary) \
+			or (already_locked as Dictionary).is_empty()
+		if not_locked:
+			var min_hits: int = int(mt.get("min_hits", 2))
+			var max_hits: int = int(mt.get("max_hits", 2))
+			var duration: int = _battle.rng.randi_range(min_hits, max_hits)
+			var locked_in: bool = mt.get("locked_in", false)
+
+			if semi_inv_key != "":
+				# Fly pattern: preparation turn (no damage)
+				user.volatiles["multi_turn_lock"] = {
+					"technique_key": action.technique_key,
+					"remaining": duration - 1,
+					"locked_in": locked_in,
+					"semi_invulnerable": semi_inv_key,
+				}
+				user.volatiles["semi_invulnerable"] = \
+					StringName(semi_inv_key)
+				battle_message.emit(
+					"%s flew up high!" % _get_digimon_name(user),
+				)
+				return [{"multi_turn_preparation": true}]
+			# Outrage pattern: execute normally, then set lock
+			# (lock is set after execution below)
+
 	# Fire ON_BEFORE_TECHNIQUE abilities and gear
 	_fire_ability_trigger(Registry.AbilityTrigger.ON_BEFORE_TECHNIQUE, {
 		"subject": user, "technique": technique,
@@ -255,10 +332,34 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 		Registry.Targeting.ALL_OTHER_ALLIES,
 	]
 
+	# Determine multi-hit count from turn economy
+	var multi_hit: Variant = turn_econ.get("multi_hit")
+	var hit_count: int = 1
+	if multi_hit is Dictionary:
+		var mh: Dictionary = multi_hit as Dictionary
+		var fixed: int = int(mh.get("fixed_hits", 0))
+		if fixed > 0:
+			hit_count = fixed
+		else:
+			hit_count = _battle.rng.randi_range(
+				int(mh.get("min_hits", 2)), int(mh.get("max_hits", 5)),
+			)
+
 	# Execute against each target
 	var all_results: Array[Dictionary] = []
 	for target: BattleDigimonState in targets:
 		if target.is_fainted:
+			continue
+
+		# Semi-invulnerability check: target in sky/underground dodges
+		var target_semi_inv: StringName = target.volatiles.get(
+			"semi_invulnerable", &"",
+		) as StringName
+		if target_semi_inv != &"":
+			battle_message.emit(
+				"%s avoided the attack!" % _get_digimon_name(target),
+			)
+			all_results.append({"missed": true, "semi_invulnerable": true})
 			continue
 
 		# Accuracy check (0 or alwaysHits = always hits)
@@ -312,10 +413,19 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 			"subject": target, "attacker": user, "technique": technique,
 		})
 
-		# Execute bricks
-		var brick_results: Array[Dictionary] = BrickExecutor.execute_bricks(
-			technique.bricks, user, target, technique, _battle,
-		)
+		# Execute bricks (multi-hit wrapper)
+		var brick_results: Array[Dictionary] = []
+		var actual_hits: int = 0
+		for _hit_idx: int in range(hit_count):
+			if target.is_fainted:
+				break
+			var hit_results: Array[Dictionary] = BrickExecutor.execute_bricks(
+				technique.bricks, user, target, technique, _battle,
+			)
+			brick_results.append_array(hit_results)
+			actual_hits += 1
+		if hit_count > 1:
+			battle_message.emit("Hit %d time(s)!" % actual_hits)
 
 		# Emit signals for results
 		var dealt_damage: bool = false
@@ -524,7 +634,177 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 	# Update volatiles
 	user.volatiles["last_technique_key"] = action.technique_key
 
+	# Post-execution turn economy effects
+	if not user.is_fainted:
+		# Recharge: user must skip next turn
+		if turn_econ.get("recharge", false):
+			user.volatiles["recharging"] = true
+
+		# Multi-turn lock (Outrage pattern — no semi-invulnerable)
+		if multi_turn is Dictionary and semi_inv_key == "" \
+				and not skip_init:
+			var mt: Dictionary = multi_turn as Dictionary
+			var already_locked: Variant = user.volatiles.get(
+				"multi_turn_lock",
+			)
+			var not_locked: bool = not (already_locked is Dictionary) \
+				or (already_locked as Dictionary).is_empty()
+			if not_locked:
+				var min_hits: int = int(mt.get("min_hits", 2))
+				var max_hits: int = int(mt.get("max_hits", 2))
+				var duration: int = _battle.rng.randi_range(
+					min_hits, max_hits,
+				)
+				var locked_in: bool = mt.get("locked_in", false)
+				if duration > 1:
+					user.volatiles["multi_turn_lock"] = {
+						"technique_key": action.technique_key,
+						"remaining": duration - 1,
+						"locked_in": locked_in,
+					}
+
+		# Delayed attack
+		if turn_econ.has("delayed_attack"):
+			var da: Dictionary = turn_econ["delayed_attack"] as Dictionary
+			_battle.pending_effects.append({
+				"type": "delayed_attack",
+				"resolve_turn": _battle.turn_number + int(
+					da.get("delay", 2),
+				),
+				"user_side": action.user_side,
+				"user_slot": action.user_slot,
+				"technique_key": action.technique_key,
+				"target_side": action.target_side,
+				"target_slot": action.target_slot,
+				"bypasses_protection": da.get(
+					"bypass_protection", false,
+				),
+			})
+
+		# Delayed healing
+		if turn_econ.has("delayed_healing"):
+			var dh: Dictionary = turn_econ["delayed_healing"] as Dictionary
+			var heal_side: int = action.user_side
+			var heal_slot: int = action.user_slot
+			if dh.get("target", "self") == "target":
+				heal_side = action.target_side
+				heal_slot = action.target_slot
+			_battle.pending_effects.append({
+				"type": "delayed_healing",
+				"resolve_turn": _battle.turn_number + int(
+					dh.get("delay", 1),
+				),
+				"target_side": heal_side,
+				"target_slot": heal_slot,
+				"percent": float(dh.get("percent", 50)),
+			})
+
+	# Process position control results
+	_process_position_control(all_results, action)
+
 	return all_results
+
+
+## Process positionControl results from brick execution.
+func _process_position_control(
+	all_results: Array[Dictionary], action: BattleAction,
+) -> void:
+	for result: Dictionary in all_results:
+		if result.get("force_switch", false):
+			var target_side_idx: int = int(result["target_side"])
+			var side: SideState = _battle.sides[target_side_idx]
+			# Pick a random healthy reserve
+			var valid_reserves: Array[int] = []
+			for i: int in range(side.party.size()):
+				if side.party[i].current_hp > 0:
+					valid_reserves.append(i)
+			if valid_reserves.is_empty():
+				continue
+			var reserve_idx: int = valid_reserves[
+				_battle.rng.randi() % valid_reserves.size()
+			]
+			var switch_action: BattleAction = _make_switch_action(
+					target_side_idx, int(result["target_slot"]),
+					reserve_idx,
+				)
+			_resolve_switch(switch_action)
+
+		elif result.get("switch_out", false):
+			var switch_side: int = int(result["switch_side"])
+			var side: SideState = _battle.sides[switch_side]
+			# Pick the first healthy reserve
+			var reserve_idx: int = -1
+			for i: int in range(side.party.size()):
+				if side.party[i].current_hp > 0:
+					reserve_idx = i
+					break
+			if reserve_idx < 0:
+				continue
+			var switch_action: BattleAction = \
+				_make_switch_action(
+					switch_side, int(result["switch_slot"]),
+					reserve_idx,
+				)
+			_resolve_switch(switch_action)
+
+		elif result.get("switch_out_pass_stats", false):
+			var switch_side: int = int(result["switch_side"])
+			var side: SideState = _battle.sides[switch_side]
+			var reserve_idx: int = -1
+			for i: int in range(side.party.size()):
+				if side.party[i].current_hp > 0:
+					reserve_idx = i
+					break
+			if reserve_idx < 0:
+				continue
+			var saved_stages: Dictionary = result.get(
+				"stat_stages", {},
+			) as Dictionary
+			var saved_modifiers: Dictionary = result.get(
+				"volatile_stat_modifiers", {},
+			) as Dictionary
+			var switch_action: BattleAction = \
+				_make_switch_action(
+					switch_side, int(result["switch_slot"]),
+					reserve_idx,
+				)
+			_resolve_switch(switch_action)
+			# Copy stat stages and volatile modifiers to replacement
+			var replacement: BattleDigimonState = _battle.get_digimon_at(
+				switch_side, int(result["switch_slot"]),
+			)
+			if replacement != null:
+				for key: StringName in saved_stages:
+					replacement.stat_stages[key] = int(saved_stages[key])
+				replacement.volatile_stat_modifiers = \
+					saved_modifiers.duplicate(true)
+
+		elif result.get("swap_positions", false):
+			var side_idx: int = int(result["side"])
+			var side: SideState = _battle.sides[side_idx]
+			var slot_a: int = int(result["slot_a"])
+			var slot_b: int = int(result["slot_b"])
+			if slot_a < side.slots.size() and slot_b < side.slots.size():
+				var temp: BattleDigimonState = side.slots[slot_a].digimon
+				side.slots[slot_a].digimon = side.slots[slot_b].digimon
+				side.slots[slot_b].digimon = temp
+				# Update slot indices
+				if side.slots[slot_a].digimon != null:
+					side.slots[slot_a].digimon.slot_index = slot_a
+				if side.slots[slot_b].digimon != null:
+					side.slots[slot_b].digimon.slot_index = slot_b
+
+
+## Create a switch BattleAction (avoids dependency on test factory).
+func _make_switch_action(
+	side: int, slot: int, party_index: int,
+) -> BattleAction:
+	var action := BattleAction.new()
+	action.action_type = BattleAction.ActionType.SWITCH
+	action.user_side = side
+	action.user_slot = slot
+	action.switch_to_party_index = party_index
+	return action
 
 
 ## Resolve a forced switch action (public API for battle_scene.gd).
@@ -1295,6 +1575,113 @@ func _pre_execution_check(user: BattleDigimonState, technique: TechniqueData) ->
 	return true
 
 
+## Check pre-action state: recharging, multi-turn lock, charging.
+## Returns {skip_action: bool, override_technique: StringName}.
+func _check_pre_action_state(
+	user: BattleDigimonState, action: BattleAction,
+) -> Dictionary:
+	var result: Dictionary = {"skip_action": false, "override_technique": &""}
+
+	# 1. Recharging: must skip next turn (switching cancels recharge)
+	if user.volatiles.get("recharging", false):
+		if action.action_type == BattleAction.ActionType.SWITCH:
+			user.volatiles["recharging"] = false
+		else:
+			user.volatiles["recharging"] = false
+			battle_message.emit(
+				"%s must recharge!" % _get_digimon_name(user),
+			)
+			result["skip_action"] = true
+			return result
+
+	# 2. Multi-turn lock: force locked technique, block switching
+	var mtl: Variant = user.volatiles.get("multi_turn_lock")
+	if mtl is Dictionary and not (mtl as Dictionary).is_empty():
+		var lock: Dictionary = mtl as Dictionary
+		if action.action_type == BattleAction.ActionType.SWITCH:
+			battle_message.emit(
+				"%s can't switch while locked in!" \
+					% _get_digimon_name(user),
+			)
+			result["skip_action"] = true
+			return result
+		# Force the locked technique
+		var locked_key: StringName = lock.get(
+			"technique_key", &"",
+		) as StringName
+		if locked_key != &"":
+			result["override_technique"] = locked_key
+		# Decrement remaining
+		var remaining: int = int(lock.get("remaining", 0)) - 1
+		if remaining <= 0:
+			# Clear lock and semi-invulnerable on final turn
+			user.volatiles["multi_turn_lock"] = {}
+			user.volatiles["semi_invulnerable"] = &""
+			# Flag so _resolve_technique skips re-initialisation
+			user.volatiles["skip_turn_economy_init"] = true
+		else:
+			lock["remaining"] = remaining
+		return result
+
+	# 3. Charging: must wait until charge completes
+	var charge: Variant = user.volatiles.get("charging")
+	if charge is Dictionary and not (charge as Dictionary).is_empty():
+		var charge_data: Dictionary = charge as Dictionary
+		if action.action_type == BattleAction.ActionType.SWITCH:
+			battle_message.emit(
+				"%s can't switch while charging!" \
+					% _get_digimon_name(user),
+			)
+			result["skip_action"] = true
+			return result
+		# Check weather/terrain skip
+		var skip_weather: String = charge_data.get(
+			"skip_in_weather", "",
+		)
+		var skip_terrain: String = charge_data.get(
+			"skip_in_terrain", "",
+		)
+		var weather_skip: bool = skip_weather != "" \
+			and _battle.field.has_weather(StringName(skip_weather))
+		var terrain_skip: bool = skip_terrain != "" \
+			and _battle.field.has_terrain(StringName(skip_terrain))
+		if weather_skip or terrain_skip:
+			user.volatiles["charging"] = {}
+			user.volatiles["semi_invulnerable"] = &""
+			user.volatiles["skip_turn_economy_init"] = true
+			# Proceed with the technique
+			var tech_key: StringName = charge_data.get(
+				"technique_key", &"",
+			) as StringName
+			if tech_key != &"":
+				result["override_technique"] = tech_key
+			return result
+
+		var turns_remaining: int = int(
+			charge_data.get("turns_remaining", 0),
+		) - 1
+		if turns_remaining <= 0:
+			# Charge complete — fire the technique
+			user.volatiles["charging"] = {}
+			user.volatiles["semi_invulnerable"] = &""
+			user.volatiles["skip_turn_economy_init"] = true
+			var tech_key: StringName = charge_data.get(
+				"technique_key", &"",
+			) as StringName
+			if tech_key != &"":
+				result["override_technique"] = tech_key
+			return result
+		else:
+			charge_data["turns_remaining"] = turns_remaining
+			battle_message.emit(
+				"%s is charging up..." % _get_digimon_name(user),
+			)
+			result["skip_action"] = true
+			return result
+
+	return result
+
+
 ## Resolve targeting enum to actual BattleDigimonState targets.
 func _resolve_targets(
 	user: BattleDigimonState,
@@ -1371,6 +1758,9 @@ func _resolve_targets(
 
 ## End-of-turn processing.
 func _end_of_turn() -> void:
+	# 0. Resolve pending delayed effects (Future Sight, Wish)
+	_resolve_pending_effects()
+
 	# 1. Status condition ticks (faint/threshold handled inside)
 	for digimon: BattleDigimonState in _battle.get_active_digimon():
 		_tick_status_conditions(digimon)
@@ -1445,6 +1835,82 @@ func _end_of_turn() -> void:
 
 	# 6. Check end conditions
 	_battle.check_end_conditions()
+
+
+## Resolve pending delayed effects (delayed attacks, delayed healing).
+func _resolve_pending_effects() -> void:
+	var i: int = _battle.pending_effects.size() - 1
+	while i >= 0:
+		var effect: Dictionary = _battle.pending_effects[i]
+		if int(effect.get("resolve_turn", 0)) <= _battle.turn_number:
+			var effect_type: String = effect.get("type", "")
+			match effect_type:
+				"delayed_attack":
+					var target: BattleDigimonState = _battle.get_digimon_at(
+						int(effect.get("target_side", 0)),
+						int(effect.get("target_slot", 0)),
+					)
+					if target != null and not target.is_fainted:
+						var tech_key: StringName = effect.get(
+							"technique_key", &"",
+						) as StringName
+						var tech: TechniqueData = Atlas.techniques.get(
+							tech_key,
+						) as TechniqueData
+						if tech != null:
+							battle_message.emit(
+								"The delayed %s hit!" \
+									% tech.display_name,
+							)
+							# Execute damage bricks only
+							var user: BattleDigimonState = \
+								_battle.get_digimon_at(
+									int(effect.get("user_side", 0)),
+									int(effect.get("user_slot", 0)),
+								)
+							if user == null or user.is_fainted:
+								# Use a fallback — damage still lands
+								user = target
+							var results: Array[Dictionary] = \
+								BrickExecutor.execute_bricks(
+									tech.bricks, user, target,
+									tech, _battle,
+								)
+							for r: Dictionary in results:
+								if r.get("damage", 0) > 0:
+									damage_dealt.emit(
+										target.side_index,
+										target.slot_index,
+										int(r["damage"]),
+										r.get(
+											"effectiveness",
+											&"neutral",
+										) as StringName,
+									)
+							_check_faint_or_threshold(target, user)
+				"delayed_healing":
+					var target: BattleDigimonState = _battle.get_digimon_at(
+						int(effect.get("target_side", 0)),
+						int(effect.get("target_slot", 0)),
+					)
+					if target != null and not target.is_fainted:
+						var percent: float = float(
+							effect.get("percent", 50),
+						)
+						var amount: int = maxi(
+							floori(
+								float(target.max_hp) * percent / 100.0,
+							), 1,
+						)
+						_apply_healing_and_emit(
+							target, amount, &"delayed_healing",
+						)
+						battle_message.emit(
+							"%s's wish came true!" \
+								% _get_digimon_name(target),
+						)
+			_battle.pending_effects.remove_at(i)
+		i -= 1
 
 
 ## Tick status conditions for a single Digimon.

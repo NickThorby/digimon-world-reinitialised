@@ -72,6 +72,16 @@ static func execute_brick(
 		"priorityOverride":
 			# Consumed by action_sorter pre-scan; no runtime execution needed
 			return {"handled": true}
+		"turnEconomy":
+			# Consumed by battle_engine pre-scan; no runtime execution needed
+			return {"handled": true}
+		"chargeRequirement":
+			# Consumed by battle_engine pre-scan; no runtime execution needed
+			return {"handled": true}
+		"positionControl":
+			return _execute_position_control(
+				brick, user, target, battle,
+			)
 		_:
 			push_warning(
 				"BrickExecutor: Unimplemented brick type '%s'" % brick_type,
@@ -1774,3 +1784,216 @@ static func _map_dex_priority(dex_priority: int) -> int:
 	var clamped: int = clampi(dex_priority, -4, 4)
 	# Registry.Priority enum: MINIMUM=0, NEGATIVE=1, ..., MAXIMUM=8
 	return clamped + 4  # offset so -4 → 0 (MINIMUM), 0 → 4 (NORMAL)
+
+
+## --- Turn Economy / Charge Requirement Pre-scan ---
+
+
+## Pre-scan technique bricks for turnEconomy and chargeRequirement data.
+## Returns a flat Dictionary with extracted turn economy fields.
+static func evaluate_turn_economy(technique: TechniqueData) -> Dictionary:
+	var result: Dictionary = {}
+	if technique == null:
+		return result
+
+	for brick: Dictionary in technique.bricks:
+		var brick_type: String = brick.get("brick", "")
+
+		if brick_type == "turnEconomy":
+			if brick.get("recharge", false):
+				result["recharge"] = true
+			var semi_inv: String = brick.get("semiInvulnerable", "")
+			if semi_inv != "":
+				result["semi_invulnerable"] = semi_inv
+			if brick.has("multiTurn"):
+				var mt: Dictionary = brick["multiTurn"] as Dictionary
+				result["multi_turn"] = {
+					"min_hits": int(mt.get("min", 2)),
+					"max_hits": int(mt.get("max", 2)),
+					"locked_in": mt.get("lockedIn", false),
+				}
+			if brick.has("multiHit"):
+				var mh: Dictionary = brick["multiHit"] as Dictionary
+				result["multi_hit"] = {
+					"min_hits": int(mh.get("min", 2)),
+					"max_hits": int(mh.get("max", 5)),
+					"fixed_hits": int(mh.get("fixedHits", 0)),
+				}
+			if brick.has("delayedAttack"):
+				var da: Dictionary = brick["delayedAttack"] as Dictionary
+				result["delayed_attack"] = {
+					"delay": int(da.get("delay", 2)),
+					"targets_slot": da.get("targetsSlot", true),
+					"bypass_protection": da.get("bypassProtection", false),
+				}
+			if brick.has("delayedHealing"):
+				var dh: Dictionary = brick["delayedHealing"] as Dictionary
+				result["delayed_healing"] = {
+					"delay": int(dh.get("delay", 1)),
+					"percent": float(dh.get("percent", 50)),
+					"target": dh.get("target", "self"),
+				}
+
+		elif brick_type == "chargeRequirement":
+			result["charge_requirement"] = {
+				"turns_to_charge": int(brick.get("turnsToCharge", 1)),
+				"semi_invulnerable": brick.get("semiInvulnerable", ""),
+				"skip_in_weather": brick.get("skipInWeather", ""),
+				"skip_in_terrain": brick.get("skipInTerrain", ""),
+			}
+
+	return result
+
+
+## --- Position Control ---
+
+
+## Handle "positionControl" brick — force switches and position swaps.
+static func _execute_position_control(
+	brick: Dictionary,
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	battle: BattleState,
+) -> Dictionary:
+	var subtype: String = brick.get("type", "")
+
+	match subtype:
+		"forceSwitch":
+			return _position_force_switch(brick, target, battle)
+		"switchOut":
+			return _position_switch_out(brick, user, battle)
+		"switchOutPassStats":
+			return _position_switch_out_pass_stats(brick, user, battle)
+		"swapPositions":
+			return _position_swap(brick, user, battle)
+		_:
+			push_warning(
+				"BrickExecutor: Unknown positionControl type '%s'" % subtype,
+			)
+			return {"handled": false, "subtype": subtype}
+
+
+## forceSwitch: force the target to switch out.
+static func _position_force_switch(
+	brick: Dictionary,
+	target: BattleDigimonState,
+	battle: BattleState,
+) -> Dictionary:
+	if target == null or battle == null:
+		return {"handled": true, "position_control_failed": true, "reason": "no_target"}
+
+	var target_side: SideState = battle.sides[target.side_index]
+	# Check reserves
+	var has_reserves: bool = false
+	for reserve: DigimonState in target_side.party:
+		if reserve.current_hp > 0:
+			has_reserves = true
+			break
+
+	if not has_reserves:
+		return {
+			"handled": true,
+			"position_control_failed": true,
+			"reason": "no_reserves",
+		}
+
+	return {
+		"handled": true,
+		"force_switch": true,
+		"target_side": target.side_index,
+		"target_slot": target.slot_index,
+		"bypass_protection": brick.get("bypassProtection", false),
+	}
+
+
+## switchOut: user switches out after attacking.
+static func _position_switch_out(
+	brick: Dictionary,
+	user: BattleDigimonState,
+	battle: BattleState,
+) -> Dictionary:
+	if user == null or battle == null:
+		return {"handled": true, "position_control_failed": true, "reason": "no_user"}
+
+	var user_side: SideState = battle.sides[user.side_index]
+	var has_reserves: bool = false
+	for reserve: DigimonState in user_side.party:
+		if reserve.current_hp > 0:
+			has_reserves = true
+			break
+
+	if not has_reserves:
+		return {
+			"handled": true,
+			"position_control_failed": true,
+			"reason": "no_reserves",
+		}
+
+	return {
+		"handled": true,
+		"switch_out": true,
+		"switch_side": user.side_index,
+		"switch_slot": user.slot_index,
+	}
+
+
+## switchOutPassStats: user switches out and passes stat stages to replacement.
+static func _position_switch_out_pass_stats(
+	_brick: Dictionary,
+	user: BattleDigimonState,
+	battle: BattleState,
+) -> Dictionary:
+	if user == null or battle == null:
+		return {"handled": true, "position_control_failed": true, "reason": "no_user"}
+
+	var user_side: SideState = battle.sides[user.side_index]
+	var has_reserves: bool = false
+	for reserve: DigimonState in user_side.party:
+		if reserve.current_hp > 0:
+			has_reserves = true
+			break
+
+	if not has_reserves:
+		return {
+			"handled": true,
+			"position_control_failed": true,
+			"reason": "no_reserves",
+		}
+
+	return {
+		"handled": true,
+		"switch_out_pass_stats": true,
+		"switch_side": user.side_index,
+		"switch_slot": user.slot_index,
+		"stat_stages": user.stat_stages.duplicate(),
+		"volatile_stat_modifiers": user.volatile_stat_modifiers.duplicate(true),
+	}
+
+
+## swapPositions: swap two slots on the same side (doubles).
+static func _position_swap(
+	brick: Dictionary,
+	user: BattleDigimonState,
+	battle: BattleState,
+) -> Dictionary:
+	if user == null or battle == null:
+		return {"handled": true, "position_control_failed": true, "reason": "no_user"}
+
+	var side: SideState = battle.sides[user.side_index]
+	if side.slots.size() < 2:
+		return {
+			"handled": true,
+			"position_control_failed": true,
+			"reason": "single_slot_side",
+		}
+
+	var slot_a: int = user.slot_index
+	var slot_b: int = int(brick.get("targetSlot", 1 - slot_a))
+
+	return {
+		"handled": true,
+		"swap_positions": true,
+		"side": user.side_index,
+		"slot_a": slot_a,
+		"slot_b": slot_b,
+	}

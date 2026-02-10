@@ -822,6 +822,145 @@ static func _inject_techniques() -> void:
 		[Registry.TechniqueFlag.CONTACT],
 		[{"brick": "damage", "type": "standard"}],
 	)
+	# --- Session 5: positionControl ---
+	# forceSwitch: damage + force target to switch
+	Atlas.techniques[&"test_force_switch"] = _make_technique(
+		&"test_force_switch", "Test Force Switch",
+		Registry.TechniqueClass.PHYSICAL, &"", 60, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{"brick": "damage", "type": "standard"},
+			{"brick": "positionControl", "type": "forceSwitch"},
+		],
+	)
+	# switchOut: damage + user switches out
+	Atlas.techniques[&"test_switch_out_attack"] = _make_technique(
+		&"test_switch_out_attack", "Test Switch Out Attack",
+		Registry.TechniqueClass.PHYSICAL, &"", 60, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{"brick": "damage", "type": "standard"},
+			{"brick": "positionControl", "type": "switchOut"},
+		],
+	)
+	# switchOutPassStats: pass stat stages to replacement
+	Atlas.techniques[&"test_baton_pass"] = _make_technique(
+		&"test_baton_pass", "Test Baton Pass",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SELF, Registry.Priority.NORMAL,
+		[], [
+			{"brick": "positionControl", "type": "switchOutPassStats"},
+		],
+	)
+	# --- Session 5: turnEconomy ---
+	# multiHit: fixed 3 hits
+	Atlas.techniques[&"test_multi_hit_3"] = _make_technique(
+		&"test_multi_hit_3", "Test Multi Hit 3",
+		Registry.TechniqueClass.PHYSICAL, &"", 25, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{"brick": "damage", "type": "standard"},
+			{
+				"brick": "turnEconomy",
+				"multiHit": {"fixedHits": 3},
+			},
+		],
+	)
+	# recharge: skip next turn after use
+	Atlas.techniques[&"test_recharge_blast"] = _make_technique(
+		&"test_recharge_blast", "Test Recharge Blast",
+		Registry.TechniqueClass.PHYSICAL, &"", 120, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{"brick": "damage", "type": "standard"},
+			{"brick": "turnEconomy", "recharge": true},
+		],
+	)
+	# delayedAttack: damage hits target slot after 2 turns
+	Atlas.techniques[&"test_future_sight"] = _make_technique(
+		&"test_future_sight", "Test Future Sight",
+		Registry.TechniqueClass.SPECIAL, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "turnEconomy",
+			"delayedAttack": {"delay": 2, "targetsSlot": true},
+		}],
+	)
+	# delayedHealing: heal 50% after 1 turn
+	Atlas.techniques[&"test_wish"] = _make_technique(
+		&"test_wish", "Test Wish",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SELF, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "turnEconomy",
+			"delayedHealing": {"delay": 1, "percent": 50, "target": "self"},
+		}],
+	)
+	# --- Session 5: chargeRequirement ---
+	# charge 1 turn, no weather skip
+	Atlas.techniques[&"test_charge_beam"] = _make_technique(
+		&"test_charge_beam", "Test Charge Beam",
+		Registry.TechniqueClass.SPECIAL, &"", 80, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{"brick": "damage", "type": "standard"},
+			{"brick": "chargeRequirement", "turnsToCharge": 1},
+		],
+	)
+	# charge 1 turn, skip in sun weather
+	Atlas.techniques[&"test_solar_beam"] = _make_technique(
+		&"test_solar_beam", "Test Solar Beam",
+		Registry.TechniqueClass.SPECIAL, &"plant", 120, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{"brick": "damage", "type": "standard"},
+			{
+				"brick": "chargeRequirement",
+				"turnsToCharge": 1,
+				"skipInWeather": "sun",
+			},
+		],
+	)
+	# multiTurn + semiInvulnerable (Fly pattern): 2-turn move
+	Atlas.techniques[&"test_fly"] = _make_technique(
+		&"test_fly", "Test Fly",
+		Registry.TechniqueClass.PHYSICAL, &"", 80, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{"brick": "damage", "type": "standard"},
+			{
+				"brick": "turnEconomy",
+				"multiTurn": {"min": 2, "max": 2, "lockedIn": true},
+				"semiInvulnerable": "sky",
+			},
+		],
+	)
+	# multiTurn without semiInvulnerable (Outrage pattern): 2-3 turns
+	Atlas.techniques[&"test_outrage"] = _make_technique(
+		&"test_outrage", "Test Outrage",
+		Registry.TechniqueClass.PHYSICAL, &"", 90, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{"brick": "damage", "type": "standard"},
+			{
+				"brick": "turnEconomy",
+				"multiTurn": {"min": 2, "max": 3, "lockedIn": true},
+			},
+		],
+	)
+	# Simple damage technique for testing delayed attacks
+	Atlas.techniques[&"test_future_sight_damage"] = _make_technique(
+		&"test_future_sight_damage", "Test Future Sight Damage",
+		Registry.TechniqueClass.SPECIAL, &"", 100, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{"brick": "damage", "type": "standard"},
+			{
+				"brick": "turnEconomy",
+				"delayedAttack": {"delay": 2, "targetsSlot": true},
+			},
+		],
+	)
 
 
 static func _make_technique(
