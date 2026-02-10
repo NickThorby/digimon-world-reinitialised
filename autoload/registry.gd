@@ -645,8 +645,8 @@ const SIDE_EFFECT_TYPES: Array[StringName] = [
 ]
 
 const SHIELD_TYPES: Array[StringName] = [
-	&"hp_decoy", &"intact_form_guard", &"endure", &"full_hp_guard",
-	&"last_stand", &"negate_one_physical",
+	&"hp_decoy", &"intact_form_guard", &"endure",
+	&"last_stand", &"negate_one_move_class",
 ]
 
 const SEMI_INVULNERABLE_STATES: Array[StringName] = [

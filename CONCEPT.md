@@ -192,7 +192,7 @@ There is **no stacking limit** — multiple different status conditions can be a
 
 | Status      | Effect                                                                |
 |-------------|-----------------------------------------------------------------------|
-| Asleep      | Cannot act. Wakes after 1-3 turns or when hit.                       |
+| Asleep      | Cannot act. Wakes after 2-5 turns or when hit.                       |
 | Burned      | Takes fire damage each turn. Physical attack reduced.                 |
 | Frostbitten | Takes ice damage each turn. Special attack reduced.                   |
 | Frozen      | Cannot act. Thaws after 1-3 turns or when hit by fire.                |

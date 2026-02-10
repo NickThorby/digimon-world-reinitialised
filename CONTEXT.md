@@ -608,19 +608,19 @@ Badly Burned and Badly Poisoned deal escalating damage each turn based on a turn
 
 The escalation counter resets to 0 when the Digimon switches out, but the status itself persists.
 
-### Element-Trait Immunities
+### Resistance-Based Status Immunities
 
-Status immunities are based on the target's element traits:
+Status immunities are determined by the target's effective resistance to the associated element. If `get_effective_resistance()` returns ≤ 0.5 (resistant or immune), the status is blocked.
 
-| Element Trait | Immune To                      |
-|---------------|--------------------------------|
-| Fire          | Burned, Badly Burned           |
-| Ice           | Frostbitten, Frozen            |
-| Dark          | Poisoned, Badly Poisoned       |
-| Lightning     | Paralysed                      |
-| Plant         | Seeded                         |
+| Element   | Immune To                      | Threshold        |
+|-----------|--------------------------------|------------------|
+| Fire      | Burned, Badly Burned           | resistance ≤ 0.5 |
+| Ice       | Frostbitten, Frozen            | resistance ≤ 0.5 |
+| Dark      | Poisoned, Badly Poisoned       | resistance ≤ 0.5 |
+| Lightning | Paralysed                      | resistance ≤ 0.5 |
+| Plant     | Seeded                         | resistance ≤ 0.5 |
 
-Specific abilities may also grant status immunities regardless of element traits.
+Specific abilities may also grant status immunities regardless of resistance.
 
 ---
 
@@ -953,7 +953,7 @@ Abilities, status conditions, field effects, and gear register event handlers. T
 | `default_terrain_duration` | 5 | Turns terrain lasts |
 | `default_global_effect_duration` | 5 | Turns global effects last |
 | `default_side_effect_duration` | 5 | Turns side effects last |
-| `sleep_min_turns` / `sleep_max_turns` | 1 / 3 | Sleep duration range |
+| `sleep_min_turns` / `sleep_max_turns` | 2 / 5 | Sleep duration range |
 | `freeze_min_turns` / `freeze_max_turns` | 1 / 3 | Freeze duration range |
 | `confusion_min_turns` / `confusion_max_turns` | 2 / 5 | Confusion duration range |
 | `encore_duration` | 3 | Encore status duration |
@@ -977,7 +977,7 @@ Abilities, status conditions, field effects, and gear register event handlers. T
 | `HAZARD_TYPES` | entry_damage, entry_stat_reduction |
 | `GLOBAL_EFFECT_TYPES` | grounding_field, speed_inversion, gear_suppression, defence_swap |
 | `SIDE_EFFECT_TYPES` | physical_barrier, special_barrier, dual_barrier, stat_drop_immunity, status_immunity, speed_boost, crit_immunity, spread_protection, priority_protection, first_turn_protection |
-| `SHIELD_TYPES` | hp_decoy, intact_form_guard, endure, full_hp_guard, last_stand, negate_one_physical |
+| `SHIELD_TYPES` | hp_decoy, intact_form_guard, endure, last_stand, negate_one_move_class |
 | `SEMI_INVULNERABLE_STATES` | sky, underground, underwater, shadow, intangible |
 
 ---

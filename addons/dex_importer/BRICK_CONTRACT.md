@@ -32,7 +32,7 @@
 
 ### StatusCondition
 
-**Negative**: `asleep`, `burned`, `frostbitten`, `frozen`, `exhausted`, `poisoned`, `dazed`, `trapped`, `confused`, `blinded`, `paralyzed`, `bleeding`, `encored`, `taunted`, `disabled`, `perishing`, `seeded`
+**Negative**: `asleep`, `burned`, `badlyBurned`, `frostbitten`, `frozen`, `exhausted`, `poisoned`, `badlyPoisoned`, `dazed`, `trapped`, `confused`, `blinded`, `paralyzed`, `bleeding`, `encored`, `taunted`, `disabled`, `perishing`, `seeded`
 
 **Positive**: `regenerating`, `vitalized`
 
@@ -105,7 +105,7 @@
 |---|---|---|---|
 | `brick` | `"damageModifier"` | Yes | Discriminator |
 | `condition` | `String` | No | When to apply |
-| `multiplier` | `float` | No | Damage multiplier |
+| `multiplier` | `float` | No | Damage multiplier. *Note: `damageModifier` bricks are meta-consumed during damage calculation — they modify the damage result of a sibling `damage` brick rather than executing standalone.* |
 | `flatBonus` | `int` | No | Flat damage added |
 | `ignoreDefense` | `bool` | No | Ignore target defence |
 | `ignoreEvasion` | `bool` | No | Ignore evasion stages |
@@ -183,7 +183,7 @@
 | Key | Type | Required | Description |
 |---|---|---|---|
 | `brick` | `"healing"` | Yes | Discriminator |
-| `type` | `String` | Yes | `percentage`, `fixed`, `drain`, `weather`, `status` |
+| `type` | `String` | Yes | `percentage`, `fixed`, `drain`, `weather`, `status`, `energyFixed`, `energyPercentage` |
 | `percent` | `float` | No | % of max HP |
 | `amount` | `int` | No | Fixed HP |
 | `target` | `String` | No | BrickTarget (default `self`) |
