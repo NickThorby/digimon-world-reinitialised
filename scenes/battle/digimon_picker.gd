@@ -34,6 +34,8 @@ enum Stage { BROWSE, CONFIGURE }
 @onready var _iv_sliders: VBoxContainer = $MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigScroll/ScrollVBox/IVSection/IVSliders
 @onready var _tv_sliders: VBoxContainer = $MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigScroll/ScrollVBox/TVSection/TVSliders
 @onready var _technique_buttons: VBoxContainer = $MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigScroll/ScrollVBox/TechniqueConfigSection/TechniqueButtons
+@onready var _equipable_gear_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigScroll/ScrollVBox/GearSection/EquipableGearRow/EquipableGearOption
+@onready var _consumable_gear_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigScroll/ScrollVBox/GearSection/ConsumableGearRow/ConsumableGearOption
 @onready var _back_config_button: Button = $MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigButtonRow/BackConfigButton
 @onready var _confirm_button: Button = $MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigButtonRow/ConfirmButton
 
@@ -70,6 +72,9 @@ var _selected_ability_slot: int = 1
 var _selected_technique_keys: Array[StringName] = []
 ## Available technique keys at current level (parallel to button order).
 var _available_technique_keys: Array[StringName] = []
+## Gear keys parallel to OptionButton indices (index 0 = "None" = &"").
+var _equipable_gear_keys: Array[StringName] = []
+var _consumable_gear_keys: Array[StringName] = []
 
 ## Stat keys in display order.
 const STAT_KEYS: Array[StringName] = [
@@ -573,6 +578,11 @@ func _enter_config_stage(existing_state: DigimonState = null) -> void:
 		preselect = existing_state.equipped_technique_keys
 	_populate_techniques(preselect)
 
+	# Populate gear dropdowns
+	var preselect_equipable: StringName = existing_state.equipped_gear_key if existing_state else &""
+	var preselect_consumable: StringName = existing_state.equipped_consumable_key if existing_state else &""
+	_populate_gear_options(preselect_equipable, preselect_consumable)
+
 	_set_stage(Stage.CONFIGURE)
 
 
@@ -752,6 +762,62 @@ func _add_technique_button(tech_key: StringName, tech_data: TechniqueData, selec
 	_technique_buttons.add_child(btn)
 
 
+func _populate_gear_options(
+	preselect_equipable: StringName = &"",
+	preselect_consumable: StringName = &"",
+) -> void:
+	_equipable_gear_option.clear()
+	_consumable_gear_option.clear()
+	_equipable_gear_keys.clear()
+	_consumable_gear_keys.clear()
+
+	# Collect gear items from Atlas, split by slot
+	var equipable_list: Array[Dictionary] = []
+	var consumable_list: Array[Dictionary] = []
+	for item_key: StringName in Atlas.items:
+		var item: Resource = Atlas.items[item_key]
+		if not item is GearData:
+			continue
+		var gear: GearData = item as GearData
+		var entry: Dictionary = {"key": gear.key, "name": gear.name}
+		if gear.gear_slot == Registry.GearSlot.EQUIPABLE:
+			equipable_list.append(entry)
+		elif gear.gear_slot == Registry.GearSlot.CONSUMABLE:
+			consumable_list.append(entry)
+
+	# Sort alphabetically
+	equipable_list.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return (a["name"] as String).naturalnocasecmp_to(b["name"] as String) < 0
+	)
+	consumable_list.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return (a["name"] as String).naturalnocasecmp_to(b["name"] as String) < 0
+	)
+
+	# Populate equipable dropdown
+	_equipable_gear_keys.append(&"")
+	_equipable_gear_option.add_item("None")
+	for entry: Dictionary in equipable_list:
+		_equipable_gear_keys.append(entry["key"] as StringName)
+		_equipable_gear_option.add_item(entry["name"] as String)
+
+	# Populate consumable dropdown
+	_consumable_gear_keys.append(&"")
+	_consumable_gear_option.add_item("None")
+	for entry: Dictionary in consumable_list:
+		_consumable_gear_keys.append(entry["key"] as StringName)
+		_consumable_gear_option.add_item(entry["name"] as String)
+
+	# Pre-select existing gear
+	if preselect_equipable != &"":
+		var idx: int = _equipable_gear_keys.find(preselect_equipable)
+		if idx >= 0:
+			_equipable_gear_option.selected = idx
+	if preselect_consumable != &"":
+		var idx: int = _consumable_gear_keys.find(preselect_consumable)
+		if idx >= 0:
+			_consumable_gear_option.selected = idx
+
+
 func _on_level_changed(value: float) -> void:
 	_level_value_label.text = str(int(value))
 	if _stage == Stage.CONFIGURE:
@@ -818,6 +884,14 @@ func _on_confirm() -> void:
 
 	# Set ability slot
 	_pending_state.active_ability_slot = _selected_ability_slot
+
+	# Set equipped gear from dropdowns
+	var eq_idx: int = _equipable_gear_option.selected
+	if eq_idx >= 0 and eq_idx < _equipable_gear_keys.size():
+		_pending_state.equipped_gear_key = _equipable_gear_keys[eq_idx]
+	var con_idx: int = _consumable_gear_option.selected
+	if con_idx >= 0 and con_idx < _consumable_gear_keys.size():
+		_pending_state.equipped_consumable_key = _consumable_gear_keys[con_idx]
 
 	Game.picker_result = _pending_state
 	_pending_state = null

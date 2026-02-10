@@ -225,6 +225,38 @@ size_flags_vertical = 3
 layout_mode = 2
 size_flags_horizontal = 3
 
+[node name="GearSection" type="VBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigScroll/ScrollVBox"]
+layout_mode = 2
+
+[node name="GearLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigScroll/ScrollVBox/GearSection"]
+layout_mode = 2
+text = "Gear"
+theme_override_font_sizes/font_size = 14
+
+[node name="EquipableGearRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigScroll/ScrollVBox/GearSection"]
+layout_mode = 2
+
+[node name="EquipableLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigScroll/ScrollVBox/GearSection/EquipableGearRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(100, 0)
+text = "Equipable:"
+
+[node name="EquipableGearOption" type="OptionButton" parent="MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigScroll/ScrollVBox/GearSection/EquipableGearRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ConsumableGearRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigScroll/ScrollVBox/GearSection"]
+layout_mode = 2
+
+[node name="ConsumableLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigScroll/ScrollVBox/GearSection/ConsumableGearRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(100, 0)
+text = "Consumable:"
+
+[node name="ConsumableGearOption" type="OptionButton" parent="MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigScroll/ScrollVBox/GearSection/ConsumableGearRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
 [node name="IVSection" type="VBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigScroll/ScrollVBox"]
 layout_mode = 2
 
