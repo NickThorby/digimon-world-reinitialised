@@ -340,12 +340,12 @@ Mapped from digimon-dex `Attack` table (**"attack" in dex = "technique" in game*
 | `accuracy`             | `int`                     | Hit chance (0 = always hits, bypasses accuracy check) |
 | `energy_cost`          | `int`                     | Energy to use                    |
 | `priority`             | `Registry.Priority`       | Priority tier                    |
-| `flags`                | `Array[TechniqueFlag]`    | Contact, Sound, Beam, etc.       |
+| `flags`                | `Array[TechniqueFlag]`    | Contact, Sound, Beam, etc. Imported from technique-level `flags` field (dex export v3+). |
 | `charge_required`      | `int`                     | Charges needed (0 = instant)     |
 | `charge_conditions`    | `Array[Dictionary]`       | How charges are gained           |
 | `bricks`               | `Array[Dictionary]`       | Modular effect definitions       |
 
-### Brick Types (29)
+### Brick Types (28)
 
 The brick system enables modular effect composition. Each brick is a dictionary with a `brick` type field. Full parameter schemas are in `addons/dex_importer/BRICK_CONTRACT.md`.
 
@@ -371,7 +371,6 @@ The brick system enables modular effect composition. Each brick is a dictionary 
 | `protection`         | Protects from attacks (full protection)           |
 | `priorityOverride`   | Changes technique priority conditionally         |
 | `elementModifier`    | Modifies element traits and resistance profiles  |
-| `flags`              | Technique flags for ability interactions         |
 | `criticalHit`        | Modifies critical hit rate                       |
 | `resource`           | Interacts with held items                        |
 | `useRandomTechnique` | Uses a random technique                          |
@@ -390,13 +389,15 @@ Individual bricks can have a `condition` field — a condition string that must 
 
 Evaluated by `BrickConditionEvaluator` (`scripts/utilities/brick_condition_evaluator.gd`). Supported on `damageModifier`, `statModifier`, and `statusEffect` bricks. Empty string or missing `condition` = always active.
 
-#### Condition Types (30 Tier 1)
+#### Condition Types (32 Tier 1)
 
 | Category | Conditions |
 |----------|-----------|
 | HP thresholds | `userHpBelow:N`, `userHpAbove:N`, `targetHpBelow:N`, `targetHpAbove:N`, `targetAtFullHp` |
 | Status | `userHasStatus:key`, `targetHasStatus:key`, `targetNoStatus:key` |
-| Element/type | `damageTypeIs:elem`, `techniqueIsType:elem`, `targetIsType:elem`, `userIsType:elem` |
+| Element/type | `damageTypeIs:elem`, `techniqueIsType:elem` |
+| Technique flags | `moveHasFlag:flag` |
+| Traits | `userHasTrait:cat:trait`, `targetHasTrait:cat:trait`, `allyHasTrait:cat:trait` (categories: `element`, `movement`, `size`, `type`) |
 | Field | `weatherIs:key`, `terrainIs:key` |
 | Timing | `isFirstTurn`, `targetNotActed`, `targetActed` |
 | Stats | `userStatHigher:abbr`, `targetStatHigher:abbr` |
@@ -406,6 +407,7 @@ Evaluated by `BrickConditionEvaluator` (`scripts/utilities/brick_condition_evalu
 | Ability | `userHasAbility:key`, `targetHasAbility:key` |
 | Effectiveness | `isSuperEffective`, `isNotVeryEffective` |
 | Last technique | `lastTechniqueWas:key` |
+| Items | `userHasItem:key`, `userHasNoItem:key`, `targetHasItem:key`, `targetHasNoItem:key` |
 
 ### damageModifier Brick
 

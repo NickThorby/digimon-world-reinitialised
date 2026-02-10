@@ -55,6 +55,7 @@ Bulk export of the entire game-relevant dataset. No pagination. Single JSON resp
       "energy_cost": 10,
       "accuracy": 95,
       "element": "Fire",
+      "flags": ["contact", "punch"],
       "bricks": [/* raw JSON */]
     }
   ],
@@ -214,6 +215,7 @@ Bulk export of the entire game-relevant dataset. No pagination. Single JSON resp
 | `energy_cost` | `int` | Energy to use. |
 | `accuracy` | `int?` | 1-100. `null` = always hits (game maps to `0`). |
 | `element` | `string?` | Element name (PascalCase). `null` = elementless. |
+| `flags` | `array[string]?` | TechniqueFlag values (camelCase). `null` or `[]` if none. |
 | `bricks` | `array` | Raw brick JSON. Validated game-side per `BRICK_CONTRACT.md`. |
 
 ### Abilities

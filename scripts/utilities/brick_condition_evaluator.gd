@@ -4,6 +4,26 @@ extends RefCounted
 ## Condition format: "condType:value" or "cond1|cond2" (AND logic).
 
 
+const TECHNIQUE_FLAG_NAME_MAP: Dictionary = {
+	"contact": Registry.TechniqueFlag.CONTACT,
+	"sound": Registry.TechniqueFlag.SOUND,
+	"punch": Registry.TechniqueFlag.PUNCH,
+	"kick": Registry.TechniqueFlag.KICK,
+	"bite": Registry.TechniqueFlag.BITE,
+	"blade": Registry.TechniqueFlag.BLADE,
+	"beam": Registry.TechniqueFlag.BEAM,
+	"explosive": Registry.TechniqueFlag.EXPLOSIVE,
+	"bullet": Registry.TechniqueFlag.BULLET,
+	"powder": Registry.TechniqueFlag.POWDER,
+	"wind": Registry.TechniqueFlag.WIND,
+	"flying": Registry.TechniqueFlag.FLYING,
+	"groundable": Registry.TechniqueFlag.GROUNDABLE,
+	"defrost": Registry.TechniqueFlag.DEFROST,
+	"reflectable": Registry.TechniqueFlag.REFLECTABLE,
+	"snatchable": Registry.TechniqueFlag.SNATCHABLE,
+}
+
+
 ## Parse a single "condType:value" into {type: String, value: String}.
 static func parse_condition(condition: String) -> Dictionary:
 	var parts: PackedStringArray = condition.split(":", true, 1)
@@ -67,10 +87,18 @@ static func evaluate_single(
 			return _check_damage_type(context, cond_value)
 		"techniqueIsType":
 			return _check_technique_type(context, cond_value)
-		"targetIsType":
-			return _check_digimon_element(_get_target(context), cond_value)
-		"userIsType":
-			return _check_digimon_element(_get_user(context), cond_value)
+
+		# --- Technique flags ---
+		"moveHasFlag":
+			return _check_move_has_flag(context, cond_value)
+
+		# --- Traits ---
+		"userHasTrait":
+			return _check_has_trait(_get_user(context), cond_value)
+		"targetHasTrait":
+			return _check_has_trait(_get_target(context), cond_value)
+		"allyHasTrait":
+			return _check_ally_has_trait(context, cond_value)
 
 		# --- Field ---
 		"weatherIs":
@@ -233,14 +261,64 @@ static func _check_technique_type(context: Dictionary, element_name: String) -> 
 	return _check_damage_type(context, element_name)
 
 
-static func _check_digimon_element(
-	digimon: BattleDigimonState, element_name: String,
+## Check if a Digimon has a specific trait. Value format: "category:trait".
+## Categories: element, movement, size, type.
+static func _check_has_trait(
+	digimon: BattleDigimonState, category_and_trait: String,
 ) -> bool:
 	if digimon == null or digimon.data == null:
 		return false
-	var lower_name: String = element_name.to_lower()
-	for elem_trait: StringName in digimon.data.element_traits:
-		if str(elem_trait).to_lower() == lower_name:
+	var parts: PackedStringArray = category_and_trait.split(":", true, 1)
+	if parts.size() < 2:
+		return false
+	var category: String = parts[0].strip_edges().to_lower()
+	var trait_name: String = parts[1].strip_edges().to_lower()
+	match category:
+		"element":
+			for elem: StringName in digimon.data.element_traits:
+				if str(elem).to_lower() == trait_name:
+					return true
+		"movement":
+			for mov: StringName in digimon.data.movement_traits:
+				if str(mov).to_lower() == trait_name:
+					return true
+		"size":
+			if str(digimon.data.size_trait).to_lower() == trait_name:
+				return true
+		"type":
+			if str(digimon.data.type_trait).to_lower() == trait_name:
+				return true
+	return false
+
+
+## Check if the technique has a specific flag.
+static func _check_move_has_flag(
+	context: Dictionary, flag_name: String,
+) -> bool:
+	var technique: TechniqueData = _get_technique(context)
+	if technique == null:
+		return false
+	var flag: Variant = TECHNIQUE_FLAG_NAME_MAP.get(flag_name.to_lower())
+	if flag == null:
+		return false
+	return (flag as Registry.TechniqueFlag) in technique.flags
+
+
+## Check if any active ally (same side, not self) has a specific trait.
+static func _check_ally_has_trait(
+	context: Dictionary, category_and_trait: String,
+) -> bool:
+	var user: BattleDigimonState = _get_user(context)
+	var battle: BattleState = _get_battle(context)
+	if user == null or battle == null:
+		return false
+	if user.side_index < 0 or user.side_index >= battle.sides.size():
+		return false
+	var side: SideState = battle.sides[user.side_index]
+	for slot: SlotState in side.slots:
+		if slot.digimon == null or slot.digimon == user or slot.digimon.is_fainted:
+			continue
+		if _check_has_trait(slot.digimon, category_and_trait):
 			return true
 	return false
 

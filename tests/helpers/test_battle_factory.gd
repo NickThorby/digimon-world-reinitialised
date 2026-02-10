@@ -66,36 +66,60 @@ static func _make_personality(
 
 
 static func _inject_digimon() -> void:
-	Atlas.digimon[&"test_agumon"] = _make_digimon(
+	var agumon: DigimonData = _make_digimon(
 		&"test_agumon", "Test Agumon", Registry.Attribute.VACCINE,
 		[&"fire"], 80, 50, 100, 60, 50, 60, 80,
 		{&"ice": 1.5, &"water": 1.5, &"fire": 0.5},
 		&"test_ability_on_entry",
 	)
-	Atlas.digimon[&"test_gabumon"] = _make_digimon(
+	agumon.size_trait = &"medium"
+	agumon.movement_traits = [&"terrestrial"] as Array[StringName]
+	agumon.type_trait = &"dragon"
+	Atlas.digimon[&"test_agumon"] = agumon
+
+	var gabumon: DigimonData = _make_digimon(
 		&"test_gabumon", "Test Gabumon", Registry.Attribute.DATA,
 		[&"ice"], 75, 50, 55, 65, 100, 70, 60,
 		{&"fire": 1.5, &"ice": 0.5, &"earth": 0.5},
 		&"test_ability_on_turn_start",
 	)
-	Atlas.digimon[&"test_patamon"] = _make_digimon(
+	gabumon.size_trait = &"medium"
+	gabumon.movement_traits = [&"terrestrial"] as Array[StringName]
+	gabumon.type_trait = &"beast"
+	Atlas.digimon[&"test_gabumon"] = gabumon
+
+	var patamon: DigimonData = _make_digimon(
 		&"test_patamon", "Test Patamon", Registry.Attribute.VACCINE,
 		[&"light"], 90, 50, 40, 70, 60, 80, 50,
 		{&"dark": 0.0, &"light": 0.5},
 		&"test_ability_on_ally_faint",
 	)
-	Atlas.digimon[&"test_tank"] = _make_digimon(
+	patamon.size_trait = &"small"
+	patamon.movement_traits = [&"flying"] as Array[StringName]
+	patamon.type_trait = &"holy"
+	Atlas.digimon[&"test_patamon"] = patamon
+
+	var tank: DigimonData = _make_digimon(
 		&"test_tank", "Test Tank", Registry.Attribute.VIRUS,
 		[&"dark"], 120, 50, 70, 100, 40, 100, 30,
 		{&"dark": 0.0, &"light": 1.5},
 		&"",
 	)
-	Atlas.digimon[&"test_speedster"] = _make_digimon(
+	tank.size_trait = &"large"
+	tank.movement_traits = [&"terrestrial"] as Array[StringName]
+	tank.type_trait = &"undead"
+	Atlas.digimon[&"test_tank"] = tank
+
+	var speedster: DigimonData = _make_digimon(
 		&"test_speedster", "Test Speedster", Registry.Attribute.DATA,
 		[&"lightning"], 50, 50, 70, 40, 70, 40, 130,
 		{&"earth": 1.5, &"lightning": 0.5},
 		&"",
 	)
+	speedster.size_trait = &"small"
+	speedster.movement_traits = [&"flying"] as Array[StringName]
+	speedster.type_trait = &"insect"
+	Atlas.digimon[&"test_speedster"] = speedster
 
 
 static func _make_digimon(

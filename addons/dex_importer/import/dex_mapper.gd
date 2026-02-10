@@ -178,7 +178,16 @@ func map_technique(dex_data: Dictionary, _validator: RefCounted) -> Resource:
 			typed_bricks.append(b as Dictionary)
 	technique.bricks = typed_bricks
 
-	# Extract derived fields from bricks
+	# Flags — read from technique-level field (primary) or bricks (legacy fallback)
+	var flags_array: Variant = dex_data.get("flags", null)
+	if flags_array is Array:
+		var mapped: Array = []
+		for flag: Variant in (flags_array as Array):
+			if flag is String and TECHNIQUE_FLAG_MAP.has(flag as String):
+				mapped.append(TECHNIQUE_FLAG_MAP[flag as String])
+		technique.flags.assign(mapped)
+
+	# Extract derived fields from bricks (includes legacy flags fallback)
 	_extract_technique_fields(technique, bricks)
 
 	return technique
@@ -197,13 +206,15 @@ func _extract_technique_fields(technique: TechniqueData, bricks: Array) -> void:
 				if b.get("type", "") == "standard" and b.has("power"):
 					technique.power = int(b["power"])
 			"flags":
-				var flag_values: Variant = b.get("flags", [])
-				if flag_values is Array:
-					var mapped_flags: Array = []
-					for flag: Variant in (flag_values as Array):
-						if flag is String and TECHNIQUE_FLAG_MAP.has(flag as String):
-							mapped_flags.append(TECHNIQUE_FLAG_MAP[flag as String])
-					technique.flags.assign(mapped_flags)
+				# Legacy fallback: only extract from brick if technique-level flags empty
+				if technique.flags.is_empty():
+					var flag_values: Variant = b.get("flags", [])
+					if flag_values is Array:
+						var mapped_flags: Array = []
+						for flag: Variant in (flag_values as Array):
+							if flag is String and TECHNIQUE_FLAG_MAP.has(flag as String):
+								mapped_flags.append(TECHNIQUE_FLAG_MAP[flag as String])
+						technique.flags.assign(mapped_flags)
 			"chargeRequirement":
 				if b.has("turnsToCharge"):
 					technique.charge_required = int(b["turnsToCharge"])

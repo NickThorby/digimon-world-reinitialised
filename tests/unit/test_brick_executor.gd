@@ -216,17 +216,6 @@ func test_stat_modifier_negative_stages() -> void:
 	assert_eq(_target.stat_stages[&"defence"], -2, "Defence stage should be -2")
 
 
-# --- Flags brick ---
-
-
-func test_flags_brick_returns_handled() -> void:
-	var brick: Dictionary = {"brick": "flags"}
-	var result: Dictionary = BrickExecutor.execute_brick(
-		brick, _user, _target, null, _battle,
-	)
-	assert_true(result.get("handled", false), "Flags brick should return handled=true")
-
-
 # --- Unknown brick ---
 
 

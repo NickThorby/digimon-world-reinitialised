@@ -25,8 +25,8 @@ static func execute_brick(
 		"damageModifier":
 			# Consumed by damage brick handler; standalone execution is a no-op
 			return {"handled": true, "skipped": true}
-		"flags", "criticalHit":
-			# Consumed at import/calc time; no runtime execution needed
+		"criticalHit":
+			# Consumed at calc time; no runtime execution needed
 			return {"handled": true}
 		_:
 			push_warning("BrickExecutor: Unimplemented brick type '%s'" % brick_type)

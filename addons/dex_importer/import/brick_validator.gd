@@ -9,7 +9,7 @@ const VALID_BRICK_TYPES: Array[String] = [
 	"statusEffect", "statusInteraction", "healing", "fieldEffect", "sideEffect",
 	"hazard", "positionControl", "turnEconomy", "chargeRequirement", "synergy",
 	"requirement", "conditional", "protection", "priorityOverride", "elementModifier",
-	"flags", "criticalHit", "resource", "useRandomTechnique", "transform",
+	"criticalHit", "resource", "useRandomTechnique", "transform",
 	"shield", "copyTechnique", "abilityManipulation", "turnOrder",
 ]
 
@@ -30,7 +30,6 @@ const REQUIRED_FIELDS: Dictionary = {
 	"conditional": ["condition"],
 	"protection": ["type"],
 	"priorityOverride": ["condition", "newPriority"],
-	"flags": ["flags"],
 	"chargeRequirement": ["turnsToCharge"],
 	"useRandomTechnique": ["source"],
 	"shield": ["type"],
@@ -206,8 +205,6 @@ func _validate_single_brick(brick: Dictionary, index: int, errors: Array[String]
 			_validate_enum_field(brick, "type", PROTECTION_TYPES, index, type_str, errors)
 		"priorityOverride":
 			_validate_int_field(brick, "newPriority", index, type_str, errors)
-		"flags":
-			_validate_flags_field(brick, index, errors)
 		"chargeRequirement":
 			_validate_int_field(brick, "turnsToCharge", index, type_str, errors)
 		"useRandomTechnique":
@@ -312,15 +309,3 @@ func _validate_int_field(
 		errors.append("Brick %d (%s): '%s' must be a number" % [index, brick_type, field])
 
 
-func _validate_flags_field(
-	brick: Dictionary, index: int, errors: Array[String]
-) -> void:
-	if not brick.has("flags"):
-		return
-	var flags_value: Variant = brick["flags"]
-	if flags_value is not Array:
-		errors.append("Brick %d (flags): 'flags' must be an array" % index)
-		return
-	for flag: Variant in (flags_value as Array):
-		if flag is not String or (flag as String) not in TECHNIQUE_FLAG_VALUES:
-			errors.append("Brick %d (flags): invalid flag '%s'" % [index, str(flag)])

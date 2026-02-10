@@ -172,21 +172,56 @@ func test_technique_is_type_same_as_damage_type() -> void:
 	assert_true(BrickConditionEvaluator.evaluate("techniqueIsType:fire", ctx))
 
 
-func test_target_is_type_matching() -> void:
+func test_user_has_trait_element_matching() -> void:
+	# test_agumon has element_traits [&"fire"]
+	var ctx: Dictionary = {"user": _user}
+	assert_true(BrickConditionEvaluator.evaluate("userHasTrait:element:fire", ctx))
+
+
+func test_target_has_trait_element_matching() -> void:
 	# test_agumon has element_traits [&"fire"]
 	var ctx: Dictionary = {"target": _user}  # _user is test_agumon
-	assert_true(BrickConditionEvaluator.evaluate("targetIsType:fire", ctx))
+	assert_true(BrickConditionEvaluator.evaluate("targetHasTrait:element:fire", ctx))
 
 
-func test_target_is_type_not_matching() -> void:
+func test_target_has_trait_element_not_matching() -> void:
 	var ctx: Dictionary = {"target": _target}  # _target is test_gabumon with ice
-	assert_false(BrickConditionEvaluator.evaluate("targetIsType:fire", ctx))
+	assert_false(BrickConditionEvaluator.evaluate("targetHasTrait:element:fire", ctx))
 
 
-func test_user_is_type() -> void:
-	# test_agumon has fire element
+func test_user_has_trait_movement() -> void:
+	# test_agumon has movement_traits [&"terrestrial"]
 	var ctx: Dictionary = {"user": _user}
-	assert_true(BrickConditionEvaluator.evaluate("userIsType:fire", ctx))
+	assert_true(BrickConditionEvaluator.evaluate("userHasTrait:movement:terrestrial", ctx))
+
+
+func test_user_has_trait_size() -> void:
+	# test_agumon has size_trait &"medium"
+	var ctx: Dictionary = {"user": _user}
+	assert_true(BrickConditionEvaluator.evaluate("userHasTrait:size:medium", ctx))
+
+
+func test_user_has_trait_type() -> void:
+	# test_agumon has type_trait &"dragon"
+	var ctx: Dictionary = {"user": _user}
+	assert_true(BrickConditionEvaluator.evaluate("userHasTrait:type:dragon", ctx))
+
+
+func test_user_has_trait_wrong_category() -> void:
+	# test_agumon has fire in element, not in type
+	var ctx: Dictionary = {"user": _user}
+	assert_false(BrickConditionEvaluator.evaluate("userHasTrait:type:fire", ctx))
+
+
+func test_user_has_trait_invalid_category() -> void:
+	var ctx: Dictionary = {"user": _user}
+	assert_false(BrickConditionEvaluator.evaluate("userHasTrait:invalid:fire", ctx))
+
+
+func test_user_has_trait_missing_category() -> void:
+	# No colon separator in value — should fail
+	var ctx: Dictionary = {"user": _user}
+	assert_false(BrickConditionEvaluator.evaluate("userHasTrait:fire", ctx))
 
 
 # --- Field conditions ---
@@ -466,6 +501,64 @@ func test_multiple_conditions_both_false() -> void:
 func test_unknown_type_returns_true() -> void:
 	var ctx: Dictionary = {"user": _user, "battle": _battle}
 	assert_true(BrickConditionEvaluator.evaluate("totallyUnknownCondition:42", ctx))
+
+
+# --- Technique flag conditions ---
+
+
+func test_move_has_flag_true() -> void:
+	# test_fire_defrost has DEFROST flag
+	var technique: TechniqueData = Atlas.techniques[&"test_fire_defrost"]
+	var ctx: Dictionary = {"technique": technique}
+	assert_true(BrickConditionEvaluator.evaluate("moveHasFlag:defrost", ctx))
+
+
+func test_move_has_flag_false() -> void:
+	# test_tackle has no flags
+	var technique: TechniqueData = Atlas.techniques[&"test_tackle"]
+	var ctx: Dictionary = {"technique": technique}
+	assert_false(BrickConditionEvaluator.evaluate("moveHasFlag:contact", ctx))
+
+
+func test_move_has_flag_contact_on_flagged_technique() -> void:
+	# Create a technique with CONTACT flag for this test
+	var technique: TechniqueData = Atlas.techniques[&"test_fire_defrost"]
+	# test_fire_defrost only has DEFROST, not CONTACT
+	var ctx: Dictionary = {"technique": technique}
+	assert_false(BrickConditionEvaluator.evaluate("moveHasFlag:contact", ctx))
+
+
+func test_move_has_flag_unknown_flag() -> void:
+	var technique: TechniqueData = Atlas.techniques[&"test_fire_defrost"]
+	var ctx: Dictionary = {"technique": technique}
+	assert_false(BrickConditionEvaluator.evaluate("moveHasFlag:nonexistent", ctx))
+
+
+# --- Ally trait conditions ---
+
+
+func test_ally_has_trait_true_in_doubles() -> void:
+	# Create a 2v2 battle so side 0 has test_agumon + test_patamon
+	var battle_2v2: BattleState = TestBattleFactory.create_2v2_battle()
+	var user: BattleDigimonState = battle_2v2.get_digimon_at(0, 0)  # test_agumon
+	var ally: BattleDigimonState = battle_2v2.get_digimon_at(0, 1)  # test_patamon
+	# test_patamon has element_traits [&"light"]
+	var ctx: Dictionary = {"user": user, "battle": battle_2v2}
+	assert_true(BrickConditionEvaluator.evaluate("allyHasTrait:element:light", ctx))
+
+
+func test_ally_has_trait_false_no_ally_has_it() -> void:
+	var battle_2v2: BattleState = TestBattleFactory.create_2v2_battle()
+	var user: BattleDigimonState = battle_2v2.get_digimon_at(0, 0)  # test_agumon
+	var ctx: Dictionary = {"user": user, "battle": battle_2v2}
+	# Neither agumon nor patamon have dark element trait
+	assert_false(BrickConditionEvaluator.evaluate("allyHasTrait:element:dark", ctx))
+
+
+func test_ally_has_trait_false_in_singles() -> void:
+	# In 1v1, user has no allies in slots
+	var ctx: Dictionary = {"user": _user, "battle": _battle}
+	assert_false(BrickConditionEvaluator.evaluate("allyHasTrait:element:fire", ctx))
 
 
 # --- Tier 2 stubs ---

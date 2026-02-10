@@ -1,7 +1,7 @@
 # Brick Contract — Dex ↔ Game Shared Schema
 
 > **Version**: 1.0
-> **Purpose**: Defines the complete parameter schema for all 29 brick types, shared between the digimon-dex editor and the game engine. Both sides must conform to this contract.
+> **Purpose**: Defines the complete parameter schema for all 28 brick types, shared between the digimon-dex editor and the game engine. Both sides must conform to this contract.
 
 ---
 
@@ -78,7 +78,7 @@
 
 ---
 
-## Brick Schemas (29)
+## Brick Schemas (28)
 
 ### 1. `damage`
 
@@ -339,16 +339,7 @@
 
 *Element traits determine STAB and can be temporarily modified during battle. Resistance profile changes modify the multiplier for a specific element. All modifications last until switch-out or battle end unless otherwise specified. The `target` field uses BrickTarget values.*
 
-### 21. `flags`
-
-| Key | Type | Required | Description |
-|---|---|---|---|
-| `brick` | `"flags"` | Yes | Discriminator |
-| `flags` | `Array[String]` | Yes | TechniqueFlag values (dex names) |
-
-The `flags` brick is how the dex attaches technique flags to a technique. During import, `TechniqueData.flags` is populated from this brick's values.
-
-### 22. `criticalHit`
+### 21. `criticalHit`
 
 | Key | Type | Required | Description |
 |---|---|---|---|
@@ -357,7 +348,7 @@ The `flags` brick is how the dex attaches technique flags to a technique. During
 | `alwaysCrit` | `bool` | No | Guaranteed crit |
 | `neverCrit` | `bool` | No | Cannot crit |
 
-### 23. `resource`
+### 22. `resource`
 
 | Key | Type | Required | Description |
 |---|---|---|---|
@@ -368,7 +359,7 @@ The `flags` brick is how the dex attaches technique flags to a technique. During
 | `removeItem` | `bool` | No | Destroy target's gear |
 | `giveItem` | `String` | No | Give specific item key |
 
-### 24. `useRandomTechnique`
+### 23. `useRandomTechnique`
 
 | Key | Type | Required | Description |
 |---|---|---|---|
@@ -378,7 +369,7 @@ The `flags` brick is how the dex attaches technique flags to a technique. During
 | `onlyDamaging` | `bool` | No | Only damaging techniques |
 | `onlyStatus` | `bool` | No | Only status techniques |
 
-### 25. `transform`
+### 24. `transform`
 
 | Key | Type | Required | Description |
 |---|---|---|---|
@@ -391,7 +382,7 @@ The `flags` brick is how the dex attaches technique flags to a technique. During
 | `copyAppearance` | `bool` | No | Copy sprite/visual |
 | `duration` | `int` | No | Null = until switch/battle end |
 
-### 26. `shield`
+### 25. `shield`
 
 | Key | Type | Required | Description |
 |---|---|---|---|
@@ -402,7 +393,7 @@ The `flags` brick is how the dex attaches technique flags to a technique. During
 | `breakOnHit` | `bool` | No | Breaks after one hit |
 | `oncePerBattle` | `bool` | No | Only activates once |
 
-### 27. `copyTechnique`
+### 26. `copyTechnique`
 
 | Key | Type | Required | Description |
 |---|---|---|---|
@@ -412,7 +403,7 @@ The `flags` brick is how the dex attaches technique flags to a technique. During
 | `replaceSlot` | `int` | No | Replace technique slot (0-3) |
 | `duration` | `int` | No | Copy duration |
 
-### 28. `abilityManipulation`
+### 27. `abilityManipulation`
 
 | Key | Type | Required | Description |
 |---|---|---|---|
@@ -422,7 +413,7 @@ The `flags` brick is how the dex attaches technique flags to a technique. During
 | `abilityName` | `String` | No | Ability key (for `replace`) |
 | `duration` | `int` | No | Null = until switch/battle end |
 
-### 29. `turnOrder`
+### 28. `turnOrder`
 
 | Key | Type | Required | Description |
 |---|---|---|---|
@@ -434,38 +425,53 @@ The `flags` brick is how the dex attaches technique flags to a technique. During
 
 ## Condition Strings
 
-Several bricks use `condition` or `failCondition` strings. These are evaluated by the battle engine at runtime. The format is:
+Several bricks use `condition` or `failCondition` strings. These are evaluated by `BrickConditionEvaluator` at runtime. The format is:
 
 ```
-<subject>.<property> <operator> <value>
+condType:value
 ```
 
-### Subjects
+Multiple conditions can be combined with `|` (AND logic — all must pass):
 
-- `user` — the Digimon using the technique
-- `target` — the targeted Digimon
-- `field` — the battle field state
-- `technique` — the technique being used
+```
+damageTypeIs:fire|userHpBelow:50
+```
 
 ### Common Conditions
 
 | Condition | Meaning |
 |---|---|
-| `user.hp.percent < 50` | User HP below 50% |
-| `user.hasStatus.burned` | User has Burned status |
-| `target.hasStatus.asleep` | Target is asleep |
-| `field.weather.sun` | Sun is active |
-| `field.terrain.flooded` | Flooded terrain is active |
-| `user.lastTechniqueHit` | User's last technique hit successfully |
-| `target.lastTechniqueUsed` | Target used a technique this turn |
-| `user.statStage.atk > 0` | User has positive ATK stages |
-| `technique.class.physical` | Technique is physical class |
-| `user.item.none` | User has no held item |
-| `target.ability.suppressed` | Target's ability is suppressed |
-| `field.groundingField` | Grounding field is active |
-| `user.firstTurn` | User's first turn on field |
-
-*Note: The exact condition parser will be implemented with the battle engine. This list is illustrative, not exhaustive.*
+| `userHpBelow:50` | User HP below 50% |
+| `userHpAbove:50` | User HP above 50% |
+| `targetHpBelow:50` | Target HP below 50% |
+| `targetAtFullHp` | Target is at full HP |
+| `userHasStatus:burned` | User has Burned status |
+| `targetHasStatus:asleep` | Target is asleep |
+| `targetNoStatus:burned` | Target does not have Burned |
+| `damageTypeIs:fire` | Technique element is Fire |
+| `techniqueIsType:fire` | Same as `damageTypeIs` |
+| `weatherIs:sun` | Sun weather is active |
+| `terrainIs:flooded` | Flooded terrain is active |
+| `isFirstTurn` | User's first turn on field |
+| `targetNotActed` | Target hasn't acted this turn |
+| `targetActed` | Target has acted this turn |
+| `userStatHigher:atk` | User's ATK > target's ATK |
+| `targetStatHigher:spe` | Target's SPE > user's SPE |
+| `userEpBelow:50` | User energy below 50% |
+| `usingTechniqueOfClass:physical` | Technique is physical class |
+| `turnIsLessThan:5` | Battle turn < 5 |
+| `turnIsMoreThan:5` | Battle turn > 5 |
+| `userHasAbility:blaze` | User has named ability |
+| `targetHasAbility:blaze` | Target has named ability |
+| `isSuperEffective` | Technique is super effective |
+| `isNotVeryEffective` | Technique is not very effective |
+| `lastTechniqueWas:tackle` | User's last technique was named |
+| `userHasItem:power_band` | User has named gear equipped |
+| `userHasNoItem:power_band` | User does not have named gear |
+| `moveHasFlag:contact` | Technique has the named TechniqueFlag |
+| `userHasTrait:element:fire` | User Digimon has named trait in category (element, movement, size, type) |
+| `targetHasTrait:element:fire` | Target Digimon has named trait in category |
+| `allyHasTrait:element:fire` | Any active ally (same side, not self) has named trait in category |
 
 ---
 
