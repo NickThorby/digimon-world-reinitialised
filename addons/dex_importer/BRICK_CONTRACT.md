@@ -368,6 +368,7 @@
 | `excludeTechniques` | `Array[String]` | No | Technique keys to exclude |
 | `onlyDamaging` | `bool` | No | Only damaging techniques |
 | `onlyStatus` | `bool` | No | Only status techniques |
+| `limitToFlags` | `Array[String]` | No | Only techniques with at least one of these flags (e.g. `["contact", "sound"]`) |
 
 ### 24. `transform`
 

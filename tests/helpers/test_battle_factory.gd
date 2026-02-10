@@ -1337,6 +1337,12 @@ static func _inject_abilities() -> void:
 		Registry.StackLimit.UNLIMITED,
 		[],
 	)
+	Atlas.abilities[&"test_ability_on_turn_start_boost"] = _make_ability(
+		&"test_ability_on_turn_start_boost", "Test Turn Start Boost",
+		Registry.AbilityTrigger.ON_TURN_START,
+		Registry.StackLimit.UNLIMITED,
+		[{"brick": "statModifier", "modifierType": "stage", "stats": ["atk"], "stages": 1, "target": "self"}],
+	)
 	Atlas.abilities[&"test_ability_on_ally_faint"] = _make_ability(
 		&"test_ability_on_ally_faint", "Test Ally Faint Ability",
 		Registry.AbilityTrigger.ON_ALLY_FAINT,

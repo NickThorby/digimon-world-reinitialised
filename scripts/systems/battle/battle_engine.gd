@@ -48,6 +48,7 @@ func execute_turn(actions: Array[BattleAction]) -> void:
 
 	# Start of turn
 	_battle.turn_number += 1
+	_battle.last_technique_used_key = &""
 	turn_started.emit(_battle.turn_number)
 
 	# Reset per-turn state for all active Digimon

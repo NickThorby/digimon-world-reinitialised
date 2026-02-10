@@ -704,8 +704,8 @@ const VOLATILE_STATUSES: Array[StatusCondition] = [
 	StatusCondition.REVERSED,
 ]
 
-## Maps status condition keys to the element trait that grants immunity.
-const STATUS_ELEMENT_IMMUNITIES: Dictionary = {
+## Maps status condition keys to the element whose resistance ≤ 0.5 grants immunity.
+const STATUS_RESISTANCE_IMMUNITIES: Dictionary = {
 	&"burned": &"fire",
 	&"badly_burned": &"fire",
 	&"frostbitten": &"ice",

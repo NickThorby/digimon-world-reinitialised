@@ -110,6 +110,52 @@ func test_use_random_technique_no_candidates_fails() -> void:
 	)
 
 
+func test_use_random_technique_limit_to_flags() -> void:
+	var battle: BattleState = _create_battle()
+	var user: BattleDigimonState = _get_user(battle)
+	var target: BattleDigimonState = _get_target(battle)
+	# Give user only two techniques: one with CONTACT, one without
+	user.equipped_technique_keys = [
+		&"test_contact_tackle", &"test_fire_blast",
+	] as Array[StringName]
+	var brick: Dictionary = {
+		"brick": "useRandomTechnique",
+		"source": "userKnown",
+		"limitToFlags": ["contact"],
+	}
+	# Run multiple times — should always pick the CONTACT technique
+	for i: int in range(10):
+		battle.rng.seed = i * 1000
+		var ctx: Dictionary = {}
+		_exec_brick(brick, user, target, null, battle, ctx)
+		assert_eq(
+			ctx.get("redirect_technique", &"") as StringName,
+			&"test_contact_tackle",
+			"Iteration %d: should only pick CONTACT-flagged technique" % i,
+		)
+
+
+func test_use_random_technique_limit_to_flags_no_match() -> void:
+	var battle: BattleState = _create_battle()
+	var user: BattleDigimonState = _get_user(battle)
+	var target: BattleDigimonState = _get_target(battle)
+	# Give user only techniques without SOUND flag
+	user.equipped_technique_keys = [
+		&"test_tackle", &"test_fire_blast",
+	] as Array[StringName]
+	var brick: Dictionary = {
+		"brick": "useRandomTechnique",
+		"source": "userKnown",
+		"limitToFlags": ["sound"],
+	}
+	var ctx: Dictionary = {}
+	var result: Dictionary = _exec_brick(brick, user, target, null, battle, ctx)
+	assert_true(
+		result.get("redirect_failed", false),
+		"Should fail when no techniques match the flag filter",
+	)
+
+
 # ===========================================================================
 # transform
 # ===========================================================================

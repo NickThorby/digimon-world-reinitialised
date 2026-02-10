@@ -696,13 +696,13 @@ static func _execute_status_effect(
 					"reason": "shield_blocks_status",
 				}
 
-	# Element-trait immunity check
-	var immune_element: StringName = Registry.STATUS_ELEMENT_IMMUNITIES.get(
+	# Resistance-based immunity check
+	var immune_element: StringName = Registry.STATUS_RESISTANCE_IMMUNITIES.get(
 		status_key, &"",
 	)
-	if immune_element != &"" and actual_target.data != null:
-		if immune_element in actual_target.get_effective_element_traits():
-			return {"handled": true, "blocked": true, "reason": "element_immunity"}
+	if immune_element != &"":
+		if actual_target.get_effective_resistance(immune_element) <= 0.5:
+			return {"handled": true, "blocked": true, "reason": "resistance_immunity"}
 
 	# Status override rules (may fully handle the status, e.g. frostbitten upgrade)
 	var override_status: StringName = _apply_status_overrides(actual_target, status_key)
@@ -2434,6 +2434,7 @@ static func _execute_use_random_technique(
 	var exclude_list: Variant = brick.get("excludeTechniques", [])
 	var only_damaging: bool = brick.get("onlyDamaging", false)
 	var only_status: bool = brick.get("onlyStatus", false)
+	var limit_to_flags: Variant = brick.get("limitToFlags", [])
 
 	# Build candidate list based on source
 	var candidates: Array[StringName] = []
@@ -2464,9 +2465,9 @@ static func _execute_use_random_technique(
 			if skip:
 				continue
 
-		# Class filters
+		# Class and flag filters
+		var tech: TechniqueData = Atlas.techniques.get(key) as TechniqueData
 		if only_damaging or only_status:
-			var tech: TechniqueData = Atlas.techniques.get(key) as TechniqueData
 			if tech == null:
 				continue
 			if only_damaging \
@@ -2474,6 +2475,23 @@ static func _execute_use_random_technique(
 				continue
 			if only_status \
 					and tech.technique_class != Registry.TechniqueClass.STATUS:
+				continue
+
+		# Flag filter — candidate must have at least one of the required flags
+		if limit_to_flags is Array and not (limit_to_flags as Array).is_empty():
+			if tech == null:
+				tech = Atlas.techniques.get(key) as TechniqueData
+			if tech == null:
+				continue
+			var has_flag: bool = false
+			for flag_name: Variant in (limit_to_flags as Array):
+				var flag_val: Variant = Registry.TechniqueFlag.get(
+					str(flag_name).to_upper(), null,
+				)
+				if flag_val != null and (flag_val as Registry.TechniqueFlag) in tech.flags:
+					has_flag = true
+					break
+			if not has_flag:
 				continue
 
 		filtered.append(key)
