@@ -14,12 +14,17 @@ static func _get_balance() -> GameBalance:
 
 
 ## Calculate damage for a technique hit.
+## Optional flags dictionary from damageModifier bricks:
+##   ignore_defence, ignore_type_immunity, ignore_stat_boosts.
 static func calculate_damage(
 	user: BattleDigimonState,
 	target: BattleDigimonState,
 	technique: TechniqueData,
 	battle_or_rng: Variant = null,
 	crit_bonus: int = 0,
+	always_crit: bool = false,
+	never_crit: bool = false,
+	flags: Dictionary = {},
 ) -> DamageResult:
 	var result := DamageResult.new()
 	var balance: GameBalance = _get_balance()
@@ -46,27 +51,53 @@ static func calculate_damage(
 	if power <= 0:
 		return result
 
+	# Read flags
+	var ignore_defence: bool = flags.get("ignore_defence", false)
+	var ignore_type_immunity: bool = flags.get(
+		"ignore_type_immunity", false,
+	)
+	var ignore_stat_boosts: bool = flags.get("ignore_stat_boosts", false)
+
 	# Determine ATK/DEF stats based on technique class
 	var atk: float
-	var def: float
+	var def_val: float
 	if technique.technique_class == Registry.TechniqueClass.PHYSICAL:
 		atk = float(user.get_effective_stat(&"attack"))
-		def = float(target.get_effective_stat(&"defence"))
+		def_val = float(target.get_effective_stat(&"defence"))
 	else:
 		atk = float(user.get_effective_stat(&"special_attack"))
-		def = float(target.get_effective_stat(&"special_defence"))
+		def_val = float(target.get_effective_stat(&"special_defence"))
 
 	# Defence swap: global effect swaps which defence stat is used
 	if battle != null \
 			and battle.field.has_global_effect(&"defence_swap"):
 		if technique.technique_class == Registry.TechniqueClass.PHYSICAL:
-			def = float(target.get_effective_stat(&"special_defence"))
+			def_val = float(target.get_effective_stat(&"special_defence"))
 		else:
-			def = float(target.get_effective_stat(&"defence"))
+			def_val = float(target.get_effective_stat(&"defence"))
+
+	# ignoreDefense: treat defence as base (stage 0)
+	if ignore_defence:
+		if technique.technique_class == Registry.TechniqueClass.PHYSICAL:
+			def_val = float(target.base_stats.get(&"defence", 1))
+		else:
+			def_val = float(target.base_stats.get(&"special_defence", 1))
+
+	# ignoreStatBoosts: clamp target's positive stat stages to 0
+	if ignore_stat_boosts:
+		var def_key: StringName = &"defence" \
+			if technique.technique_class == Registry.TechniqueClass.PHYSICAL \
+			else &"special_defence"
+		var def_stage: int = target.stat_stages.get(def_key, 0)
+		if def_stage > 0:
+			def_val = float(target.base_stats.get(def_key, 1))
+			def_val = float(StatCalculator.apply_stat_stage(
+				int(def_val), 0,
+			))
 
 	# Prevent division by zero
-	if def <= 0.0:
-		def = 1.0
+	if def_val <= 0.0:
+		def_val = 1.0
 
 	# Attribute multiplier
 	var attr_mult: float = calculate_attribute_multiplier(
@@ -77,7 +108,12 @@ static func calculate_damage(
 	result.attribute_multiplier = attr_mult
 
 	# Element multiplier (target's resistance to technique element)
-	var elem_mult: float = calculate_element_multiplier(technique.element_key, target)
+	var elem_mult: float = calculate_element_multiplier(
+		technique.element_key, target,
+	)
+	# ignoreTypeImmunity: treat 0x resistance as 1x
+	if ignore_type_immunity and elem_mult <= 0.0:
+		elem_mult = 1.0
 	result.element_multiplier = elem_mult
 
 	# STAB
@@ -86,7 +122,12 @@ static func calculate_damage(
 
 	# Critical hit
 	var crit: float = 1.0
-	if roll_critical(crit_bonus, rng):
+	if never_crit:
+		pass  # No crit possible
+	elif always_crit:
+		crit = balance.crit_damage_multiplier if balance else 1.5
+		result.was_critical = true
+	elif roll_critical(crit_bonus, rng):
 		crit = balance.crit_damage_multiplier if balance else 1.5
 		result.was_critical = true
 
@@ -98,7 +139,8 @@ static func calculate_damage(
 	var modifier: float = attr_mult * elem_mult * stab * crit * variance_val
 
 	# Core formula: (7 + level/200 * power * ATK/DEF) * modifier
-	var base_damage: float = 7.0 + (level / 200.0) * power * (atk / def)
+	var base_damage: float = 7.0 + (level / 200.0) * power \
+		* (atk / def_val)
 	var raw: float = base_damage * modifier
 	result.raw_damage = maxi(roundi(raw), 1)
 	result.final_damage = result.raw_damage

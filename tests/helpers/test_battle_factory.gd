@@ -426,6 +426,160 @@ static func _inject_techniques() -> void:
 		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
 		[], [{"brick": "statusEffect", "status": "frostbitten", "chance": 100}],
 	)
+	# --- Session 2: damage subtypes ---
+	# Fixed damage: 40 flat
+	Atlas.techniques[&"test_fixed_damage"] = _make_technique(
+		&"test_fixed_damage", "Test Fixed Damage",
+		Registry.TechniqueClass.PHYSICAL, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{"brick": "damage", "type": "fixed", "amount": 40}],
+	)
+	# Percentage damage: 25% of target's max HP
+	Atlas.techniques[&"test_percent_damage"] = _make_technique(
+		&"test_percent_damage", "Test Percent Damage",
+		Registry.TechniqueClass.PHYSICAL, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "damage", "type": "percentage",
+			"percent": 25, "source": "targetMaxHp",
+		}],
+	)
+	# Level damage: damage = user's level
+	Atlas.techniques[&"test_level_damage"] = _make_technique(
+		&"test_level_damage", "Test Level Damage",
+		Registry.TechniqueClass.PHYSICAL, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{"brick": "damage", "type": "level"}],
+	)
+	# Scaling damage: uses special_attack stat with power 80
+	Atlas.techniques[&"test_scaling_damage"] = _make_technique(
+		&"test_scaling_damage", "Test Scaling Damage",
+		Registry.TechniqueClass.SPECIAL, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{"brick": "damage", "type": "scaling", "stat": "spa", "power": 80}],
+	)
+	# Return damage: reflects 1.5x of last hit taken
+	Atlas.techniques[&"test_return_damage"] = _make_technique(
+		&"test_return_damage", "Test Return Damage",
+		Registry.TechniqueClass.PHYSICAL, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "damage", "type": "returnDamage",
+			"damageSource": "lastHit", "returnMultiplier": 1.5,
+		}],
+	)
+	# Counter-scaling damage: basePower 20 + timesHit * 20 (cap 100)
+	Atlas.techniques[&"test_counter_scaling"] = _make_technique(
+		&"test_counter_scaling", "Test Counter Scaling",
+		Registry.TechniqueClass.PHYSICAL, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "damage", "type": "counterScaling",
+			"basePower": 20, "scalesWithCounter": "timesHitThisBattle",
+			"scalingPerCount": 20, "scalingCap": 100,
+		}],
+	)
+	# --- Session 2: recoil ---
+	# Recoil: 25% of damage dealt
+	Atlas.techniques[&"test_recoil_percent"] = _make_technique(
+		&"test_recoil_percent", "Test Recoil Percent",
+		Registry.TechniqueClass.PHYSICAL, &"", 80, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{"brick": "damage", "type": "standard"},
+			{"brick": "recoil", "type": "damagePercent", "percent": 25},
+		],
+	)
+	# Recoil: 50% max HP on miss (crash)
+	Atlas.techniques[&"test_crash_recoil"] = _make_technique(
+		&"test_crash_recoil", "Test Crash Recoil",
+		Registry.TechniqueClass.PHYSICAL, &"", 120, 100, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{"brick": "damage", "type": "standard"},
+			{"brick": "recoil", "type": "crash", "percent": 50},
+		],
+	)
+	# Recoil: fixed 10 damage
+	Atlas.techniques[&"test_recoil_fixed"] = _make_technique(
+		&"test_recoil_fixed", "Test Recoil Fixed",
+		Registry.TechniqueClass.PHYSICAL, &"", 80, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{"brick": "damage", "type": "standard"},
+			{"brick": "recoil", "type": "fixed", "amount": 10},
+		],
+	)
+	# --- Session 2: drain ---
+	Atlas.techniques[&"test_drain"] = _make_technique(
+		&"test_drain", "Test Drain",
+		Registry.TechniqueClass.PHYSICAL, &"", 60, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{"brick": "damage", "type": "standard"},
+			{"brick": "healing", "type": "drain", "percent": 50},
+		],
+	)
+	# --- Session 2: criticalHit ---
+	Atlas.techniques[&"test_always_crit"] = _make_technique(
+		&"test_always_crit", "Test Always Crit",
+		Registry.TechniqueClass.PHYSICAL, &"", 60, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{"brick": "criticalHit", "alwaysCrit": true},
+			{"brick": "damage", "type": "standard"},
+		],
+	)
+	Atlas.techniques[&"test_never_crit"] = _make_technique(
+		&"test_never_crit", "Test Never Crit",
+		Registry.TechniqueClass.PHYSICAL, &"", 60, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{"brick": "criticalHit", "neverCrit": true},
+			{"brick": "damage", "type": "standard"},
+		],
+	)
+	# --- Session 2: damageModifier flags ---
+	# Technique with ignoreDefense
+	Atlas.techniques[&"test_ignore_defence"] = _make_technique(
+		&"test_ignore_defence", "Test Ignore Defence",
+		Registry.TechniqueClass.PHYSICAL, &"", 60, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{"brick": "damageModifier", "ignoreDefense": true},
+			{"brick": "damage", "type": "standard"},
+		],
+	)
+	# Technique with ignoreStatBoosts
+	Atlas.techniques[&"test_ignore_stat_boosts"] = _make_technique(
+		&"test_ignore_stat_boosts", "Test Ignore Stat Boosts",
+		Registry.TechniqueClass.PHYSICAL, &"", 60, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{"brick": "damageModifier", "ignoreStatBoosts": true},
+			{"brick": "damage", "type": "standard"},
+		],
+	)
+	# Technique with ignoreTypeImmunity (for testing against immune targets)
+	Atlas.techniques[&"test_ignore_type_immunity"] = _make_technique(
+		&"test_ignore_type_immunity", "Test Ignore Type Immunity",
+		Registry.TechniqueClass.SPECIAL, &"dark", 60, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{"brick": "damageModifier", "ignoreTypeImmunity": true},
+			{"brick": "damage", "type": "standard"},
+		],
+	)
+	# Technique with ignoreEvasion
+	Atlas.techniques[&"test_ignore_evasion"] = _make_technique(
+		&"test_ignore_evasion", "Test Ignore Evasion",
+		Registry.TechniqueClass.PHYSICAL, &"", 60, 100, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{"brick": "damageModifier", "ignoreEvasion": true},
+			{"brick": "damage", "type": "standard"},
+		],
+	)
 
 
 static func _make_technique(

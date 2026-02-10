@@ -211,6 +211,12 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 		user, technique.targeting, action.target_side, action.target_slot
 	)
 
+	# Pre-scan damageModifier flags for accuracy/protection overrides
+	var technique_flags: Dictionary = BrickExecutor.get_technique_flags(
+		user, targets[0] if targets.size() > 0 else null, technique, _battle,
+	)
+	var ignore_evasion: bool = technique_flags.get("ignore_evasion", false)
+
 	# Execute against each target
 	var all_results: Array[Dictionary] = []
 	for target: BattleDigimonState in targets:
@@ -220,11 +226,15 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 		# Accuracy check (0 = always hits)
 		if technique.accuracy > 0:
 			var effective_accuracy: float = _calculate_accuracy(
-				technique.accuracy, user, target,
+				technique.accuracy, user, target, ignore_evasion,
 			)
 			var hit_roll: float = _battle.rng.randf() * 100.0
 			if hit_roll > effective_accuracy:
-				battle_message.emit("It missed %s!" % _get_digimon_name(target))
+				battle_message.emit(
+					"It missed %s!" % _get_digimon_name(target),
+				)
+				# Execute crash recoil bricks on miss
+				_execute_crash_recoil(user, target, technique)
 				all_results.append({"missed": true})
 				continue
 
@@ -342,6 +352,29 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 
 			# Field effect results
 			_emit_field_effect_signals(brick_result)
+
+			# Recoil results (damage already applied by BrickExecutor)
+			if brick_result.get("recoil", 0) > 0:
+				var recoil_dmg: int = int(brick_result["recoil"])
+				damage_dealt.emit(
+					user.side_index, user.slot_index,
+					recoil_dmg, &"recoil",
+				)
+				battle_message.emit(
+					"%s took %d recoil damage!" % [
+						_get_digimon_name(user), recoil_dmg,
+					],
+				)
+				_check_faint_or_threshold(user, null)
+
+			# Drain healing results (heals user, already applied by
+			# BrickExecutor)
+			if brick_result.get("drain_target_side", -1) >= 0:
+				var drain_heal: int = int(brick_result.get("healing", 0))
+				if drain_heal > 0:
+					hp_restored.emit(
+						user.side_index, user.slot_index, drain_heal,
+					)
 
 		all_results.append_array(brick_results)
 
@@ -1481,6 +1514,27 @@ func _check_faint_or_threshold(
 	return false
 
 
+## Execute crash-type recoil bricks when a technique misses.
+## Scans technique bricks for recoil with type "crash" and applies the damage.
+func _execute_crash_recoil(
+	user: BattleDigimonState,
+	_target: BattleDigimonState,
+	technique: TechniqueData,
+) -> void:
+	for brick: Dictionary in technique.bricks:
+		if brick.get("type_id") != "recoil":
+			continue
+		if brick.get("type") != "crash":
+			continue
+		var percent: float = float(brick.get("percent", 50))
+		var amount: int = maxi(roundi(float(user.max_hp) * percent / 100.0), 1)
+		_apply_damage_and_emit(user, amount, &"crash_recoil")
+		battle_message.emit(
+			"%s kept going and crashed!" % _get_digimon_name(user),
+		)
+		return  # Only one crash recoil brick per technique
+
+
 ## Unified damage application: apply damage, emit signal, check faint/threshold.
 ## Returns {actual: int, fainted: bool}.
 func _apply_damage_and_emit(
@@ -1604,12 +1658,17 @@ func _clear_fainted_no_reserve() -> void:
 ## Calculate effective accuracy factoring user accuracy stage, target evasion stage,
 ## and the blinded status condition.
 func _calculate_accuracy(
-	base_accuracy: int, user: BattleDigimonState, target: BattleDigimonState,
+	base_accuracy: int,
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	ignore_evasion: bool = false,
 ) -> float:
 	var acc_stage: int = user.stat_stages.get(&"accuracy", 0)
-	var eva_stage: int = target.stat_stages.get(&"evasion", 0)
 	var acc_mult: float = Registry.STAT_STAGE_MULTIPLIERS.get(acc_stage, 1.0)
-	var eva_mult: float = Registry.STAT_STAGE_MULTIPLIERS.get(eva_stage, 1.0)
+	var eva_mult: float = 1.0
+	if not ignore_evasion:
+		var eva_stage: int = target.stat_stages.get(&"evasion", 0)
+		eva_mult = Registry.STAT_STAGE_MULTIPLIERS.get(eva_stage, 1.0)
 	var effective: float = float(base_accuracy) * acc_mult / eva_mult
 	if user.has_status(&"blinded"):
 		effective *= 0.5

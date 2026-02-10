@@ -14,23 +14,34 @@ static func _get_balance() -> GameBalance:
 
 
 ## Execute a single brick. Returns a result dictionary (brick-type-specific).
+## execution_context tracks accumulated state across bricks in a technique
+## (e.g. damage_dealt for recoil/drain, technique_missed for crash recoil).
 static func execute_brick(
 	brick: Dictionary,
 	user: BattleDigimonState,
 	target: BattleDigimonState,
 	technique: TechniqueData,
 	battle: BattleState,
+	execution_context: Dictionary = {},
 ) -> Dictionary:
 	var brick_type: String = brick.get("brick", "")
 	match brick_type:
 		"damage":
-			return _execute_damage(brick, user, target, technique, battle)
+			return _execute_damage(
+				brick, user, target, technique, battle, execution_context,
+			)
+		"recoil":
+			return _execute_recoil(
+				brick, user, target, battle, execution_context,
+			)
 		"statusEffect":
 			return _execute_status_effect(brick, user, target, battle)
 		"statModifier":
 			return _execute_stat_modifier(brick, user, target, battle)
 		"healing":
-			return _execute_healing(brick, user, target, battle)
+			return _execute_healing(
+				brick, user, target, battle, execution_context,
+			)
 		"fieldEffect":
 			return _execute_field_effect(brick, user, target, battle)
 		"sideEffect":
@@ -44,11 +55,14 @@ static func execute_brick(
 			# Consumed at calc time; no runtime execution needed
 			return {"handled": true}
 		_:
-			push_warning("BrickExecutor: Unimplemented brick type '%s'" % brick_type)
+			push_warning(
+				"BrickExecutor: Unimplemented brick type '%s'" % brick_type,
+			)
 			return {"handled": false, "brick_type": brick_type}
 
 
 ## Execute all bricks in order. Returns array of results.
+## Threads an execution_context dict through all bricks for cross-brick state.
 static func execute_bricks(
 	bricks: Array[Dictionary],
 	user: BattleDigimonState,
@@ -57,15 +71,26 @@ static func execute_bricks(
 	battle: BattleState,
 ) -> Array[Dictionary]:
 	var results: Array[Dictionary] = []
+	var context: Dictionary = {
+		"damage_dealt": 0,
+		"technique_missed": false,
+	}
 	for brick: Dictionary in bricks:
-		results.append(execute_brick(brick, user, target, technique, battle))
+		var result: Dictionary = execute_brick(
+			brick, user, target, technique, battle, context,
+		)
+		# Accumulate damage dealt for recoil/drain
+		if result.get("damage", 0) > 0:
+			context["damage_dealt"] = int(context.get("damage_dealt", 0)) \
+				+ int(result["damage"])
+		results.append(result)
 	return results
 
 
 ## --- Brick Handlers ---
 
 
-## Handle "damage" brick (standard subtype).
+## Handle "damage" brick — dispatches to subtype handlers.
 ## After base damage calculation, collects damageModifier bricks from the
 ## technique and the user's CONTINUOUS ability, evaluates their conditions,
 ## and applies passing multipliers/flat bonuses.
@@ -75,15 +100,66 @@ static func _execute_damage(
 	target: BattleDigimonState,
 	technique: TechniqueData,
 	battle: BattleState,
+	execution_context: Dictionary = {},
 ) -> Dictionary:
 	var subtype: String = brick.get("type", "standard")
-	if subtype != "standard":
-		push_warning("BrickExecutor: Unimplemented damage subtype '%s'" % subtype)
-		return {"handled": false, "subtype": subtype}
 
-	var crit_bonus: int = _extract_crit_bonus(technique)
+	match subtype:
+		"standard":
+			return _execute_damage_standard(
+				brick, user, target, technique, battle, execution_context,
+			)
+		"fixed":
+			return _execute_damage_fixed(brick, target, execution_context)
+		"percentage":
+			return _execute_damage_percentage(
+				brick, user, target, execution_context,
+			)
+		"scaling":
+			return _execute_damage_scaling(
+				brick, user, target, technique, battle, execution_context,
+			)
+		"level":
+			return _execute_damage_level(
+				brick, user, target, execution_context,
+			)
+		"returnDamage":
+			return _execute_damage_return(
+				brick, target, execution_context,
+			)
+		"counterScaling":
+			return _execute_damage_counter_scaling(
+				brick, user, target, technique, battle, execution_context,
+			)
+		_:
+			push_warning(
+				"BrickExecutor: Unknown damage subtype '%s'" % subtype,
+			)
+			return {"handled": false, "subtype": subtype}
+
+
+## Standard damage: full formula with ATK/DEF, type, crit, modifiers.
+static func _execute_damage_standard(
+	_brick: Dictionary,
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	technique: TechniqueData,
+	battle: BattleState,
+	execution_context: Dictionary,
+) -> Dictionary:
+	# Collect damageModifier flags before calculating
+	var flags: Dictionary = _collect_damage_modifier_flags(
+		user, target, technique, battle,
+	)
+
+	var crit_info: Dictionary = _extract_crit_info(technique)
+	var crit_bonus: int = int(crit_info.get("stages", 0))
+	var always_crit: bool = crit_info.get("always_crit", false)
+	var never_crit: bool = crit_info.get("never_crit", false)
+
 	var damage_result: DamageResult = DamageCalculator.calculate_damage(
 		user, target, technique, battle, crit_bonus,
+		always_crit, never_crit, flags,
 	)
 
 	# Crit immunity: if target's side has crit_immunity, undo the crit
@@ -105,8 +181,9 @@ static func _execute_damage(
 	var effectiveness: StringName = damage_result.effectiveness
 
 	# Collect applicable damageModifier bricks
+	var ignore_barriers: bool = flags.get("ignore_barriers", false)
 	var modifiers: Array[Dictionary] = _collect_damage_modifiers(
-		user, target, technique, battle, effectiveness,
+		user, target, technique, battle, effectiveness, ignore_barriers,
 	)
 
 	# Apply modifiers to final damage
@@ -118,7 +195,12 @@ static func _execute_damage(
 	modified_damage = maxi(modified_damage, 1)
 
 	var actual_damage: int = target.apply_damage(modified_damage)
-	target.counters["times_hit"] = int(target.counters.get("times_hit", 0)) + 1
+	target.counters["times_hit"] = int(
+		target.counters.get("times_hit", 0),
+	) + 1
+
+	# Track last hit for returnDamage brick
+	_track_last_hit(target, actual_damage, technique)
 
 	return {
 		"handled": true,
@@ -127,6 +209,315 @@ static func _execute_damage(
 		"effectiveness": effectiveness,
 		"raw_damage": damage_result.raw_damage,
 	}
+
+
+## Fixed damage: flat amount, ignores stats and type.
+static func _execute_damage_fixed(
+	brick: Dictionary,
+	target: BattleDigimonState,
+	_execution_context: Dictionary,
+) -> Dictionary:
+	var amount: int = int(brick.get("amount", 0))
+	if amount <= 0:
+		return {"handled": true, "damage": 0}
+
+	var actual: int = target.apply_damage(amount)
+	target.counters["times_hit"] = int(
+		target.counters.get("times_hit", 0),
+	) + 1
+
+	return {
+		"handled": true,
+		"damage": actual,
+		"was_critical": false,
+		"effectiveness": &"neutral",
+		"raw_damage": amount,
+	}
+
+
+## Percentage damage: % of a HP source pool (user/target max/current HP).
+static func _execute_damage_percentage(
+	brick: Dictionary,
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	_execution_context: Dictionary,
+) -> Dictionary:
+	var percent: float = float(brick.get("percent", 0))
+	var source: String = brick.get("source", "targetMaxHp")
+
+	var pool: int = 0
+	match source:
+		"userMaxHp":
+			pool = user.max_hp
+		"userCurrentHp":
+			pool = user.current_hp
+		"targetMaxHp":
+			pool = target.max_hp
+		"targetCurrentHp":
+			pool = target.current_hp
+		_:
+			pool = target.max_hp
+
+	var amount: int = maxi(floori(float(pool) * percent / 100.0), 1)
+	var actual: int = target.apply_damage(amount)
+	target.counters["times_hit"] = int(
+		target.counters.get("times_hit", 0),
+	) + 1
+
+	return {
+		"handled": true,
+		"damage": actual,
+		"was_critical": false,
+		"effectiveness": &"neutral",
+		"raw_damage": amount,
+	}
+
+
+## Scaling damage: uses a specific stat with power instead of technique class.
+static func _execute_damage_scaling(
+	brick: Dictionary,
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	technique: TechniqueData,
+	battle: BattleState,
+	_execution_context: Dictionary,
+) -> Dictionary:
+	var stat_abbr: String = brick.get("stat", "atk")
+	var power: int = int(brick.get("power", technique.power if technique else 0))
+	var battle_stat: Variant = Registry.BRICK_STAT_MAP.get(stat_abbr)
+	if battle_stat == null:
+		return {"handled": false, "reason": "unknown_stat"}
+
+	var stage_key: Variant = Registry.BATTLE_STAT_STAGE_KEYS.get(battle_stat)
+	var atk: float = float(user.base_stats.get(
+		stage_key if stage_key else &"attack", 0,
+	))
+	if stage_key != null:
+		var stage: int = user.stat_stages.get(stage_key as StringName, 0)
+		atk = float(StatCalculator.apply_stat_stage(int(atk), stage))
+
+	var def: float = float(target.get_effective_stat(&"defence"))
+	if def <= 0.0:
+		def = 1.0
+
+	var level: float = float(
+		user.source_state.level if user.source_state else 50,
+	)
+	var base_damage: float = 7.0 + (level / 200.0) * float(power) * (atk / def)
+
+	# Element multiplier
+	var elem_mult: float = 1.0
+	if technique != null:
+		elem_mult = DamageCalculator.calculate_element_multiplier(
+			technique.element_key, target,
+		)
+
+	var balance: GameBalance = _get_balance()
+	var rng: RandomNumberGenerator = battle.rng if battle else \
+		RandomNumberGenerator.new()
+	var variance: float = DamageCalculator.roll_variance(rng, balance)
+
+	var final_dmg: int = maxi(roundi(base_damage * elem_mult * variance), 1)
+	var actual: int = target.apply_damage(final_dmg)
+	target.counters["times_hit"] = int(
+		target.counters.get("times_hit", 0),
+	) + 1
+
+	_track_last_hit(target, actual, technique)
+
+	var effectiveness: StringName = &"neutral"
+	if elem_mult <= 0.0:
+		effectiveness = &"immune"
+	elif elem_mult >= 1.5:
+		effectiveness = &"super_effective"
+	elif elem_mult < 0.75:
+		effectiveness = &"not_very_effective"
+
+	return {
+		"handled": true,
+		"damage": actual,
+		"was_critical": false,
+		"effectiveness": effectiveness,
+		"raw_damage": final_dmg,
+	}
+
+
+## Level damage: damage equals user's level.
+static func _execute_damage_level(
+	_brick: Dictionary,
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	_execution_context: Dictionary,
+) -> Dictionary:
+	var amount: int = user.source_state.level if user.source_state else 50
+	var actual: int = target.apply_damage(amount)
+	target.counters["times_hit"] = int(
+		target.counters.get("times_hit", 0),
+	) + 1
+
+	return {
+		"handled": true,
+		"damage": actual,
+		"was_critical": false,
+		"effectiveness": &"neutral",
+		"raw_damage": amount,
+	}
+
+
+## Return damage: reflects a portion of the last hit taken by target.
+static func _execute_damage_return(
+	brick: Dictionary,
+	target: BattleDigimonState,
+	_execution_context: Dictionary,
+) -> Dictionary:
+	var source: String = brick.get("damageSource", "lastHit")
+	var multiplier: float = float(brick.get("returnMultiplier", 1.0))
+
+	var volatile_key: String = "last_hit"
+	match source:
+		"lastPhysicalHit":
+			volatile_key = "last_physical_hit"
+		"lastSpecialHit":
+			volatile_key = "last_special_hit"
+		"lastHit":
+			volatile_key = "last_hit"
+
+	var last_amount: int = int(target.volatiles.get(volatile_key, 0))
+	if last_amount <= 0:
+		return {"handled": true, "damage": 0}
+
+	var amount: int = maxi(roundi(float(last_amount) * multiplier), 1)
+	var actual: int = target.apply_damage(amount)
+	target.counters["times_hit"] = int(
+		target.counters.get("times_hit", 0),
+	) + 1
+
+	return {
+		"handled": true,
+		"damage": actual,
+		"was_critical": false,
+		"effectiveness": &"neutral",
+		"raw_damage": amount,
+	}
+
+
+## Counter-scaling damage: basePower + counter * scalingPerCount (capped).
+static func _execute_damage_counter_scaling(
+	brick: Dictionary,
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	technique: TechniqueData,
+	battle: BattleState,
+	_execution_context: Dictionary,
+) -> Dictionary:
+	var base_power: int = int(brick.get("basePower", 0))
+	var counter_name: String = brick.get("scalesWithCounter", "")
+	var scaling_per_count: float = float(brick.get("scalingPerCount", 0))
+	var scaling_cap: int = int(brick.get("scalingCap", 999))
+
+	# Resolve counter value
+	var count: int = _resolve_counter(counter_name, user, target)
+	var bonus: int = mini(
+		roundi(float(count) * scaling_per_count), scaling_cap,
+	)
+	var effective_power: int = base_power + bonus
+
+	# Use standard damage formula with the effective power
+	var level: float = float(
+		user.source_state.level if user.source_state else 50,
+	)
+	var atk: float
+	var def_val: float
+	if technique != null \
+			and technique.technique_class == Registry.TechniqueClass.PHYSICAL:
+		atk = float(user.get_effective_stat(&"attack"))
+		def_val = float(target.get_effective_stat(&"defence"))
+	else:
+		atk = float(user.get_effective_stat(&"special_attack"))
+		def_val = float(target.get_effective_stat(&"special_defence"))
+	if def_val <= 0.0:
+		def_val = 1.0
+
+	var base_damage: float = 7.0 + (level / 200.0) \
+		* float(effective_power) * (atk / def_val)
+
+	var elem_mult: float = 1.0
+	if technique != null:
+		elem_mult = DamageCalculator.calculate_element_multiplier(
+			technique.element_key, target,
+		)
+
+	var balance: GameBalance = _get_balance()
+	var rng: RandomNumberGenerator = battle.rng if battle else \
+		RandomNumberGenerator.new()
+	var variance: float = DamageCalculator.roll_variance(rng, balance)
+
+	var final_dmg: int = maxi(roundi(base_damage * elem_mult * variance), 1)
+	var actual: int = target.apply_damage(final_dmg)
+	target.counters["times_hit"] = int(
+		target.counters.get("times_hit", 0),
+	) + 1
+
+	_track_last_hit(target, actual, technique)
+
+	var effectiveness: StringName = &"neutral"
+	if elem_mult <= 0.0:
+		effectiveness = &"immune"
+	elif elem_mult >= 1.5:
+		effectiveness = &"super_effective"
+	elif elem_mult < 0.75:
+		effectiveness = &"not_very_effective"
+
+	return {
+		"handled": true,
+		"damage": actual,
+		"was_critical": false,
+		"effectiveness": effectiveness,
+		"raw_damage": final_dmg,
+	}
+
+
+## Track last hit amounts in target's volatiles for returnDamage brick.
+static func _track_last_hit(
+	target: BattleDigimonState,
+	amount: int,
+	technique: TechniqueData,
+) -> void:
+	target.volatiles["last_hit"] = amount
+	if technique != null:
+		if technique.technique_class == Registry.TechniqueClass.PHYSICAL:
+			target.volatiles["last_physical_hit"] = amount
+		elif technique.technique_class == Registry.TechniqueClass.SPECIAL:
+			target.volatiles["last_special_hit"] = amount
+
+
+## Resolve a BattleCounter name to its current value.
+static func _resolve_counter(
+	counter_name: String, user: BattleDigimonState,
+	target: BattleDigimonState,
+) -> int:
+	match counter_name:
+		"timesHitThisBattle":
+			return int(target.counters.get("times_hit", 0))
+		"alliesFaintedThisBattle":
+			return int(user.counters.get("allies_fainted", 0))
+		"foesFaintedThisBattle":
+			return int(user.counters.get("foes_fainted", 0))
+		"turnsOnField":
+			return int(user.volatiles.get("turns_on_field", 0))
+		"userStatStagesTotal":
+			var total: int = 0
+			for key: StringName in user.stat_stages:
+				total += maxi(int(user.stat_stages[key]), 0)
+			return total
+		"targetStatStagesTotal":
+			var total: int = 0
+			for key: StringName in target.stat_stages:
+				total += maxi(int(target.stat_stages[key]), 0)
+			return total
+		"consecutiveUses":
+			return int(user.volatiles.get("consecutive_protection_uses", 0))
+	return 0
 
 
 ## Handle "statusEffect" brick — apply or remove a status condition.
@@ -283,13 +674,59 @@ static func _execute_stat_modifier(
 	}
 
 
+## Handle "recoil" brick — self-damage based on damage dealt or user HP.
+static func _execute_recoil(
+	brick: Dictionary,
+	user: BattleDigimonState,
+	_target: BattleDigimonState,
+	_battle: BattleState,
+	execution_context: Dictionary,
+) -> Dictionary:
+	var subtype: String = brick.get("type", "damagePercent")
+	var amount: int = 0
+
+	match subtype:
+		"damagePercent":
+			var percent: float = float(brick.get("percent", 0))
+			var dealt: int = int(execution_context.get("damage_dealt", 0))
+			amount = maxi(roundi(float(dealt) * percent / 100.0), 1)
+		"hpPercent":
+			var percent: float = float(brick.get("percent", 0))
+			amount = maxi(roundi(float(user.max_hp) * percent / 100.0), 1)
+		"fixed":
+			amount = int(brick.get("amount", 0))
+		"crash":
+			# Crash recoil only applies if the technique missed
+			if not execution_context.get("technique_missed", false):
+				return {"handled": true, "recoil": 0}
+			var percent: float = float(brick.get("percent", 50))
+			amount = maxi(roundi(float(user.max_hp) * percent / 100.0), 1)
+		_:
+			push_warning(
+				"BrickExecutor: Unknown recoil type '%s'" % subtype,
+			)
+			return {"handled": false, "subtype": subtype}
+
+	if amount <= 0:
+		return {"handled": true, "recoil": 0}
+
+	var actual: int = user.apply_damage(amount)
+	return {
+		"handled": true,
+		"recoil": actual,
+		"recoil_target_side": user.side_index,
+		"recoil_target_slot": user.slot_index,
+	}
+
+
 ## Handle "healing" brick — restore HP, energy, or cure statuses.
-## Subtypes: "fixed", "percentage", "energy_fixed", "energy_percentage".
+## Subtypes: "fixed", "percentage", "energy_fixed", "energy_percentage", "drain".
 static func _execute_healing(
 	brick: Dictionary,
 	_user: BattleDigimonState,
 	target: BattleDigimonState,
 	_battle: BattleState,
+	execution_context: Dictionary = {},
 ) -> Dictionary:
 	if target == null:
 		return {"handled": false, "reason": "no_target"}
@@ -316,12 +753,32 @@ static func _execute_healing(
 
 		"energy_percentage":
 			var percent: float = float(brick.get("percent", 0))
-			var amount: int = maxi(floori(float(target.max_energy) * percent / 100.0), 1)
+			var amount: int = maxi(
+				floori(float(target.max_energy) * percent / 100.0), 1,
+			)
 			target.restore_energy(amount)
 			result["energy_restored"] = amount
 
+		"drain":
+			# Heal % of damage dealt this technique execution
+			var percent: float = float(brick.get("percent", 50))
+			var dealt: int = int(execution_context.get("damage_dealt", 0))
+			if dealt <= 0:
+				result["healing"] = 0
+			else:
+				var heal_amount: int = maxi(
+					roundi(float(dealt) * percent / 100.0), 1,
+				)
+				# Drain heals the user, not the target
+				var healed: int = _user.restore_hp(heal_amount)
+				result["healing"] = healed
+				result["drain_target_side"] = _user.side_index
+				result["drain_target_slot"] = _user.slot_index
+
 		_:
-			push_warning("BrickExecutor: Unimplemented healing subtype '%s'" % subtype)
+			push_warning(
+				"BrickExecutor: Unimplemented healing subtype '%s'" % subtype,
+			)
 			return {"handled": false, "subtype": subtype}
 
 	# Cure statuses if specified
@@ -341,13 +798,14 @@ static func _execute_healing(
 
 ## Collect all applicable damageModifier bricks from technique and CONTINUOUS
 ## abilities/gear. Evaluates each modifier's condition string and returns only
-## those that pass.
+## those that pass. If ignore_barriers is true, skips barrier modifiers.
 static func _collect_damage_modifiers(
 	user: BattleDigimonState,
 	target: BattleDigimonState,
 	technique: TechniqueData,
 	battle: BattleState,
 	effectiveness: StringName,
+	ignore_barriers: bool = false,
 ) -> Array[Dictionary]:
 	var modifiers: Array[Dictionary] = []
 	var context: Dictionary = {
@@ -404,8 +862,9 @@ static func _collect_damage_modifiers(
 		if not weather_mod.is_empty():
 			modifiers.append(weather_mod)
 
-	# 6. Barrier modifiers (side effects)
-	if battle != null and target != null and technique != null:
+	# 6. Barrier modifiers (side effects) — skipped if ignoreBarriers
+	if not ignore_barriers \
+			and battle != null and target != null and technique != null:
 		var barrier_mod: Dictionary = _get_barrier_modifier(
 			battle, target, technique,
 		)
@@ -494,14 +953,98 @@ static func _is_gear_suppressed(
 	return false
 
 
-## Extract crit stage bonus from a technique's criticalHit brick (if any).
-static func _extract_crit_bonus(technique: TechniqueData) -> int:
+## Extract crit info from a technique's criticalHit brick (if any).
+## Returns {stages, always_crit, never_crit}.
+static func _extract_crit_info(technique: TechniqueData) -> Dictionary:
+	var info: Dictionary = {
+		"stages": 0, "always_crit": false, "never_crit": false,
+	}
 	if technique == null:
-		return 0
+		return info
 	for brick: Dictionary in technique.bricks:
 		if brick.get("brick", "") == "criticalHit":
-			return int(brick.get("stages", 0))
-	return 0
+			info["stages"] = int(brick.get("stages", 0))
+			info["always_crit"] = brick.get("alwaysCrit", false)
+			info["never_crit"] = brick.get("neverCrit", false)
+			break
+	return info
+
+
+## Collect boolean flags from damageModifier bricks on the technique and
+## CONTINUOUS abilities/gear. Returns a flags dictionary.
+static func _collect_damage_modifier_flags(
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	technique: TechniqueData,
+	battle: BattleState,
+) -> Dictionary:
+	var flags: Dictionary = {
+		"ignore_defence": false,
+		"ignore_evasion": false,
+		"ignore_ability": false,
+		"bypass_protection": false,
+		"ignore_type_immunity": false,
+		"ignore_barriers": false,
+		"ignore_stat_boosts": false,
+	}
+	var context: Dictionary = {
+		"user": user, "target": target,
+		"technique": technique, "battle": battle,
+	}
+
+	var sources: Array[Array] = []
+
+	# Technique's own damageModifier bricks
+	if technique != null:
+		for brick: Dictionary in technique.bricks:
+			if brick.get("brick", "") == "damageModifier":
+				sources.append([brick])
+
+	# User's CONTINUOUS ability
+	if user != null and user.ability_key != &"" \
+			and not user.has_status(&"nullified"):
+		var ability: AbilityData = Atlas.abilities.get(
+			user.ability_key,
+		) as AbilityData
+		if ability != null \
+				and ability.trigger == Registry.AbilityTrigger.CONTINUOUS:
+			for brick: Dictionary in ability.bricks:
+				if brick.get("brick", "") == "damageModifier":
+					sources.append([brick])
+
+	# Scan all sources for boolean flags
+	for source: Array in sources:
+		var brick: Dictionary = source[0]
+		var cond: String = brick.get("condition", "")
+		if not BrickConditionEvaluator.evaluate(cond, context):
+			continue
+		if brick.get("ignoreDefense", false):
+			flags["ignore_defence"] = true
+		if brick.get("ignoreEvasion", false):
+			flags["ignore_evasion"] = true
+		if brick.get("ignoreAbility", false):
+			flags["ignore_ability"] = true
+		if brick.get("bypassProtection", false):
+			flags["bypass_protection"] = true
+		if brick.get("ignoreTypeImmunity", false):
+			flags["ignore_type_immunity"] = true
+		if brick.get("ignoreBarriers", false):
+			flags["ignore_barriers"] = true
+		if brick.get("ignoreStatBoosts", false):
+			flags["ignore_stat_boosts"] = true
+
+	return flags
+
+
+## Public accessor for technique damageModifier flags. Called by BattleEngine
+## before the accuracy check to respect ignoreEvasion/bypassProtection.
+static func get_technique_flags(
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	technique: TechniqueData,
+	battle: BattleState,
+) -> Dictionary:
+	return _collect_damage_modifier_flags(user, target, technique, battle)
 
 
 ## Handle "fieldEffect" brick — set or remove weather, terrain, or global effects.
