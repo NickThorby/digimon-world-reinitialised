@@ -95,9 +95,10 @@ func test_switch_writes_back_hp_energy() -> void:
 		user.source_state.current_hp, hp_before_switch,
 		"HP should be written back to source_state",
 	)
-	assert_eq(
+	# Energy includes end-of-turn reserve regen (~5% of max energy)
+	assert_gte(
 		user.source_state.current_energy, energy_before_switch,
-		"Energy should be written back to source_state",
+		"Energy should be written back to source_state (plus reserve regen)",
 	)
 
 

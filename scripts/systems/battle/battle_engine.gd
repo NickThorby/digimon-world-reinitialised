@@ -159,8 +159,7 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 		var actual_bleed: int = user.apply_damage(bleed_dmg)
 		battle_message.emit("%s is bleeding!" % _get_digimon_name(user))
 		damage_dealt.emit(user.side_index, user.slot_index, actual_bleed, &"bleeding")
-		if user.is_fainted:
-			_handle_faint(user, null)
+		if _check_faint_or_threshold(user, null):
 			return [{"bleeding_faint": true}]
 
 	# Spend energy — handle overexertion
@@ -186,8 +185,7 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 		])
 		damage_dealt.emit(user.side_index, user.slot_index, actual_self_damage, &"overexertion")
 
-		if user.is_fainted:
-			_handle_faint(user, null)
+		if _check_faint_or_threshold(user, null):
 			return [{"overexertion_faint": true}]
 	else:
 		user.spend_energy(energy_cost)
@@ -311,17 +309,8 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 			_fire_gear_trigger(Registry.AbilityTrigger.ON_TAKE_DAMAGE, {
 				"subject": target, "attacker": user, "technique": technique,
 			})
-			# HP threshold check after taking damage
-			_fire_ability_trigger(Registry.AbilityTrigger.ON_HP_THRESHOLD, {
-				"subject": target,
-			})
-			_fire_gear_trigger(Registry.AbilityTrigger.ON_HP_THRESHOLD, {
-				"subject": target,
-			})
-
-		# Check target faint
-		if target.check_faint():
-			_handle_faint(target, user)
+		# Faint check first, then HP threshold (berry) if survived
+		_check_faint_or_threshold(target, user)
 
 	# Fire ON_AFTER_TECHNIQUE abilities and gear
 	_fire_ability_trigger(Registry.AbilityTrigger.ON_AFTER_TECHNIQUE, {
@@ -357,9 +346,10 @@ func _resolve_switch(action: BattleAction) -> Array[Dictionary]:
 		outgoing.reset_volatiles()
 		# Move outgoing to reserve (as its source state)
 		if outgoing.source_state != null:
-			# Write back current HP/energy before moving to reserve
+			# Write back current HP/energy/consumable before moving to reserve
 			outgoing.source_state.current_hp = outgoing.current_hp
 			outgoing.source_state.current_energy = outgoing.current_energy
+			outgoing.source_state.equipped_consumable_key = outgoing.equipped_consumable_key
 			side.party.append(outgoing.source_state)
 		# Preserve for XP tracking
 		side.retired_battle_digimon.append(outgoing)
@@ -1123,11 +1113,9 @@ func _resolve_targets(
 
 ## End-of-turn processing.
 func _end_of_turn() -> void:
-	# 1. Status condition ticks
+	# 1. Status condition ticks (faint/threshold handled inside)
 	for digimon: BattleDigimonState in _battle.get_active_digimon():
 		_tick_status_conditions(digimon)
-		if digimon.check_faint():
-			_handle_faint(digimon, null)
 
 	_clear_fainted_no_reserve()
 
@@ -1182,7 +1170,8 @@ func _end_of_turn() -> void:
 
 
 ## Tick status conditions for a single Digimon.
-func _tick_status_conditions(digimon: BattleDigimonState) -> void:
+## Returns true if the Digimon fainted during status ticks.
+func _tick_status_conditions(digimon: BattleDigimonState) -> bool:
 	var to_remove: Array[StringName] = []
 
 	for status: Dictionary in digimon.status_conditions:
@@ -1196,6 +1185,8 @@ func _tick_status_conditions(digimon: BattleDigimonState) -> void:
 				digimon.apply_damage(dot)
 				battle_message.emit("%s is hurt by its burn!" % _get_digimon_name(digimon))
 				damage_dealt.emit(digimon.side_index, digimon.slot_index, dot, &"burn")
+				if _check_faint_or_threshold(digimon, null):
+					return true
 			"frostbitten":
 				var dot: int = maxi(digimon.max_hp / 16, 1)
 				digimon.apply_damage(dot)
@@ -1203,6 +1194,8 @@ func _tick_status_conditions(digimon: BattleDigimonState) -> void:
 					"%s is hurt by frostbite!" % _get_digimon_name(digimon)
 				)
 				damage_dealt.emit(digimon.side_index, digimon.slot_index, dot, &"frostbite")
+				if _check_faint_or_threshold(digimon, null):
+					return true
 			"poisoned":
 				var dot: int = maxi(digimon.max_hp / 8, 1)
 				digimon.apply_damage(dot)
@@ -1210,6 +1203,8 @@ func _tick_status_conditions(digimon: BattleDigimonState) -> void:
 					"%s is hurt by poison!" % _get_digimon_name(digimon)
 				)
 				damage_dealt.emit(digimon.side_index, digimon.slot_index, dot, &"poison")
+				if _check_faint_or_threshold(digimon, null):
+					return true
 			"seeded":
 				var dot: int = maxi(digimon.max_hp / 8, 1)
 				digimon.apply_damage(dot)
@@ -1228,6 +1223,8 @@ func _tick_status_conditions(digimon: BattleDigimonState) -> void:
 						var healed: int = seeder.restore_hp(dot)
 						if healed > 0:
 							hp_restored.emit(seeder.side_index, seeder.slot_index, healed)
+				if _check_faint_or_threshold(digimon, null):
+					return true
 			"regenerating":
 				var heal: int = maxi(digimon.max_hp / 16, 1)
 				digimon.restore_hp(heal)
@@ -1246,6 +1243,8 @@ func _tick_status_conditions(digimon: BattleDigimonState) -> void:
 					battle_message.emit(
 						"%s was taken by the perish count!" % _get_digimon_name(digimon)
 					)
+					if _check_faint_or_threshold(digimon, null):
+						return true
 
 		# Tick duration
 		var duration: int = int(status.get("duration", -1))
@@ -1258,6 +1257,8 @@ func _tick_status_conditions(digimon: BattleDigimonState) -> void:
 	for key: StringName in to_remove:
 		digimon.remove_status(key)
 		status_removed.emit(digimon.side_index, digimon.slot_index, key)
+
+	return false
 
 
 ## Handle a Digimon fainting — emit signal, update counters, fire faint triggers.
@@ -1301,6 +1302,23 @@ func _handle_faint(
 			_fire_ability_trigger(
 				Registry.AbilityTrigger.ON_ALLY_FAINT, {"subject": digimon},
 			)
+
+
+## After damage, check faint. If survived, fire HP threshold triggers (berry etc.).
+## Returns true if the Digimon fainted.
+func _check_faint_or_threshold(
+	digimon: BattleDigimonState, killer: BattleDigimonState = null,
+) -> bool:
+	if digimon.check_faint():
+		_handle_faint(digimon, killer)
+		return true
+	_fire_ability_trigger(Registry.AbilityTrigger.ON_HP_THRESHOLD, {
+		"subject": digimon,
+	})
+	_fire_gear_trigger(Registry.AbilityTrigger.ON_HP_THRESHOLD, {
+		"subject": digimon,
+	})
+	return false
 
 
 ## Retarget a technique action if the original target has fainted.

@@ -32,16 +32,22 @@ func test_switch_before_technique() -> void:
 	)
 
 
-func test_rest_before_technique() -> void:
-	var rest_action: BattleAction = TestBattleFactory.make_rest_action(0, 0)
+func test_rest_uses_normal_priority() -> void:
+	# test_agumon (spe=80) uses a technique, test_gabumon (spe=60) rests.
+	# Both at NORMAL priority, so faster Digimon (agumon) should go first.
 	var tech_action: BattleAction = TestBattleFactory.make_technique_action(
-		1, 0, &"test_tackle", 0, 0,
+		0, 0, &"test_tackle", 1, 0,
 	)
-	var actions: Array[BattleAction] = [tech_action, rest_action]
+	var rest_action: BattleAction = TestBattleFactory.make_rest_action(1, 0)
+	var actions: Array[BattleAction] = [rest_action, tech_action]
 	var sorted: Array[BattleAction] = ActionSorter.sort_actions(actions, _battle)
 	assert_eq(
-		sorted[0].action_type, BattleAction.ActionType.REST,
-		"Rest (MAXIMUM priority) should go before technique",
+		sorted[0].action_type, BattleAction.ActionType.TECHNIQUE,
+		"Faster Digimon's technique (NORMAL) should go before slower rest (NORMAL)",
+	)
+	assert_eq(
+		sorted[0].user_side, 0,
+		"Faster Digimon (side 0, spe=80) should act before slower rester (side 1, spe=60)",
 	)
 
 

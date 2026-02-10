@@ -627,7 +627,7 @@ Specific abilities may also grant status immunities regardless of resistance val
 ### Field Effects
 
 - **Stackable** — multiple global effects simultaneously
-- Affect the entire field (both sides)
+- Affect the entire field (both sides), or one side
 - Examples: speed inversion, grounding field (prevents airborne), etc.
 
 ---

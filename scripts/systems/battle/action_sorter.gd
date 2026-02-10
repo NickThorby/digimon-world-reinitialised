@@ -26,7 +26,7 @@ static func calculate_action_speed(action: BattleAction, battle: BattleState) ->
 		BattleAction.ActionType.ITEM:
 			action.priority = Registry.Priority.MAXIMUM
 		BattleAction.ActionType.REST:
-			action.priority = Registry.Priority.MAXIMUM
+			action.priority = Registry.Priority.NORMAL
 		BattleAction.ActionType.TECHNIQUE:
 			# Get technique priority from data
 			var tech: TechniqueData = Atlas.techniques.get(action.technique_key) as TechniqueData

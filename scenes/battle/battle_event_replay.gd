@@ -154,6 +154,7 @@ func replay_events(
 			&"digimon_switched":
 				var side_idx: int = int(event["side_index"])
 				var slot_idx: int = int(event["slot_index"])
+				display.set_panel_visible(side_idx, slot_idx, false)
 				var out_dur: float = display.anim_switch_out(
 					side_idx, slot_idx,
 				)
@@ -164,6 +165,7 @@ func replay_events(
 					event.get("snapshot", {}) as Dictionary,
 				)
 				display.update_placeholder(side_idx, slot_idx)
+				display.set_panel_visible(side_idx, slot_idx, true)
 				var in_dur: float = display.anim_switch_in(
 					side_idx, slot_idx,
 				)

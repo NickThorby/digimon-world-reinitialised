@@ -414,6 +414,144 @@ func test_gear_suppressed_by_gear_suppression_field() -> void:
 	)
 
 
+# ─── HP Threshold / Berry Trigger Tests ───
+
+
+func test_overexertion_triggers_hp_threshold() -> void:
+	_battle = TestBattleFactory.create_1v1_battle_with_bag(
+		&"test_agumon", &"test_gabumon",
+		{},
+	)
+	_engine = TestBattleFactory.create_engine(_battle)
+
+	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	user.equipped_consumable_key = &"test_heal_berry"
+
+	# Drain energy so test_fire_blast (cost=15) triggers overexertion.
+	# Overexertion damage = 15 * (1 + level/25) ≈ 45 at level 50.
+	# Set HP so overexertion drops it below 50% but doesn't kill.
+	user.current_energy = 0
+	user.current_hp = ceili(float(user.max_hp) * 0.55)
+
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_technique_action(0, 0, &"test_fire_blast", 1, 0),
+		TestBattleFactory.make_rest_action(1, 0),
+	]
+	_engine.execute_turn(actions)
+
+	# Berry should have fired (consumed) and healed some HP
+	assert_eq(
+		user.equipped_consumable_key, &"",
+		"Heal berry should be consumed after overexertion drops HP below threshold",
+	)
+
+
+func test_poison_triggers_hp_threshold() -> void:
+	_battle = TestBattleFactory.create_1v1_battle_with_bag(
+		&"test_agumon", &"test_gabumon",
+		{},
+	)
+	_engine = TestBattleFactory.create_engine(_battle)
+
+	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	user.equipped_consumable_key = &"test_heal_berry"
+
+	# Set HP just above 50% so one poison tick pushes it below
+	user.current_hp = ceili(float(user.max_hp) * 0.51)
+	user.add_status(&"poisoned")
+
+	# Both rest so we reach end-of-turn where poison ticks
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_rest_action(0, 0),
+		TestBattleFactory.make_rest_action(1, 0),
+	]
+	_engine.execute_turn(actions)
+
+	assert_eq(
+		user.equipped_consumable_key, &"",
+		"Heal berry should be consumed after poison tick drops HP below threshold",
+	)
+
+
+func test_no_berry_at_zero_hp() -> void:
+	_battle = TestBattleFactory.create_1v1_battle_with_bag(
+		&"test_agumon", &"test_gabumon",
+		{},
+	)
+	_engine = TestBattleFactory.create_engine(_battle)
+
+	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	user.equipped_consumable_key = &"test_heal_berry"
+
+	# Set HP to 1 so any damage kills — berry should NOT fire
+	user.current_hp = 1
+
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_rest_action(0, 0),
+		TestBattleFactory.make_technique_action(1, 0, &"test_tackle", 0, 0),
+	]
+	_engine.execute_turn(actions)
+
+	assert_true(
+		user.is_fainted,
+		"User should have fainted from 1 HP",
+	)
+	# Berry key is irrelevant once fainted, but verify it wasn't consumed
+	# (the gear trigger skips fainted Digimon)
+	assert_eq(
+		user.equipped_consumable_key, &"test_heal_berry",
+		"Berry should NOT fire when Digimon is KO'd to 0 HP",
+	)
+
+
+# ─── Consumed Berry Switch Persistence Tests ───
+
+
+func test_consumed_berry_stays_consumed_after_switch() -> void:
+	_battle = TestBattleFactory.create_1v1_with_reserves(
+		[&"test_agumon", &"test_patamon"],
+		[&"test_gabumon"],
+	)
+	_engine = TestBattleFactory.create_engine(_battle)
+
+	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	user.equipped_consumable_key = &"test_heal_berry"
+
+	# Weaken user so foe's attack drops HP below 50%, triggering berry
+	user.current_hp = ceili(float(user.max_hp) * 0.51)
+
+	# Turn 1: Foe attacks, berry fires
+	var actions1: Array[BattleAction] = [
+		TestBattleFactory.make_rest_action(0, 0),
+		TestBattleFactory.make_technique_action(1, 0, &"test_tackle", 0, 0),
+	]
+	_engine.execute_turn(actions1)
+	assert_eq(
+		user.equipped_consumable_key, &"",
+		"Berry should be consumed after turn 1",
+	)
+
+	# Turn 2: Switch out to reserve (party index 0 = first reserve)
+	var actions2: Array[BattleAction] = [
+		TestBattleFactory.make_switch_action(0, 0, 0),
+		TestBattleFactory.make_rest_action(1, 0),
+	]
+	_engine.execute_turn(actions2)
+
+	# Turn 3: Switch back in (party index 0 = the original agumon now in reserve)
+	var actions3: Array[BattleAction] = [
+		TestBattleFactory.make_switch_action(0, 0, 0),
+		TestBattleFactory.make_rest_action(1, 0),
+	]
+	_engine.execute_turn(actions3)
+
+	var returned: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	assert_eq(
+		returned.equipped_consumable_key, &"",
+		"Berry should remain consumed after switching out and back in",
+	)
+
+
 # ─── Capture Tests ───
 
 

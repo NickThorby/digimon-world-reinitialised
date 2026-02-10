@@ -112,6 +112,12 @@ func update_panel(side_index: int, slot_index: int) -> void:
 	panel.update_from_battle_digimon(digimon)
 
 
+func set_panel_visible(side_index: int, slot_index: int, is_visible: bool) -> void:
+	var panel: DigimonPanel = get_panel(side_index, slot_index)
+	if panel != null:
+		panel.visible = is_visible
+
+
 func get_panel(side_index: int, slot_index: int) -> DigimonPanel:
 	var key: String = "%d_%d" % [side_index, slot_index]
 	if _ally_panel_map.has(key):

@@ -851,6 +851,7 @@ static func simulate_switch_out(
 	if outgoing.source_state != null:
 		outgoing.source_state.current_hp = outgoing.current_hp
 		outgoing.source_state.current_energy = outgoing.current_energy
+		outgoing.source_state.equipped_consumable_key = outgoing.equipped_consumable_key
 		side.party.append(outgoing.source_state)
 	side.retired_battle_digimon.append(outgoing)
 	slot.digimon = null
