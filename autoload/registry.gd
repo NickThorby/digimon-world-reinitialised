@@ -725,6 +725,20 @@ const ESCALATION_FRACTIONS: Array[float] = [
 	1.0,     # 1/1  (turn 4+)
 ]
 
+## Data-driven status tick config. Used by battle_engine _tick_status_conditions.
+## Keys: damage_fraction (flat % of max HP), escalating (uses ESCALATION_FRACTIONS),
+## drain (heals seeder), heal_fraction (heals target), countdown (perish count).
+const STATUS_TICK_CONFIG: Dictionary = {
+	&"burned": {"damage_fraction": 0.0625, "message": "burn"},
+	&"frostbitten": {"damage_fraction": 0.0625, "message": "frostbite"},
+	&"poisoned": {"damage_fraction": 0.125, "message": "poison"},
+	&"badly_burned": {"escalating": true, "message": "burn"},
+	&"badly_poisoned": {"escalating": true, "message": "poison"},
+	&"seeded": {"damage_fraction": 0.125, "drain": true, "message": "seeded"},
+	&"regenerating": {"heal_fraction": 0.0625},
+	&"perishing": {"countdown": true},
+}
+
 ## Element enum -> icon texture for UI display.
 const ELEMENT_ICONS: Dictionary = {
 	Element.NULL_ELEMENT: preload("res://assets/icons/elements/null-icon.png"),
