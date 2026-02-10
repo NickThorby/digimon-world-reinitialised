@@ -317,6 +317,24 @@ Some techniques require charges before use:
 - Charges **reset on use** (after firing the charged technique)
 - Charges **reset when battle ends**
 
+### Battle VFX System
+
+Element-aware particle effects for technique animations, driven by `BattleVFX` (`scenes/battle/battle_vfx.gd`).
+
+**Element Colours** — `Registry.ELEMENT_COLOURS` maps element StringName keys to `Color` values (e.g. `&"fire"` -> orange-red, `&"water"` -> blue).
+
+**Animation behaviour by technique class:**
+
+| Class    | User Effect            | VFX                                          |
+|----------|------------------------|----------------------------------------------|
+| Physical | Lunge (Y offset)       | Element burst particles at user sprite        |
+| Special  | Element-tinted flash   | Projectile particles from user to target      |
+| Status   | Subtle element tint    | Gentle particles drifting from user to target |
+
+When `element_key` is `&""`, VFX is skipped and only the tween plays (backward-compatible fallback).
+
+**Future override** — `TechniqueData.animation_key` (currently unused) will allow per-technique animation overrides. When set, `play_attack_animation()` will check it before falling through to the default element+class animation.
+
 ---
 
 ## 8. Technique & Brick System
@@ -340,6 +358,7 @@ Mapped from digimon-dex `Attack` table (**"attack" in dex = "technique" in game*
 | `accuracy`             | `int`                     | Hit chance (0 = always hits, bypasses accuracy check) |
 | `energy_cost`          | `int`                     | Energy to use                    |
 | `priority`             | `Registry.Priority`       | Priority tier                    |
+| `animation_key`        | `StringName`              | Override animation (future hook, default `&""`) |
 | `flags`                | `Array[TechniqueFlag]`    | Contact, Sound, Beam, etc. Imported from technique-level `flags` field (dex export v3+). |
 | `charge_required`      | `int`                     | Charges needed (0 = instant)     |
 | `charge_conditions`    | `Array[Dictionary]`       | How charges are gained           |

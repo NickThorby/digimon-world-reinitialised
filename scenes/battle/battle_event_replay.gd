@@ -74,6 +74,9 @@ func replay_events(
 					int(event["user_side"]),
 					int(event["user_slot"]),
 					event["technique_class"] as Registry.TechniqueClass,
+					event.get("element_key", &"") as StringName,
+					int(event.get("target_side", -1)),
+					int(event.get("target_slot", -1)),
 				)
 				if duration > 0.0:
 					await scene.get_tree().create_timer(duration).timeout
@@ -232,13 +235,17 @@ func _on_battle_message(text: String) -> void:
 
 
 func _on_technique_animation_requested(
-	user_side: int, user_slot: int, technique_class: Registry.TechniqueClass
+	user_side: int, user_slot: int, technique_class: Registry.TechniqueClass,
+	element_key: StringName, target_side: int, target_slot: int
 ) -> void:
 	_event_queue.append({
 		"type": &"technique_animation",
 		"user_side": user_side,
 		"user_slot": user_slot,
 		"technique_class": technique_class,
+		"element_key": element_key,
+		"target_side": target_side,
+		"target_slot": target_slot,
 	})
 
 

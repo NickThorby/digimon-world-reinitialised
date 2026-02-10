@@ -738,6 +738,20 @@ const ELEMENT_KEY_MAP: Dictionary = {
 	&"light": Element.LIGHT,
 }
 
+const ELEMENT_COLOURS: Dictionary = {
+	&"null": Color(0.75, 0.75, 0.75),
+	&"fire": Color(1.0, 0.35, 0.1),
+	&"water": Color(0.2, 0.5, 1.0),
+	&"air": Color(0.7, 0.9, 1.0),
+	&"earth": Color(0.6, 0.4, 0.2),
+	&"ice": Color(0.6, 0.9, 1.0),
+	&"lightning": Color(1.0, 0.9, 0.2),
+	&"plant": Color(0.2, 0.8, 0.3),
+	&"metal": Color(0.7, 0.7, 0.75),
+	&"dark": Color(0.4, 0.1, 0.5),
+	&"light": Color(1.0, 0.95, 0.6),
+}
+
 const DEX_PRIORITY_MAP: Dictionary = {
 	-4: Priority.MINIMUM,
 	-3: Priority.NEGATIVE,

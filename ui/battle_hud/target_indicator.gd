@@ -1,7 +1,7 @@
 class_name TargetIndicator
 extends Control
-## Draws a rotating dashed circle around a battlefield sprite to indicate a valid target.
-## Added as a child of the sprite's VBox during targeting mode. Mouse-transparent.
+## Pulses the parent sprite's opacity to indicate a valid target.
+## Added as a child of the sprite during targeting mode. Mouse-transparent.
 
 
 enum IndicatorColour {
@@ -9,42 +9,43 @@ enum IndicatorColour {
 	ALLY,
 }
 
-const DASH_COUNT: int = 12
-const DASH_ARC: float = TAU / DASH_COUNT * 0.6
-const GAP_ARC: float = TAU / DASH_COUNT * 0.4
-const LINE_WIDTH: float = 2.0
-const ROTATION_SPEED: float = 1.5  ## Radians per second
-
 var indicator_colour: IndicatorColour = IndicatorColour.FOE
 
-var _angle_offset: float = 0.0
+var _original_modulate: Color = Color.WHITE
+var _tween: Tween = null
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
-
-func _process(delta: float) -> void:
-	_angle_offset += ROTATION_SPEED * delta
-	if _angle_offset > TAU:
-		_angle_offset -= TAU
-	queue_redraw()
-
-
-func _draw() -> void:
-	var centre: Vector2 = size / 2.0
-	var radius: float = min(size.x, size.y) / 2.0 - LINE_WIDTH
-	if radius <= 0.0:
+	var parent_ctrl: Control = get_parent() as Control
+	if parent_ctrl == null:
 		return
 
-	var colour: Color = Color(0.9, 0.2, 0.2, 0.8) if \
-		indicator_colour == IndicatorColour.FOE else Color(0.2, 0.9, 0.3, 0.8)
+	_original_modulate = parent_ctrl.modulate
 
-	var step: float = TAU / DASH_COUNT
-	for i: int in DASH_COUNT:
-		var start_angle: float = _angle_offset + step * i
-		draw_arc(centre, radius, start_angle, start_angle + DASH_ARC, 16, colour, LINE_WIDTH)
+	# Apply a subtle colour tint based on foe/ally
+	var tint: Color = Color(1.15, 0.9, 0.9) if \
+		indicator_colour == IndicatorColour.FOE else Color(0.9, 1.15, 0.9)
+	parent_ctrl.modulate = _original_modulate * tint
+
+	# Start a looping opacity pulse
+	_tween = get_tree().create_tween().set_loops()
+	_tween.tween_property(parent_ctrl, "modulate:a", 0.5, 0.6) \
+		.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+	_tween.tween_property(parent_ctrl, "modulate:a", 1.0, 0.6) \
+		.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+
+
+func _exit_tree() -> void:
+	if _tween != null:
+		_tween.kill()
+		_tween = null
+
+	var parent_ctrl: Control = get_parent() as Control
+	if parent_ctrl != null:
+		parent_ctrl.modulate = _original_modulate
 
 
 ## Factory method to create a configured indicator.

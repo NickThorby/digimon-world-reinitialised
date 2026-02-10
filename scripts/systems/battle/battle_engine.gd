@@ -18,7 +18,8 @@ signal energy_restored(side_index: int, slot_index: int, amount: int)
 signal hp_restored(side_index: int, slot_index: int, amount: int)
 signal battle_message(text: String)
 signal technique_animation_requested(
-	user_side: int, user_slot: int, technique_class: Registry.TechniqueClass
+	user_side: int, user_slot: int, technique_class: Registry.TechniqueClass,
+	element_key: StringName, target_side: int, target_slot: int
 )
 signal turn_started(turn_number: int)
 signal turn_ended(turn_number: int)
@@ -148,7 +149,8 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 
 	battle_message.emit("%s used %s!" % [_get_digimon_name(user), technique.display_name])
 	technique_animation_requested.emit(
-		action.user_side, action.user_slot, technique.technique_class
+		action.user_side, action.user_slot, technique.technique_class,
+		technique.element_key, action.target_side, action.target_slot
 	)
 
 	# Bleeding deals self-damage when using a technique

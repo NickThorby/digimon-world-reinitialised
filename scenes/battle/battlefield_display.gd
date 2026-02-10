@@ -6,6 +6,7 @@ extends Node
 
 const DIGIMON_PANEL_SCENE := preload("res://ui/battle_hud/digimon_panel.tscn")
 
+var _vfx: BattleVFX = BattleVFX.new()
 var _battle: BattleState = null
 var _near_side: HBoxContainer = null
 var _far_side: HBoxContainer = null
@@ -23,6 +24,7 @@ var _hover_tweens: Dictionary = {}
 var _active_bounce_tween: Tween = null
 var _active_bounce_panel_tween: Tween = null
 var _active_bounce_key: String = ""
+var _active_panel_origin_y: float = 0.0
 
 # Sprite-based targeting
 var _target_indicators: Array[TargetIndicator] = []
@@ -252,22 +254,39 @@ func play_attack_animation(
 	user_side: int,
 	user_slot: int,
 	technique_class: Registry.TechniqueClass,
+	element_key: StringName = &"",
+	target_side: int = -1,
+	target_slot: int = -1,
 ) -> float:
 	var placeholder: Node = get_battlefield_placeholder(user_side, user_slot)
 	if placeholder == null:
 		return 0.0
 
+	var target_placeholder: Control = null
+	if target_side >= 0 and target_slot >= 0:
+		var t_node: Node = get_battlefield_placeholder(target_side, target_slot)
+		if t_node is Control:
+			target_placeholder = _get_sprite_child(t_node)
+			if target_placeholder == null:
+				target_placeholder = t_node as Control
+
 	match technique_class:
 		Registry.TechniqueClass.PHYSICAL:
-			return _anim_physical_lunge(placeholder)
+			return _anim_physical_lunge(placeholder, element_key)
 		Registry.TechniqueClass.SPECIAL:
-			return _anim_special_flash(placeholder)
+			return _anim_special_flash(
+				placeholder, element_key, target_placeholder,
+			)
 		Registry.TechniqueClass.STATUS:
-			return _anim_status_tint(placeholder)
+			return _anim_status_tint(
+				placeholder, element_key, target_placeholder,
+			)
 	return 0.0
 
 
-func _anim_physical_lunge(placeholder: Node) -> float:
+func _anim_physical_lunge(
+	placeholder: Node, element_key: StringName = &"",
+) -> float:
 	if placeholder is not Control:
 		return 0.0
 	var ctrl: Control = placeholder as Control
@@ -278,29 +297,91 @@ func _anim_physical_lunge(placeholder: Node) -> float:
 	var tween: Tween = get_tree().create_tween()
 	tween.tween_property(ctrl, "position", original_pos + offset, 0.1)
 	tween.tween_property(ctrl, "position", original_pos, 0.2)
+
+	# Spawn element burst at user sprite
+	if element_key != &"":
+		var sprite: Control = _get_sprite_child(ctrl)
+		if sprite != null:
+			_vfx.spawn_burst(sprite, element_key)
+
 	return 0.3
 
 
-func _anim_special_flash(placeholder: Node) -> float:
+func _anim_special_flash(
+	placeholder: Node,
+	element_key: StringName = &"",
+	target_ctrl: Control = null,
+) -> float:
 	if placeholder is not Control:
 		return 0.0
 	var ctrl: Control = placeholder as Control
 
+	# Element-tinted flash instead of plain white
+	var flash_colour: Color = Color(2.0, 2.0, 2.0)
+	if element_key != &"":
+		var elem_col: Color = Registry.ELEMENT_COLOURS.get(
+			element_key, Color.WHITE,
+		) as Color
+		flash_colour = Color(
+			1.0 + elem_col.r, 1.0 + elem_col.g, 1.0 + elem_col.b,
+		)
+
 	var tween: Tween = get_tree().create_tween()
-	tween.tween_property(ctrl, "modulate", Color(2.0, 2.0, 2.0), 0.1)
+	tween.tween_property(ctrl, "modulate", flash_colour, 0.1)
 	tween.tween_property(ctrl, "modulate", Color.WHITE, 0.3)
-	return 0.4
+
+	# Spawn projectile from user to target
+	var duration: float = 0.4
+	if element_key != &"" and target_ctrl != null:
+		var user_sprite: Control = _get_sprite_child(ctrl)
+		if user_sprite == null:
+			user_sprite = ctrl
+		var travel: float = _vfx.spawn_projectile(
+			get_tree().current_scene, user_sprite, target_ctrl, element_key,
+		)
+		if travel > duration:
+			duration = travel + 0.1
+
+	return duration
 
 
-func _anim_status_tint(placeholder: Node) -> float:
+func _anim_status_tint(
+	placeholder: Node,
+	element_key: StringName = &"",
+	target_ctrl: Control = null,
+) -> float:
 	if placeholder is not Control:
 		return 0.0
 	var ctrl: Control = placeholder as Control
 
+	# Element-tinted glow instead of generic yellow
+	var tint_colour: Color = Color(1.2, 1.2, 0.4)
+	if element_key != &"":
+		var elem_col: Color = Registry.ELEMENT_COLOURS.get(
+			element_key, Color.WHITE,
+		) as Color
+		tint_colour = Color(
+			0.8 + elem_col.r * 0.4, 0.8 + elem_col.g * 0.4,
+			0.8 + elem_col.b * 0.4,
+		)
+
 	var tween: Tween = get_tree().create_tween()
-	tween.tween_property(ctrl, "modulate", Color(1.2, 1.2, 0.4), 0.1)
+	tween.tween_property(ctrl, "modulate", tint_colour, 0.1)
 	tween.tween_property(ctrl, "modulate", Color.WHITE, 0.2)
-	return 0.3
+
+	# Gentle particles drifting from user to target
+	var duration: float = 0.3
+	if element_key != &"" and target_ctrl != null:
+		var user_sprite: Control = _get_sprite_child(ctrl)
+		if user_sprite == null:
+			user_sprite = ctrl
+		var travel: float = _vfx.spawn_status_particles(
+			get_tree().current_scene, user_sprite, target_ctrl, element_key,
+		)
+		if travel > duration:
+			duration = travel + 0.1
+
+	return duration
 
 
 func anim_hit(side_index: int, slot_index: int) -> float:
@@ -469,14 +550,14 @@ func start_active_bounce(side_index: int, slot_index: int) -> void:
 
 	var panel: DigimonPanel = get_panel(side_index, slot_index)
 	if panel != null:
-		panel.pivot_offset = panel.size / 2.0
+		_active_panel_origin_y = panel.position.y
 		_active_bounce_panel_tween = get_tree().create_tween().set_loops()
 		_active_bounce_panel_tween.tween_property(
-			panel, "scale", Vector2(1.03, 1.03), 0.3
-		).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+			panel, "position:y", _active_panel_origin_y - 4.0, 0.25
+		).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
 		_active_bounce_panel_tween.tween_property(
-			panel, "scale", Vector2.ONE, 0.3
-		).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+			panel, "position:y", _active_panel_origin_y, 0.25
+		).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_SINE)
 
 
 func stop_active_bounce() -> void:
@@ -502,7 +583,7 @@ func stop_active_bounce() -> void:
 
 			var panel: DigimonPanel = get_panel(si, sli)
 			if panel != null:
-				panel.scale = Vector2.ONE
+				panel.position.y = _active_panel_origin_y
 
 		_active_bounce_key = ""
 

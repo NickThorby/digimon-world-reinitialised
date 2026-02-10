@@ -19,6 +19,7 @@ const _Settings = preload("res://autoload/settings.gd")
 @export var accuracy: int = 100
 @export var energy_cost: int = 10
 @export var priority: _Reg.Priority = _Reg.Priority.NORMAL
+@export var animation_key: StringName = &""
 
 @export var flags: Array[_Reg.TechniqueFlag] = []
 

@@ -223,6 +223,41 @@ func test_last_technique_key_updated() -> void:
 # --- Participation tracking ---
 
 
+func test_technique_animation_signal_includes_element_and_target() -> void:
+	var captured: Dictionary = {
+		"element": &"", "target_side": -1, "target_slot": -1,
+	}
+
+	var on_anim: Callable = func(
+		_us: Variant, _usl: Variant, _tc: Variant,
+		ek: Variant, ts: Variant, tsl: Variant,
+	) -> void:
+		captured["element"] = ek
+		captured["target_side"] = ts
+		captured["target_slot"] = tsl
+
+	_engine.technique_animation_requested.connect(on_anim)
+
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_technique_action(0, 0, &"test_fire_blast", 1, 0),
+		TestBattleFactory.make_rest_action(1, 0),
+	]
+	_engine.execute_turn(actions)
+
+	assert_eq(
+		captured["element"] as StringName, &"fire",
+		"technique_animation_requested should include element_key",
+	)
+	assert_eq(
+		captured["target_side"] as int, 1,
+		"technique_animation_requested should include target_side",
+	)
+	assert_eq(
+		captured["target_slot"] as int, 0,
+		"technique_animation_requested should include target_slot",
+	)
+
+
 func test_participation_tracked() -> void:
 	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
 	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
