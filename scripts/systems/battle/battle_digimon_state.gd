@@ -104,7 +104,7 @@ func get_effective_stat(stat_key: StringName) -> int:
 ## Apply status-based stat reductions (burned halves attack, etc.).
 func _apply_status_stat_modifiers(value: int, stat_key: StringName) -> int:
 	var result: float = float(value)
-	if stat_key == &"attack" and has_status(&"burned"):
+	if stat_key == &"attack" and (has_status(&"burned") or has_status(&"badly_burned")):
 		result *= 0.5
 	if stat_key == &"special_attack" and has_status(&"frostbitten"):
 		result *= 0.5
@@ -259,6 +259,14 @@ func reset_volatiles() -> void:
 	ability_trigger_counts["per_switch"] = 0
 	gear_trigger_counts["equip_per_switch"] = 0
 	gear_trigger_counts["consumable_per_switch"] = 0
+
+
+## Reset escalation counters for badly_burned / badly_poisoned on switch-out.
+func reset_status_counters() -> void:
+	for status: Dictionary in status_conditions:
+		var key: StringName = status.get("key", &"") as StringName
+		if key == &"badly_burned" or key == &"badly_poisoned":
+			status["escalation_turn"] = 0
 
 
 ## Add a status condition. Returns true if successfully applied.

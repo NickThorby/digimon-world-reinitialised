@@ -132,24 +132,36 @@ func test_burned_removes_frostbitten() -> void:
 
 
 func test_frostbitten_removes_burned() -> void:
-	_target.add_status(&"burned")
+	# Use non-ice target (gabumon has ice trait, immune to frostbitten)
+	var battle: BattleState = TestBattleFactory.create_1v1_battle(
+		&"test_agumon", &"test_agumon",
+	)
+	var user: BattleDigimonState = battle.get_digimon_at(0, 0)
+	var target: BattleDigimonState = battle.get_digimon_at(1, 0)
+	target.add_status(&"burned")
 	var brick: Dictionary = {
 		"brick": "statusEffect", "status": "frostbitten", "chance": 100,
 	}
-	BrickExecutor.execute_brick(brick, _user, _target, null, _battle)
-	assert_true(_target.has_status(&"frostbitten"), "Should have frostbitten")
-	assert_false(_target.has_status(&"burned"), "Burned should be removed")
+	BrickExecutor.execute_brick(brick, user, target, null, battle)
+	assert_true(target.has_status(&"frostbitten"), "Should have frostbitten")
+	assert_false(target.has_status(&"burned"), "Burned should be removed")
 
 
 func test_frostbitten_upgrade_to_frozen() -> void:
-	_target.add_status(&"frostbitten")
+	# Use non-ice target (gabumon has ice trait, immune to frostbitten)
+	var battle: BattleState = TestBattleFactory.create_1v1_battle(
+		&"test_agumon", &"test_agumon",
+	)
+	var user: BattleDigimonState = battle.get_digimon_at(0, 0)
+	var target: BattleDigimonState = battle.get_digimon_at(1, 0)
+	target.add_status(&"frostbitten")
 	var brick: Dictionary = {
 		"brick": "statusEffect", "status": "frostbitten", "chance": 100,
 	}
-	BrickExecutor.execute_brick(brick, _user, _target, null, _battle)
-	assert_true(_target.has_status(&"frozen"), "Double frostbitten should upgrade to frozen")
+	BrickExecutor.execute_brick(brick, user, target, null, battle)
+	assert_true(target.has_status(&"frozen"), "Double frostbitten should upgrade to frozen")
 	assert_false(
-		_target.has_status(&"frostbitten"), "Frostbitten should be removed",
+		target.has_status(&"frostbitten"), "Frostbitten should be removed",
 	)
 
 

@@ -42,8 +42,8 @@ extends Resource
 
 # --- Status durations ---
 
-@export var sleep_min_turns: int = 1
-@export var sleep_max_turns: int = 3
+@export var sleep_min_turns: int = 2
+@export var sleep_max_turns: int = 5
 @export var freeze_min_turns: int = 1
 @export var freeze_max_turns: int = 3
 @export var confusion_min_turns: int = 2

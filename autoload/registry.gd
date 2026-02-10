@@ -367,13 +367,15 @@ var stack_limit_labels: Dictionary = {
 # --- Status ---
 
 enum StatusCondition {
-	# Negative (17)
+	# Negative (19)
 	ASLEEP,
 	BURNED,
+	BADLY_BURNED,
 	FROSTBITTEN,
 	FROZEN,
 	EXHAUSTED,
 	POISONED,
+	BADLY_POISONED,
 	DAZED,
 	TRAPPED,
 	CONFUSED,
@@ -396,10 +398,12 @@ enum StatusCondition {
 var status_condition_labels: Dictionary = {
 	StatusCondition.ASLEEP: tr("status_condition.asleep"),
 	StatusCondition.BURNED: tr("status_condition.burned"),
+	StatusCondition.BADLY_BURNED: tr("status_condition.badly_burned"),
 	StatusCondition.FROSTBITTEN: tr("status_condition.frostbitten"),
 	StatusCondition.FROZEN: tr("status_condition.frozen"),
 	StatusCondition.EXHAUSTED: tr("status_condition.exhausted"),
 	StatusCondition.POISONED: tr("status_condition.poisoned"),
+	StatusCondition.BADLY_POISONED: tr("status_condition.badly_poisoned"),
 	StatusCondition.DAZED: tr("status_condition.dazed"),
 	StatusCondition.TRAPPED: tr("status_condition.trapped"),
 	StatusCondition.CONFUSED: tr("status_condition.confused"),
@@ -673,9 +677,11 @@ var growth_rate_labels: Dictionary = {
 const PERSISTENT_STATUSES: Array[StatusCondition] = [
 	StatusCondition.ASLEEP,
 	StatusCondition.BURNED,
+	StatusCondition.BADLY_BURNED,
 	StatusCondition.FROSTBITTEN,
 	StatusCondition.FROZEN,
 	StatusCondition.POISONED,
+	StatusCondition.BADLY_POISONED,
 	StatusCondition.PARALYSED,
 	StatusCondition.BLINDED,
 	StatusCondition.EXHAUSTED,
@@ -696,6 +702,27 @@ const VOLATILE_STATUSES: Array[StatusCondition] = [
 	StatusCondition.VITALISED,
 	StatusCondition.NULLIFIED,
 	StatusCondition.REVERSED,
+]
+
+## Maps status condition keys to the element trait that grants immunity.
+const STATUS_ELEMENT_IMMUNITIES: Dictionary = {
+	&"burned": &"fire",
+	&"badly_burned": &"fire",
+	&"frostbitten": &"ice",
+	&"frozen": &"ice",
+	&"poisoned": &"dark",
+	&"badly_poisoned": &"dark",
+	&"paralysed": &"lightning",
+	&"seeded": &"plant",
+}
+
+## Escalating DoT fractions for badly_burned / badly_poisoned (indexed by turn).
+const ESCALATION_FRACTIONS: Array[float] = [
+	0.0625,  # 1/16 (turn 0)
+	0.125,   # 1/8  (turn 1)
+	0.25,    # 1/4  (turn 2)
+	0.5,     # 1/2  (turn 3)
+	1.0,     # 1/1  (turn 4+)
 ]
 
 ## Element enum -> icon texture for UI display.

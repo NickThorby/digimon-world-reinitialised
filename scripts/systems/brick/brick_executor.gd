@@ -164,12 +164,20 @@ static func _execute_status_effect(
 	if battle.rng.randf() > chance:
 		return {"handled": true, "action": "apply", "missed": true, "status": status_key}
 
-	# Status immunity check
+	# Status immunity check (side effect)
 	if battle != null and actual_target.side_index < battle.sides.size() \
 			and battle.sides[actual_target.side_index].has_side_effect(
 				&"status_immunity",
 			):
-		return {"handled": true, "blocked": true}
+		return {"handled": true, "blocked": true, "reason": "side_immunity"}
+
+	# Element-trait immunity check
+	var immune_element: StringName = Registry.STATUS_ELEMENT_IMMUNITIES.get(
+		status_key, &"",
+	)
+	if immune_element != &"" and actual_target.data != null:
+		if immune_element in actual_target.data.element_traits:
+			return {"handled": true, "blocked": true, "reason": "element_immunity"}
 
 	# Status override rules (may fully handle the status, e.g. frostbitten upgrade)
 	var override_status: StringName = _apply_status_overrides(actual_target, status_key)
@@ -675,11 +683,31 @@ static func _apply_status_overrides(
 		"burned":
 			target.remove_status(&"frostbitten")
 			target.remove_status(&"frozen")
+			# Burned on already burned -> upgrade to badly_burned
+			if target.has_status(&"burned"):
+				target.remove_status(&"burned")
+				target.add_status(
+					&"badly_burned", -1, {"escalation_turn": 0},
+				)
+				return &"badly_burned"
 		"frostbitten":
 			target.remove_status(&"burned")
+			target.remove_status(&"badly_burned")
 			# Frostbitten on already Frostbitten -> upgrade to Frozen
 			if target.has_status(&"frostbitten"):
 				target.remove_status(&"frostbitten")
 				target.add_status(&"frozen")
 				return &"frozen"
+		"poisoned":
+			# Poisoned on already poisoned -> upgrade to badly_poisoned
+			if target.has_status(&"poisoned"):
+				target.remove_status(&"poisoned")
+				target.add_status(
+					&"badly_poisoned", -1, {"escalation_turn": 0},
+				)
+				return &"badly_poisoned"
+		"asleep":
+			# Asleep on exhausted -> remove exhausted, apply asleep
+			if target.has_status(&"exhausted"):
+				target.remove_status(&"exhausted")
 	return &""

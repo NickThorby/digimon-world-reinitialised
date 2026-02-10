@@ -143,6 +143,28 @@ static func _inject_digimon() -> void:
 	earth_mon.type_trait = &"mineral"
 	Atlas.digimon[&"test_earth_mon"] = earth_mon
 
+	var plant_mon: DigimonData = _make_digimon(
+		&"test_plant_mon", "Test Plant Mon", Registry.Attribute.DATA,
+		[&"plant"], 80, 50, 55, 65, 70, 65, 55,
+		{&"plant": 0.5, &"fire": 1.5},
+		&"",
+	)
+	plant_mon.size_trait = &"medium"
+	plant_mon.movement_traits = [&"terrestrial"] as Array[StringName]
+	plant_mon.type_trait = &"vegetation"
+	Atlas.digimon[&"test_plant_mon"] = plant_mon
+
+	var lightning_mon: DigimonData = _make_digimon(
+		&"test_lightning_mon", "Test Lightning Mon", Registry.Attribute.DATA,
+		[&"lightning"], 70, 50, 65, 50, 80, 55, 100,
+		{&"lightning": 0.5, &"earth": 1.5},
+		&"",
+	)
+	lightning_mon.size_trait = &"small"
+	lightning_mon.movement_traits = [&"flying"] as Array[StringName]
+	lightning_mon.type_trait = &"insect"
+	Atlas.digimon[&"test_lightning_mon"] = lightning_mon
+
 
 static func _make_digimon(
 	key: StringName,
@@ -378,6 +400,31 @@ static func _inject_techniques() -> void:
 			"stats": ["atk"], "stages": 2, "target": "self",
 			"condition": "userHpBelow:50",
 		}],
+	)
+	# --- Status application techniques ---
+	Atlas.techniques[&"test_status_poison"] = _make_technique(
+		&"test_status_poison", "Test Status Poison",
+		Registry.TechniqueClass.STATUS, &"dark", 0, 0, 8,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{"brick": "statusEffect", "status": "poisoned", "chance": 100}],
+	)
+	Atlas.techniques[&"test_status_sleep"] = _make_technique(
+		&"test_status_sleep", "Test Status Sleep",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 8,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{"brick": "statusEffect", "status": "asleep", "chance": 100}],
+	)
+	Atlas.techniques[&"test_status_seed"] = _make_technique(
+		&"test_status_seed", "Test Status Seed",
+		Registry.TechniqueClass.STATUS, &"plant", 0, 0, 8,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{"brick": "statusEffect", "status": "seeded", "chance": 100}],
+	)
+	Atlas.techniques[&"test_status_frostbite"] = _make_technique(
+		&"test_status_frostbite", "Test Status Frostbite",
+		Registry.TechniqueClass.STATUS, &"ice", 0, 0, 8,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{"brick": "statusEffect", "status": "frostbitten", "chance": 100}],
 	)
 
 

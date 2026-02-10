@@ -558,48 +558,69 @@ Multiple different status conditions can be active simultaneously. There is **no
 
 ### Override Rules
 
-Some thematic overrides still apply:
+Thematic overrides and upgrade paths:
 - **Burned** removes Frostbitten and Frozen
-- **Frostbitten** removes Burned
+- **Frostbitten** removes Burned and Badly Burned
+- Applying **Burned** to an already Burned Digimon upgrades to **Badly Burned** (escalating DoT)
 - Applying **Frostbitten** to an already Frostbitten Digimon upgrades to **Frozen**
+- Applying **Poisoned** to an already Poisoned Digimon upgrades to **Badly Poisoned** (escalating DoT)
+- Applying **Asleep** to an Exhausted Digimon removes Exhausted, then applies Asleep
 
-### Full Status Table (21)
+### Full Status Table (23)
 
-| Status       | Category | Mechanics                                              |
-|--------------|----------|--------------------------------------------------------|
-| Asleep       | Negative | Cannot act. Wakes after 1-3 turns or when hit.        |
-| Burned       | Negative | Fire DoT. Physical ATK reduced.                       |
-| Frostbitten  | Negative | Ice DoT. Special ATK reduced.                         |
-| Frozen       | Negative | Cannot act. Thaws after 1-3 turns or fire hit.        |
-| Exhausted    | Negative | +50% energy cost on techniques.                       |
-| Poisoned     | Negative | DoT (escalating or fixed).                            |
-| Dazed        | Negative | Equipped gear effects disabled.                       |
-| Trapped      | Negative | Cannot switch out.                                    |
-| Confused     | Negative | Uses random technique. Duration 2-5 turns.            |
-| Blinded      | Negative | Accuracy significantly reduced.                       |
-| Paralysed    | Negative | SPD reduced. May fail to act.                         |
-| Bleeding     | Negative | -1/8 HP when using a technique. Removed by resting.   |
-| Encored      | Negative | Must repeat last technique for duration.              |
-| Taunted      | Negative | Can only use damaging techniques for duration.        |
-| Disabled     | Negative | One specific technique unusable for duration.         |
-| Perishing    | Negative | Faints when countdown reaches 0 (default 3 turns).   |
-| Seeded       | Negative | Loses 1/8 HP/turn, seeder gains it.                  |
-| Regenerating | Positive | Restores HP each turn.                                |
-| Vitalised    | Positive | -50% energy cost on techniques.                       |
-| Nullified    | Neutral  | Ability is suppressed.                                |
-| Reversed     | Neutral  | Stat changes are inverted.                            |
+| Status         | Category | Mechanics                                              |
+|----------------|----------|--------------------------------------------------------|
+| Asleep         | Negative | Cannot act. Wakes after 2-5 turns or when hit.        |
+| Burned         | Negative | 1/16 max HP DoT. Physical ATK halved.                 |
+| Badly Burned   | Negative | Escalating DoT (1/16→1/8→1/4→1/2→1/1). ATK halved. Resets on switch. |
+| Frostbitten    | Negative | 1/16 max HP DoT. Special ATK halved.                  |
+| Frozen         | Negative | Cannot act. Thaws after 1-3 turns or fire hit.        |
+| Exhausted      | Negative | +50% energy cost on techniques.                       |
+| Poisoned       | Negative | 1/8 max HP DoT.                                       |
+| Badly Poisoned | Negative | Escalating DoT (1/16→1/8→1/4→1/2→1/1). Resets on switch. |
+| Dazed          | Negative | Equipped gear effects disabled.                       |
+| Trapped        | Negative | Cannot switch out.                                    |
+| Confused       | Negative | Uses random technique. Duration 2-5 turns.            |
+| Blinded        | Negative | Accuracy significantly reduced.                       |
+| Paralysed      | Negative | SPD halved. May fail to act (25%).                    |
+| Bleeding       | Negative | -1/8 HP when using a technique. Removed by resting.   |
+| Encored        | Negative | Must repeat last technique for duration.              |
+| Taunted        | Negative | Can only use damaging techniques for duration.        |
+| Disabled       | Negative | One specific technique unusable for duration.         |
+| Perishing      | Negative | Faints when countdown reaches 0 (default 3 turns).   |
+| Seeded         | Negative | Loses 1/8 HP/turn, seeder gains it.                  |
+| Regenerating   | Positive | Restores HP each turn.                                |
+| Vitalised      | Positive | -50% energy cost on techniques.                       |
+| Nullified      | Neutral  | Ability is suppressed.                                |
+| Reversed       | Neutral  | Stat changes are inverted.                            |
 
-### Element-Based Immunities
+### Escalating DoT (Badly Burned / Badly Poisoned)
 
-Status immunities are tied to resistance thresholds (resistance ≤ 0.5):
+Badly Burned and Badly Poisoned deal escalating damage each turn based on a turn counter:
 
-| Resistance Profile     | Immune To                  |
-|------------------------|----------------------------|
-| Fire resistance ≤ 0.5  | Burned                     |
-| Ice resistance ≤ 0.5   | Frostbitten, Frozen        |
-| Dark resistance ≤ 0.5  | Poisoned                   |
+| Turn | Fraction | Damage (of max HP) |
+|------|----------|--------------------|
+| 0    | 1/16     | 6.25%              |
+| 1    | 1/8      | 12.5%              |
+| 2    | 1/4      | 25%                |
+| 3    | 1/2      | 50%                |
+| 4+   | 1/1      | 100%               |
 
-Specific abilities may also grant status immunities regardless of resistance values.
+The escalation counter resets to 0 when the Digimon switches out, but the status itself persists.
+
+### Element-Trait Immunities
+
+Status immunities are based on the target's element traits:
+
+| Element Trait | Immune To                      |
+|---------------|--------------------------------|
+| Fire          | Burned, Badly Burned           |
+| Ice           | Frostbitten, Frozen            |
+| Dark          | Poisoned, Badly Poisoned       |
+| Lightning     | Paralysed                      |
+| Plant         | Seeded                         |
+
+Specific abilities may also grant status immunities regardless of element traits.
 
 ---
 

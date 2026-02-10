@@ -350,8 +350,9 @@ func _resolve_switch(action: BattleAction) -> Array[Dictionary]:
 
 	var outgoing: BattleDigimonState = slot.digimon
 
-	# Reset volatiles on outgoing
+	# Reset volatiles and escalation counters on outgoing
 	if outgoing != null:
+		outgoing.reset_status_counters()
 		outgoing.reset_volatiles()
 		# Move outgoing to reserve (as its source state)
 		if outgoing.source_state != null:
@@ -359,6 +360,12 @@ func _resolve_switch(action: BattleAction) -> Array[Dictionary]:
 			outgoing.source_state.current_hp = outgoing.current_hp
 			outgoing.source_state.current_energy = outgoing.current_energy
 			outgoing.source_state.equipped_consumable_key = outgoing.equipped_consumable_key
+			# Write back status conditions for persistence through switch
+			outgoing.source_state.status_conditions.clear()
+			for status: Dictionary in outgoing.status_conditions:
+				outgoing.source_state.status_conditions.append(
+					status.duplicate(),
+				)
 			side.party.append(outgoing.source_state)
 		# Preserve for XP tracking
 		side.retired_battle_digimon.append(outgoing)
@@ -1233,6 +1240,26 @@ func _tick_status_conditions(digimon: BattleDigimonState) -> bool:
 					"%s is hurt by poison!" % _get_digimon_name(digimon)
 				)
 				damage_dealt.emit(digimon.side_index, digimon.slot_index, dot, &"poison")
+				if _check_faint_or_threshold(digimon, null):
+					return true
+			"badly_burned", "badly_poisoned":
+				var turn_idx: int = int(status.get("escalation_turn", 0))
+				var fractions: Array[float] = Registry.ESCALATION_FRACTIONS
+				var frac: float = fractions[mini(turn_idx, fractions.size() - 1)]
+				var dot: int = maxi(floori(float(digimon.max_hp) * frac), 1)
+				digimon.apply_damage(dot)
+				var label: String = "burn" if key_str == "badly_burned" \
+					else "poison"
+				battle_message.emit(
+					"%s is hurt by severe %s!" % [
+						_get_digimon_name(digimon), label,
+					]
+				)
+				damage_dealt.emit(
+					digimon.side_index, digimon.slot_index,
+					dot, StringName(label),
+				)
+				status["escalation_turn"] = turn_idx + 1
 				if _check_faint_or_threshold(digimon, null):
 					return true
 			"seeded":
