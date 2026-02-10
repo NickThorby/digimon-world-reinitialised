@@ -25,6 +25,7 @@ static func calculate_damage(
 	always_crit: bool = false,
 	never_crit: bool = false,
 	flags: Dictionary = {},
+	bonus_power: int = 0,
 ) -> DamageResult:
 	var result := DamageResult.new()
 	var balance: GameBalance = _get_balance()
@@ -46,7 +47,7 @@ static func calculate_damage(
 		return result
 
 	var level: float = float(user.source_state.level)
-	var power: float = float(technique.power)
+	var power: float = float(technique.power + bonus_power)
 
 	if power <= 0:
 		return result

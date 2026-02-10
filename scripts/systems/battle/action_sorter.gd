@@ -29,9 +29,25 @@ static func calculate_action_speed(action: BattleAction, battle: BattleState) ->
 			action.priority = Registry.Priority.NORMAL
 		BattleAction.ActionType.TECHNIQUE:
 			# Get technique priority from data
-			var tech: TechniqueData = Atlas.techniques.get(action.technique_key) as TechniqueData
+			var tech: TechniqueData = Atlas.techniques.get(
+				action.technique_key,
+			) as TechniqueData
 			if tech:
 				action.priority = tech.priority
+				# Check for priorityOverride brick
+				var user: BattleDigimonState = battle.get_digimon_at(
+					action.user_side, action.user_slot,
+				)
+				if user != null:
+					var target: BattleDigimonState = battle.get_digimon_at(
+						action.target_side, action.target_slot,
+					)
+					var override_priority: int = \
+						BrickExecutor.evaluate_priority_override(
+							user, target, tech, battle,
+						)
+					if override_priority >= 0:
+						action.priority = override_priority
 			else:
 				action.priority = Registry.Priority.NORMAL
 

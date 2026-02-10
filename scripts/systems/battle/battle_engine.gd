@@ -50,12 +50,17 @@ func execute_turn(actions: Array[BattleAction]) -> void:
 	_battle.turn_number += 1
 	turn_started.emit(_battle.turn_number)
 
-	# Reset per-turn ability trigger counters and increment turns on field
+	# Reset per-turn state for all active Digimon
 	for digimon: BattleDigimonState in _battle.get_active_digimon():
 		digimon.reset_turn_trigger_count()
 		digimon.volatiles["turns_on_field"] = int(
 			digimon.volatiles.get("turns_on_field", 0)
 		) + 1
+		# Clear previous turn's protection; reset streak if not used last turn
+		digimon.volatiles.erase("protection")
+		if not digimon.volatiles.get("used_protection_this_turn", false):
+			digimon.volatiles["consecutive_protection_uses"] = 0
+		digimon.volatiles.erase("used_protection_this_turn")
 
 	# Fire ON_TURN_START abilities and gear
 	_fire_ability_trigger(Registry.AbilityTrigger.ON_TURN_START)
@@ -153,6 +158,22 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 	if not _pre_execution_check(user, technique):
 		return []
 
+	# Check requirement bricks (fail the technique if condition met)
+	var req_check: Dictionary = BrickExecutor.check_requirements(
+		user, null, technique, _battle,
+	)
+	if req_check.get("failed", false):
+		var fail_msg: String = req_check.get("fail_message", "")
+		if fail_msg != "":
+			battle_message.emit(fail_msg)
+		else:
+			battle_message.emit(
+				"%s can't use %s!" % [
+					_get_digimon_name(user), technique.display_name,
+				],
+			)
+		return [{"requirement_failed": true}]
+
 	battle_message.emit("%s used %s!" % [_get_digimon_name(user), technique.display_name])
 	technique_animation_requested.emit(
 		action.user_side, action.user_slot, technique.technique_class,
@@ -216,6 +237,23 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 		user, targets[0] if targets.size() > 0 else null, technique, _battle,
 	)
 	var ignore_evasion: bool = technique_flags.get("ignore_evasion", false)
+	var bypass_protection: bool = technique_flags.get(
+		"bypass_protection", false,
+	)
+
+	# Pre-scan conditional bonuses for accuracy overrides
+	var cond_bonuses: Dictionary = BrickExecutor.evaluate_conditional_bonuses(
+		user, targets[0] if targets.size() > 0 else null, technique, _battle,
+	)
+	var bonus_accuracy: int = int(cond_bonuses.get("bonus_accuracy", 0))
+	var always_hits: bool = cond_bonuses.get("always_hits", false)
+
+	# Determine if technique is multi-target (for "wide" protection)
+	var is_multi_target: bool = technique.targeting in [
+		Registry.Targeting.ALL_FOES, Registry.Targeting.ALL,
+		Registry.Targeting.ALL_OTHER, Registry.Targeting.ALL_ALLIES,
+		Registry.Targeting.ALL_OTHER_ALLIES,
+	]
 
 	# Execute against each target
 	var all_results: Array[Dictionary] = []
@@ -223,10 +261,11 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 		if target.is_fainted:
 			continue
 
-		# Accuracy check (0 = always hits)
-		if technique.accuracy > 0:
+		# Accuracy check (0 or alwaysHits = always hits)
+		if technique.accuracy > 0 and not always_hits:
+			var acc_base: int = technique.accuracy + bonus_accuracy
 			var effective_accuracy: float = _calculate_accuracy(
-				technique.accuracy, user, target, ignore_evasion,
+				acc_base, user, target, ignore_evasion,
 			)
 			var hit_roll: float = _battle.rng.randf() * 100.0
 			if hit_roll > effective_accuracy:
@@ -236,6 +275,33 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 				# Execute crash recoil bricks on miss
 				_execute_crash_recoil(user, target, technique)
 				all_results.append({"missed": true})
+				continue
+
+		# Protection check
+		if not bypass_protection:
+			var prot_result: Dictionary = _check_protection(
+				target, user, technique, is_multi_target,
+			)
+			if prot_result.get("fully_blocked", false):
+				battle_message.emit(
+					"%s protected itself!" % _get_digimon_name(target),
+				)
+				# Counter damage to attacker on blocked contact moves
+				var counter_pct: float = float(
+					prot_result.get("counter_damage", 0),
+				)
+				if counter_pct > 0.0 and _is_contact_technique(technique):
+					var counter_dmg: int = maxi(
+						roundi(float(user.max_hp) * counter_pct), 1,
+					)
+					_apply_damage_and_emit(
+						user, counter_dmg, &"protection_counter",
+					)
+					battle_message.emit(
+						"%s took damage from the protection!" \
+							% _get_digimon_name(user),
+					)
+				all_results.append({"protected": true})
 				continue
 
 		# Fire ON_BEFORE_HIT abilities and gear for the target
@@ -350,6 +416,17 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 							},
 						)
 
+			# Protection activation
+			if brick_result.get("protected", false):
+				battle_message.emit(
+					"%s braced itself!" % _get_digimon_name(user),
+				)
+			if brick_result.get("protection_failed", false):
+				battle_message.emit(
+					"%s couldn't protect itself!" \
+						% _get_digimon_name(user),
+				)
+
 			# Field effect results
 			_emit_field_effect_signals(brick_result)
 
@@ -375,6 +452,39 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 					hp_restored.emit(
 						user.side_index, user.slot_index, drain_heal,
 					)
+
+			# Conditional nested results (stat changes from applyBricks)
+			var nested: Variant = brick_result.get("nested_results")
+			if nested is Array:
+				for nested_r: Variant in (nested as Array):
+					if not (nested_r is Dictionary):
+						continue
+					var nr: Dictionary = nested_r as Dictionary
+					var nsc: Variant = nr.get("stat_changes")
+					if nsc is Array:
+						for change: Dictionary in (nsc as Array):
+							var sc_target: BattleDigimonState = change.get(
+								"target",
+							) as BattleDigimonState
+							if sc_target == null:
+								sc_target = target
+							var sc_key: StringName = change.get(
+								"stat_key", &"",
+							) as StringName
+							var sc_actual: int = int(
+								change.get("actual", 0),
+							)
+							stat_changed.emit(
+								sc_target.side_index,
+								sc_target.slot_index,
+								sc_key, sc_actual,
+							)
+							_emit_stat_change_message(
+								_get_digimon_name(sc_target),
+								sc_key,
+								int(change.get("stages", 0)),
+								sc_actual,
+							)
 
 		all_results.append_array(brick_results)
 
@@ -1522,7 +1632,7 @@ func _execute_crash_recoil(
 	technique: TechniqueData,
 ) -> void:
 	for brick: Dictionary in technique.bricks:
-		if brick.get("type_id") != "recoil":
+		if brick.get("brick") != "recoil":
 			continue
 		if brick.get("type") != "crash":
 			continue
@@ -1533,6 +1643,48 @@ func _execute_crash_recoil(
 			"%s kept going and crashed!" % _get_digimon_name(user),
 		)
 		return  # Only one crash recoil brick per technique
+
+
+## Check if a target's protection blocks the incoming technique.
+## Returns {fully_blocked: bool, counter_damage: float}.
+func _check_protection(
+	target: BattleDigimonState,
+	_attacker: BattleDigimonState,
+	technique: TechniqueData,
+	is_multi_target: bool,
+) -> Dictionary:
+	var protection: Variant = target.volatiles.get("protection")
+	if protection == null or not (protection is Dictionary):
+		return {"fully_blocked": false}
+
+	var prot_type: String = (protection as Dictionary).get("type", "all")
+	var blocked: bool = false
+
+	match prot_type:
+		"all":
+			blocked = true
+		"wide":
+			blocked = is_multi_target
+		"priority":
+			blocked = technique.priority > Registry.Priority.NORMAL
+
+	if not blocked:
+		return {"fully_blocked": false}
+
+	return {
+		"fully_blocked": true,
+		"counter_damage": float(
+			(protection as Dictionary).get("counter_damage", 0),
+		),
+		"reflect_status": (protection as Dictionary).get(
+			"reflect_status", false,
+		),
+	}
+
+
+## Check if a technique makes physical contact (has CONTACT flag).
+func _is_contact_technique(technique: TechniqueData) -> bool:
+	return Registry.TechniqueFlag.CONTACT in technique.flags
 
 
 ## Unified damage application: apply damage, emit signal, check faint/threshold.

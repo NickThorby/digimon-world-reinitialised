@@ -580,6 +580,123 @@ static func _inject_techniques() -> void:
 			{"brick": "damage", "type": "standard"},
 		],
 	)
+	# --- Session 3: protection ---
+	# Protection: all (blocks everything)
+	Atlas.techniques[&"test_protect"] = _make_technique(
+		&"test_protect", "Test Protect",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SELF, Registry.Priority.VERY_HIGH,
+		[], [{"brick": "protection", "type": "all"}],
+	)
+	# Protection: wide (blocks multi-target only)
+	Atlas.techniques[&"test_wide_guard"] = _make_technique(
+		&"test_wide_guard", "Test Wide Guard",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SELF, Registry.Priority.VERY_HIGH,
+		[], [{"brick": "protection", "type": "wide"}],
+	)
+	# Protection: priority (blocks priority moves)
+	Atlas.techniques[&"test_priority_guard"] = _make_technique(
+		&"test_priority_guard", "Test Priority Guard",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SELF, Registry.Priority.VERY_HIGH,
+		[], [{"brick": "protection", "type": "priority"}],
+	)
+	# Protection with counter damage (10% max HP on contact)
+	Atlas.techniques[&"test_counter_protect"] = _make_technique(
+		&"test_counter_protect", "Test Counter Protect",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SELF, Registry.Priority.VERY_HIGH,
+		[], [{
+			"brick": "protection", "type": "all",
+			"counterDamage": 0.125,
+		}],
+	)
+	# --- Session 3: requirement ---
+	# Technique that fails if user HP is below 50%
+	Atlas.techniques[&"test_require_hp"] = _make_technique(
+		&"test_require_hp", "Test Require HP",
+		Registry.TechniqueClass.PHYSICAL, &"", 80, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{
+				"brick": "requirement",
+				"failCondition": "userHpBelow:50",
+				"failMessage": "Not enough HP to use this technique!",
+				"checkTiming": "beforeExecution",
+			},
+			{"brick": "damage", "type": "standard"},
+		],
+	)
+	# --- Session 3: conditional ---
+	# Conditional: +40 power if target HP is full
+	Atlas.techniques[&"test_conditional_power"] = _make_technique(
+		&"test_conditional_power", "Test Conditional Power",
+		Registry.TechniqueClass.PHYSICAL, &"", 60, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{
+				"brick": "conditional",
+				"condition": "targetAtFullHp",
+				"bonusPower": 40,
+			},
+			{"brick": "damage", "type": "standard"},
+		],
+	)
+	# Conditional: 2x damage if target is poisoned
+	Atlas.techniques[&"test_conditional_mult"] = _make_technique(
+		&"test_conditional_mult", "Test Conditional Multiplier",
+		Registry.TechniqueClass.PHYSICAL, &"", 60, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{
+				"brick": "conditional",
+				"condition": "targetHasStatus:poisoned",
+				"damageMultiplier": 2.0,
+			},
+			{"brick": "damage", "type": "standard"},
+		],
+	)
+	# Conditional with nested applyBricks: boost ATK +1 if target HP below 50%
+	Atlas.techniques[&"test_conditional_nested"] = _make_technique(
+		&"test_conditional_nested", "Test Conditional Nested",
+		Registry.TechniqueClass.PHYSICAL, &"", 60, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{
+				"brick": "conditional",
+				"condition": "targetHpBelow:50",
+				"applyBricks": [{
+					"brick": "statModifier", "modifierType": "stage",
+					"stats": ["atk"], "stages": 1, "target": "self",
+				}],
+			},
+			{"brick": "damage", "type": "standard"},
+		],
+	)
+	# --- Session 3: priorityOverride ---
+	# Normal priority, but gains HIGH priority if target HP < 50%
+	Atlas.techniques[&"test_priority_override"] = _make_technique(
+		&"test_priority_override", "Test Priority Override",
+		Registry.TechniqueClass.PHYSICAL, &"", 40, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{
+				"brick": "priorityOverride",
+				"condition": "targetHpBelow:50",
+				"newPriority": 1,
+			},
+			{"brick": "damage", "type": "standard"},
+		],
+	)
+	# Contact technique for counter protection tests
+	Atlas.techniques[&"test_contact_tackle"] = _make_technique(
+		&"test_contact_tackle", "Test Contact Tackle",
+		Registry.TechniqueClass.PHYSICAL, &"", 40, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[Registry.TechniqueFlag.CONTACT],
+		[{"brick": "damage", "type": "standard"}],
+	)
 
 
 static func _make_technique(

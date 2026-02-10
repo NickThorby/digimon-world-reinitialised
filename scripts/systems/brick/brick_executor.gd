@@ -48,11 +48,23 @@ static func execute_brick(
 			return _execute_side_effect(brick, user, target, battle)
 		"hazard":
 			return _execute_hazard(brick, user, target, battle)
+		"protection":
+			return _execute_protection(brick, user, target, battle)
+		"conditional":
+			return _execute_conditional(
+				brick, user, target, technique, battle, execution_context,
+			)
 		"damageModifier":
 			# Consumed by damage brick handler; standalone execution is a no-op
 			return {"handled": true, "skipped": true}
 		"criticalHit":
 			# Consumed at calc time; no runtime execution needed
+			return {"handled": true}
+		"requirement":
+			# Consumed by battle_engine pre-scan; no runtime execution needed
+			return {"handled": true}
+		"priorityOverride":
+			# Consumed by action_sorter pre-scan; no runtime execution needed
 			return {"handled": true}
 		_:
 			push_warning(
@@ -157,9 +169,17 @@ static func _execute_damage_standard(
 	var always_crit: bool = crit_info.get("always_crit", false)
 	var never_crit: bool = crit_info.get("never_crit", false)
 
+	# Apply conditional bonuses from execution_context
+	crit_bonus += int(execution_context.get("bonus_crit", 0))
+	if execution_context.get("always_crit", false):
+		always_crit = true
+
+	# Pass bonus power from conditionals directly to DamageCalculator
+	var bonus_power: int = int(execution_context.get("bonus_power", 0))
+
 	var damage_result: DamageResult = DamageCalculator.calculate_damage(
 		user, target, technique, battle, crit_bonus,
-		always_crit, never_crit, flags,
+		always_crit, never_crit, flags, bonus_power,
 	)
 
 	# Crit immunity: if target's side has crit_immunity, undo the crit
@@ -192,6 +212,14 @@ static func _execute_damage_standard(
 		var multiplier: float = float(modifier.get("multiplier", 1.0))
 		var flat_bonus: int = int(modifier.get("flatBonus", 0))
 		modified_damage = int(float(modified_damage) * multiplier) + flat_bonus
+
+	# Apply conditional damage multiplier
+	var cond_mult: float = float(
+		execution_context.get("damage_multiplier", 1.0),
+	)
+	if not is_equal_approx(cond_mult, 1.0):
+		modified_damage = roundi(float(modified_damage) * cond_mult)
+
 	modified_damage = maxi(modified_damage, 1)
 
 	var actual_damage: int = target.apply_damage(modified_damage)
@@ -1254,3 +1282,214 @@ static func _apply_status_overrides(
 			if target.has_status(&"exhausted"):
 				target.remove_status(&"exhausted")
 	return &""
+
+
+## --- Protection ---
+
+
+## Handle "protection" brick — set up protection for the current turn.
+## Stored in user's volatiles for battle_engine to check when attacked.
+static func _execute_protection(
+	brick: Dictionary,
+	user: BattleDigimonState,
+	_target: BattleDigimonState,
+	battle: BattleState,
+) -> Dictionary:
+	var protection_type: String = brick.get("type", "all")
+
+	# Fail chance escalation from consecutive uses
+	var consecutive: int = int(
+		user.volatiles.get("consecutive_protection_uses", 0),
+	)
+	if consecutive > 0:
+		var success_rate: float = pow(1.0 / 3.0, consecutive)
+		var rng: RandomNumberGenerator = battle.rng if battle else \
+			RandomNumberGenerator.new()
+		if rng.randf() >= success_rate:
+			user.volatiles["consecutive_protection_uses"] = 0
+			return {"handled": true, "protection_failed": true}
+
+	# Store protection info in volatiles
+	user.volatiles["protection"] = {
+		"type": protection_type,
+		"damage_reduction": float(brick.get("damageReduction", 0)),
+		"counter_damage": float(brick.get("counterDamage", 0)),
+		"reflect_status": brick.get("reflectStatus", false),
+	}
+	user.volatiles["consecutive_protection_uses"] = consecutive + 1
+	user.volatiles["used_protection_this_turn"] = true
+
+	return {
+		"handled": true,
+		"protected": true,
+		"protection_type": protection_type,
+	}
+
+
+## --- Conditional ---
+
+
+## Handle "conditional" brick — evaluate a condition and store bonuses in
+## execution_context for subsequent bricks. Execute applyBricks if present.
+static func _execute_conditional(
+	brick: Dictionary,
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	technique: TechniqueData,
+	battle: BattleState,
+	execution_context: Dictionary,
+) -> Dictionary:
+	var condition: String = brick.get("condition", "")
+	var context: Dictionary = {
+		"user": user, "target": target,
+		"technique": technique, "battle": battle,
+	}
+
+	if not BrickConditionEvaluator.evaluate(condition, context):
+		return {"handled": true, "condition_met": false}
+
+	# Store bonuses in execution_context for damage/crit handlers
+	if brick.has("bonusPower"):
+		execution_context["bonus_power"] = int(
+			execution_context.get("bonus_power", 0),
+		) + int(brick["bonusPower"])
+	if brick.has("damageMultiplier"):
+		execution_context["damage_multiplier"] = float(
+			execution_context.get("damage_multiplier", 1.0),
+		) * float(brick["damageMultiplier"])
+	if brick.has("bonusCrit"):
+		execution_context["bonus_crit"] = int(
+			execution_context.get("bonus_crit", 0),
+		) + int(brick["bonusCrit"])
+	if brick.get("alwaysCrit", false):
+		execution_context["always_crit"] = true
+	if brick.get("alwaysHits", false):
+		execution_context["always_hits"] = true
+
+	# Execute nested applyBricks
+	var nested_results: Array[Dictionary] = []
+	var apply_bricks: Variant = brick.get("applyBricks")
+	if apply_bricks is Array:
+		for nested_brick: Variant in (apply_bricks as Array):
+			if nested_brick is Dictionary:
+				var r: Dictionary = execute_brick(
+					nested_brick as Dictionary, user, target,
+					technique, battle, execution_context,
+				)
+				nested_results.append(r)
+
+	return {
+		"handled": true,
+		"condition_met": true,
+		"nested_results": nested_results,
+	}
+
+
+## --- Pre-scan helpers ---
+
+
+## Pre-scan technique bricks for requirement bricks. Returns a Dictionary
+## with {failed: bool, fail_message: String} if a requirement fails.
+static func check_requirements(
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	technique: TechniqueData,
+	battle: BattleState,
+) -> Dictionary:
+	if technique == null:
+		return {"failed": false}
+
+	var context: Dictionary = {
+		"user": user, "target": target,
+		"technique": technique, "battle": battle,
+	}
+
+	for brick: Dictionary in technique.bricks:
+		if brick.get("brick", "") != "requirement":
+			continue
+		var timing: String = brick.get("checkTiming", "beforeExecution")
+		if timing != "beforeExecution":
+			continue
+		var fail_condition: String = brick.get("failCondition", "")
+		if fail_condition == "" :
+			continue
+		if BrickConditionEvaluator.evaluate(fail_condition, context):
+			return {
+				"failed": true,
+				"fail_message": brick.get("failMessage", ""),
+			}
+
+	return {"failed": false}
+
+
+## Pre-scan technique bricks for conditional bonuses that affect accuracy.
+## Returns {bonus_accuracy: int, always_hits: bool} for pre-target-loop use.
+static func evaluate_conditional_bonuses(
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	technique: TechniqueData,
+	battle: BattleState,
+) -> Dictionary:
+	var bonuses: Dictionary = {
+		"bonus_accuracy": 0,
+		"always_hits": false,
+	}
+	if technique == null:
+		return bonuses
+
+	var context: Dictionary = {
+		"user": user, "target": target,
+		"technique": technique, "battle": battle,
+	}
+
+	for brick: Dictionary in technique.bricks:
+		if brick.get("brick", "") != "conditional":
+			continue
+		var condition: String = brick.get("condition", "")
+		if not BrickConditionEvaluator.evaluate(condition, context):
+			continue
+		if brick.has("bonusAccuracy"):
+			bonuses["bonus_accuracy"] = int(bonuses["bonus_accuracy"]) \
+				+ int(brick["bonusAccuracy"])
+		if brick.get("alwaysHits", false):
+			bonuses["always_hits"] = true
+
+	return bonuses
+
+
+## Pre-scan technique bricks for priorityOverride. Returns the overridden
+## priority (as Registry.Priority) or -1 if no override applies.
+static func evaluate_priority_override(
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	technique: TechniqueData,
+	battle: BattleState,
+) -> int:
+	if technique == null:
+		return -1
+
+	var context: Dictionary = {
+		"user": user, "target": target,
+		"technique": technique, "battle": battle,
+	}
+
+	for brick: Dictionary in technique.bricks:
+		if brick.get("brick", "") != "priorityOverride":
+			continue
+		var condition: String = brick.get("condition", "")
+		if not BrickConditionEvaluator.evaluate(condition, context):
+			continue
+		# Map dex priority value (-4 to 4) to Registry.Priority
+		var new_priority: int = int(brick.get("newPriority", 0))
+		return _map_dex_priority(new_priority)
+
+	return -1
+
+
+## Map a dex priority integer (-4..4) to a Registry.Priority enum value.
+static func _map_dex_priority(dex_priority: int) -> int:
+	# DEX values: -4=MINIMUM, -3=NEGATIVE, -2=VERY_LOW, -1=LOW,
+	# 0=NORMAL, 1=HIGH, 2=VERY_HIGH, 3=INSTANT, 4=MAXIMUM
+	var clamped: int = clampi(dex_priority, -4, 4)
+	# Registry.Priority enum: MINIMUM=0, NEGATIVE=1, ..., MAXIMUM=8
+	return clamped + 4  # offset so -4 → 0 (MINIMUM), 0 → 4 (NORMAL)
