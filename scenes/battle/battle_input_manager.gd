@@ -403,6 +403,7 @@ func _on_targeting_back() -> void:
 
 func _on_switch_chosen(party_index: int) -> void:
 	if _phase_ref.is_valid() and _phase_ref.call() == 3:  # SWITCHING
+		_switch_menu.visible = false
 		var out_dur: float = _display.anim_switch_out(
 			_current_input_side, _current_input_slot,
 		)
