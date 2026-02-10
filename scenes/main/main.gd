@@ -6,6 +6,7 @@ const SETTINGS_PATH := "res://ui/menus/settings_screen.tscn"
 
 
 func _ready() -> void:
+	MusicManager.play("res://assets/audio/music/07. Save Screen.mp3")
 	var builder_button: Button = get_node("CentreContainer/VBox/BuilderButton") as Button
 	if builder_button:
 		builder_button.pressed.connect(_on_builder_pressed)
