@@ -275,7 +275,7 @@ static func _check_has_trait(
 	var trait_name: String = parts[1].strip_edges().to_lower()
 	match category:
 		"element":
-			for elem: StringName in digimon.data.element_traits:
+			for elem: StringName in digimon.get_effective_element_traits():
 				if str(elem).to_lower() == trait_name:
 					return true
 		"movement":

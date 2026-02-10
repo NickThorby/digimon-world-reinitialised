@@ -165,6 +165,17 @@ static func _inject_digimon() -> void:
 	lightning_mon.type_trait = &"insect"
 	Atlas.digimon[&"test_lightning_mon"] = lightning_mon
 
+	var dual_mon: DigimonData = _make_digimon(
+		&"test_dual_mon", "Test Dual Mon", Registry.Attribute.DATA,
+		[&"fire", &"water"], 80, 50, 60, 60, 60, 60, 60,
+		{&"fire": 0.5, &"water": 0.5, &"ice": 1.5, &"earth": 1.5},
+		&"",
+	)
+	dual_mon.size_trait = &"medium"
+	dual_mon.movement_traits = [&"terrestrial"] as Array[StringName]
+	dual_mon.type_trait = &"dragon"
+	Atlas.digimon[&"test_dual_mon"] = dual_mon
+
 
 static func _make_digimon(
 	key: StringName,
@@ -213,6 +224,21 @@ static func _make_digimon(
 		{"key": &"test_expensive", "requirements": [{"type": "innate"}]},
 		{"key": &"test_heal_self", "requirements": [{"type": "innate"}]},
 		{"key": &"test_level_10_tech", "requirements": [{"type": "level", "level": 10}]},
+		{"key": &"test_change_element", "requirements": [{"type": "innate"}]},
+		{"key": &"test_match_weakness", "requirements": [{"type": "innate"}]},
+		{"key": &"test_add_element", "requirements": [{"type": "innate"}]},
+		{"key": &"test_remove_element", "requirements": [{"type": "innate"}]},
+		{"key": &"test_replace_elements", "requirements": [{"type": "innate"}]},
+		{"key": &"test_change_user_resist", "requirements": [{"type": "innate"}]},
+		{"key": &"test_change_target_resist", "requirements": [{"type": "innate"}]},
+		{"key": &"test_steal_item", "requirements": [{"type": "innate"}]},
+		{"key": &"test_remove_item", "requirements": [{"type": "innate"}]},
+		{"key": &"test_endure", "requirements": [{"type": "innate"}]},
+		{"key": &"test_decoy", "requirements": [{"type": "innate"}]},
+		{"key": &"test_intact_form_guard", "requirements": [{"type": "innate"}]},
+		{"key": &"test_negate_physical", "requirements": [{"type": "innate"}]},
+		{"key": &"test_synergy_followup", "requirements": [{"type": "innate"}]},
+		{"key": &"test_synergy_combo", "requirements": [{"type": "innate"}]},
 	]
 	return d
 
@@ -959,6 +985,165 @@ static func _inject_techniques() -> void:
 				"brick": "turnEconomy",
 				"delayedAttack": {"delay": 2, "targetsSlot": true},
 			},
+		],
+	)
+	# --- Session 6: elementModifier ---
+	# changeTechniqueElement: fire technique deals ice damage
+	Atlas.techniques[&"test_change_element"] = _make_technique(
+		&"test_change_element", "Test Change Element",
+		Registry.TechniqueClass.SPECIAL, &"fire", 80, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{
+				"brick": "elementModifier", "type": "changeTechniqueElement",
+				"element": "ice",
+			},
+			{"brick": "damage", "type": "standard"},
+		],
+	)
+	# matchTargetWeakness: finds target's weakness
+	Atlas.techniques[&"test_match_weakness"] = _make_technique(
+		&"test_match_weakness", "Test Match Weakness",
+		Registry.TechniqueClass.SPECIAL, &"", 80, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{"brick": "elementModifier", "type": "matchTargetWeakness"},
+			{"brick": "damage", "type": "standard"},
+		],
+	)
+	# addElement: add ice to self
+	Atlas.techniques[&"test_add_element"] = _make_technique(
+		&"test_add_element", "Test Add Element",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SELF, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "elementModifier", "type": "addElement",
+			"element": "ice", "target": "self",
+		}],
+	)
+	# removeElement: strip fire from target
+	Atlas.techniques[&"test_remove_element"] = _make_technique(
+		&"test_remove_element", "Test Remove Element",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "elementModifier", "type": "removeElement",
+			"element": "fire", "target": "target",
+		}],
+	)
+	# replaceElements: replace all with dark
+	Atlas.techniques[&"test_replace_elements"] = _make_technique(
+		&"test_replace_elements", "Test Replace Elements",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "elementModifier", "type": "replaceElements",
+			"element": "dark", "target": "target",
+		}],
+	)
+	# changeUserResistanceProfile: user immune to fire
+	Atlas.techniques[&"test_change_user_resist"] = _make_technique(
+		&"test_change_user_resist", "Test Change User Resist",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SELF, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "elementModifier",
+			"type": "changeUserResistanceProfile",
+			"element": "fire", "value": 0.0,
+		}],
+	)
+	# changeTargetResistanceProfile: target very weak to fire
+	Atlas.techniques[&"test_change_target_resist"] = _make_technique(
+		&"test_change_target_resist", "Test Change Target Resist",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "elementModifier",
+			"type": "changeTargetResistanceProfile",
+			"element": "fire", "value": 2.0,
+		}],
+	)
+	# --- Session 6: resource ---
+	# stealItem
+	Atlas.techniques[&"test_steal_item"] = _make_technique(
+		&"test_steal_item", "Test Steal Item",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{"brick": "resource", "stealItem": true}],
+	)
+	# removeItem
+	Atlas.techniques[&"test_remove_item"] = _make_technique(
+		&"test_remove_item", "Test Remove Item",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{"brick": "resource", "removeItem": true}],
+	)
+	# --- Session 6: shield ---
+	# endure: survive with 1 HP, once per battle
+	Atlas.techniques[&"test_endure"] = _make_technique(
+		&"test_endure", "Test Endure",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SELF, Registry.Priority.VERY_HIGH,
+		[], [{
+			"brick": "shield", "type": "endure",
+			"oncePerBattle": true, "breakOnHit": true,
+		}],
+	)
+	# hpDecoy: Substitute — 25% HP cost, absorbs damage, blocks status
+	Atlas.techniques[&"test_decoy"] = _make_technique(
+		&"test_decoy", "Test Decoy",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SELF, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "shield", "type": "hpDecoy",
+			"hpCost": 0.25, "blocksStatus": true,
+		}],
+	)
+	# intactFormGuard: Disguise — blocks first hit unconditionally
+	Atlas.techniques[&"test_intact_form_guard"] = _make_technique(
+		&"test_intact_form_guard", "Test Intact Form Guard",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SELF, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "shield", "type": "intactFormGuard",
+			"breakOnHit": true,
+		}],
+	)
+	# negateOneMoveClass: blocks one physical hit
+	Atlas.techniques[&"test_negate_physical"] = _make_technique(
+		&"test_negate_physical", "Test Negate Physical",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SELF, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "shield", "type": "negateOneMoveClass",
+			"moveClass": "physical",
+		}],
+	)
+	# --- Session 6: synergy ---
+	# followUp: bonus power when last technique was test_tackle
+	Atlas.techniques[&"test_synergy_followup"] = _make_technique(
+		&"test_synergy_followup", "Test Synergy Follow Up",
+		Registry.TechniqueClass.PHYSICAL, &"", 60, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{
+				"brick": "synergy", "synergyType": "followUp",
+				"partnerTechniques": ["test_tackle"], "bonusPower": 40,
+			},
+			{"brick": "damage", "type": "standard"},
+		],
+	)
+	# combo: bonus power when user or target last hit by test_fire_blast
+	Atlas.techniques[&"test_synergy_combo"] = _make_technique(
+		&"test_synergy_combo", "Test Synergy Combo",
+		Registry.TechniqueClass.PHYSICAL, &"", 60, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{
+				"brick": "synergy", "synergyType": "combo",
+				"partnerTechniques": ["test_fire_blast"], "bonusPower": 30,
+			},
+			{"brick": "damage", "type": "standard"},
 		],
 	)
 

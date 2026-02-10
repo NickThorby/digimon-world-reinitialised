@@ -53,6 +53,12 @@ var volatiles: Dictionary = {
 	"recharging": false,
 	"multi_turn_lock": {},
 	"charging": {},
+	"element_traits_added": [],
+	"element_traits_removed": [],
+	"element_traits_replaced": &"",
+	"resistance_overrides": {},
+	"shields": [],
+	"last_technique_hit_by": &"",
 }
 
 ## Counters that persist through switches within the same battle.
@@ -60,6 +66,7 @@ var counters: Dictionary = {
 	"allies_fainted": 0,
 	"foes_fainted": 0,
 	"times_hit": 0,
+	"shield_once_per_battle_used": [],
 }
 
 ## Technique keys.
@@ -278,6 +285,12 @@ func reset_volatiles() -> void:
 		"recharging": false,
 		"multi_turn_lock": {},
 		"charging": {},
+		"element_traits_added": [],
+		"element_traits_removed": [],
+		"element_traits_replaced": &"",
+		"resistance_overrides": {},
+		"shields": [],
+		"last_technique_hit_by": &"",
 	}
 	# Reset stat stages
 	for key: StringName in stat_stages:
@@ -331,6 +344,89 @@ func check_faint() -> bool:
 	if current_hp <= 0:
 		is_fainted = true
 	return is_fainted
+
+
+## Get effective element traits with volatile add/remove/replace applied.
+func get_effective_element_traits() -> Array[StringName]:
+	var replaced: StringName = volatiles.get(
+		"element_traits_replaced", &"",
+	) as StringName
+	if replaced != &"":
+		return [replaced] as Array[StringName]
+
+	var result: Array[StringName] = []
+	if data != null:
+		result = data.element_traits.duplicate()
+
+	var added: Variant = volatiles.get("element_traits_added", [])
+	if added is Array:
+		for elem: Variant in (added as Array):
+			var key: StringName = elem as StringName
+			if key not in result:
+				result.append(key)
+
+	var removed: Variant = volatiles.get("element_traits_removed", [])
+	if removed is Array:
+		for elem: Variant in (removed as Array):
+			result.erase(elem as StringName)
+
+	return result
+
+
+## Get effective resistance for an element, using override if present.
+func get_effective_resistance(element_key: StringName) -> float:
+	var overrides: Variant = volatiles.get("resistance_overrides", {})
+	if overrides is Dictionary and (overrides as Dictionary).has(element_key):
+		return float((overrides as Dictionary)[element_key])
+	if data != null:
+		return float(data.resistances.get(element_key, 1.0))
+	return 1.0
+
+
+## Get all elements the Digimon is weak to (effective resistance >= 1.5).
+func get_weaknesses() -> Array[StringName]:
+	var result: Array[StringName] = []
+	if data == null:
+		return result
+	# Check base resistances
+	for element_key: StringName in data.resistances:
+		if get_effective_resistance(element_key) >= 1.5:
+			result.append(element_key)
+	# Check overrides for any new weaknesses not in base
+	var overrides: Variant = volatiles.get("resistance_overrides", {})
+	if overrides is Dictionary:
+		for element_key: StringName in (overrides as Dictionary):
+			if element_key not in result \
+					and float((overrides as Dictionary)[element_key]) >= 1.5:
+				result.append(element_key)
+	return result
+
+
+## Add a shield entry to active shields.
+func add_shield(shield_data: Dictionary) -> void:
+	var shields: Variant = volatiles.get("shields", [])
+	if shields is Array:
+		(shields as Array).append(shield_data)
+	else:
+		volatiles["shields"] = [shield_data]
+
+
+## Check if a shield type has already been used (once-per-battle).
+func has_used_shield_once(shield_type: StringName) -> bool:
+	var used: Variant = counters.get("shield_once_per_battle_used", [])
+	if used is Array:
+		return shield_type in (used as Array)
+	return false
+
+
+## Record that a once-per-battle shield has been used.
+func record_shield_once_used(shield_type: StringName) -> void:
+	var used: Variant = counters.get("shield_once_per_battle_used", [])
+	if used is Array:
+		if shield_type not in (used as Array):
+			(used as Array).append(shield_type)
+	else:
+		counters["shield_once_per_battle_used"] = [shield_type]
 
 
 ## Write persistent changes back to the source DigimonState.

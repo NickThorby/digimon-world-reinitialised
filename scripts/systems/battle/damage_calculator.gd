@@ -26,6 +26,7 @@ static func calculate_damage(
 	never_crit: bool = false,
 	flags: Dictionary = {},
 	bonus_power: int = 0,
+	element_override: StringName = &"",
 ) -> DamageResult:
 	var result := DamageResult.new()
 	var balance: GameBalance = _get_balance()
@@ -108,9 +109,13 @@ static func calculate_damage(
 	)
 	result.attribute_multiplier = attr_mult
 
+	# Resolve effective element (override or technique default)
+	var effective_element: StringName = element_override \
+		if element_override != &"" else technique.element_key
+
 	# Element multiplier (target's resistance to technique element)
 	var elem_mult: float = calculate_element_multiplier(
-		technique.element_key, target,
+		effective_element, target,
 	)
 	# ignoreTypeImmunity: treat 0x resistance as 1x
 	if ignore_type_immunity and elem_mult <= 0.0:
@@ -118,7 +123,7 @@ static func calculate_damage(
 	result.element_multiplier = elem_mult
 
 	# STAB
-	var stab: float = calculate_stab(technique.element_key, user, balance)
+	var stab: float = calculate_stab(effective_element, user, balance)
 	result.stab_applied = stab > 1.0
 
 	# Critical hit
@@ -207,7 +212,7 @@ static func calculate_element_multiplier(
 ) -> float:
 	if element_key == &"" or target.data == null:
 		return 1.0
-	return float(target.data.resistances.get(element_key, 1.0))
+	return target.get_effective_resistance(element_key)
 
 
 ## Calculate STAB bonus.
@@ -218,7 +223,7 @@ static func calculate_stab(
 ) -> float:
 	if element_key == &"" or user.data == null:
 		return 1.0
-	if element_key in user.data.element_traits:
+	if element_key in user.get_effective_element_traits():
 		return balance.element_stab_multiplier if balance else 1.5
 	return 1.0
 

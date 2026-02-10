@@ -2346,7 +2346,7 @@ func _tick_weather_damage() -> void:
 		# Check element trait immunity
 		var is_immune: bool = false
 		if digimon.data != null:
-			for elem: StringName in digimon.data.element_traits:
+			for elem: StringName in digimon.get_effective_element_traits():
 				if elem in immune_elements:
 					is_immune = true
 					break
@@ -2379,7 +2379,7 @@ func _apply_entry_hazards(digimon: BattleDigimonState) -> void:
 		# Check for grounding field disabling aerial trait
 		var has_aerial: bool = false
 		if digimon.data != null:
-			has_aerial = &"aerial" in digimon.data.element_traits
+			has_aerial = &"aerial" in digimon.get_effective_element_traits()
 		if has_aerial and _battle.field.has_global_effect(&"grounding_field"):
 			has_aerial = false
 
@@ -2393,9 +2393,7 @@ func _apply_entry_hazards(digimon: BattleDigimonState) -> void:
 			# Element resistance scaling
 			var resistance: float = 1.0
 			if element != &"" and digimon.data != null:
-				resistance = float(
-					digimon.data.resistances.get(element, 1.0),
-				)
+				resistance = digimon.get_effective_resistance(element)
 
 			# Immune (0.0 resistance) = no damage
 			if resistance <= 0.0:

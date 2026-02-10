@@ -82,6 +82,18 @@ static func execute_brick(
 			return _execute_position_control(
 				brick, user, target, battle,
 			)
+		"elementModifier":
+			return _execute_element_modifier(
+				brick, user, target, technique, battle, execution_context,
+			)
+		"resource":
+			return _execute_resource(brick, user, target, battle)
+		"shield":
+			return _execute_shield(brick, user, battle)
+		"synergy":
+			return _execute_synergy(
+				brick, user, target, technique, battle, execution_context,
+			)
 		_:
 			push_warning(
 				"BrickExecutor: Unimplemented brick type '%s'" % brick_type,
@@ -193,9 +205,14 @@ static func _execute_damage_standard(
 	# Pass bonus power from conditionals directly to DamageCalculator
 	var bonus_power: int = int(execution_context.get("bonus_power", 0))
 
+	# Element override from elementModifier brick
+	var element_override: StringName = execution_context.get(
+		"element_override", &"",
+	) as StringName
+
 	var damage_result: DamageResult = DamageCalculator.calculate_damage(
 		user, target, technique, battle, crit_bonus,
-		always_crit, never_crit, flags, bonus_power,
+		always_crit, never_crit, flags, bonus_power, element_override,
 	)
 
 	# Crit immunity: if target's side has crit_immunity, undo the crit
@@ -238,7 +255,10 @@ static func _execute_damage_standard(
 
 	modified_damage = maxi(modified_damage, 1)
 
-	var actual_damage: int = target.apply_damage(modified_damage)
+	var shield_result: Dictionary = _apply_shielded_damage(
+		target, modified_damage, technique,
+	)
+	var actual_damage: int = int(shield_result.get("actual_damage", 0))
 	target.counters["times_hit"] = int(
 		target.counters.get("times_hit", 0),
 	) + 1
@@ -246,13 +266,19 @@ static func _execute_damage_standard(
 	# Track last hit for returnDamage brick
 	_track_last_hit(target, actual_damage, technique)
 
-	return {
+	var result: Dictionary = {
 		"handled": true,
 		"damage": actual_damage,
 		"was_critical": damage_result.was_critical,
 		"effectiveness": effectiveness,
 		"raw_damage": damage_result.raw_damage,
 	}
+	if shield_result.get("shielded", false):
+		result["shielded"] = true
+		result["shield_type"] = shield_result.get("shield_type", "")
+	if shield_result.get("endured", false):
+		result["endured"] = true
+	return result
 
 
 ## Fixed damage: flat amount, ignores stats and type.
@@ -324,7 +350,7 @@ static func _execute_damage_scaling(
 	target: BattleDigimonState,
 	technique: TechniqueData,
 	battle: BattleState,
-	_execution_context: Dictionary,
+	execution_context: Dictionary,
 ) -> Dictionary:
 	var stat_abbr: String = brick.get("stat", "atk")
 	var power: int = int(brick.get("power", technique.power if technique else 0))
@@ -349,11 +375,19 @@ static func _execute_damage_scaling(
 	)
 	var base_damage: float = 7.0 + (level / 200.0) * float(power) * (atk / def)
 
+	# Element override from elementModifier brick
+	var element_override: StringName = execution_context.get(
+		"element_override", &"",
+	) as StringName
+	var effective_element: StringName = element_override \
+		if element_override != &"" \
+		else (technique.element_key if technique != null else &"")
+
 	# Element multiplier
 	var elem_mult: float = 1.0
-	if technique != null:
+	if effective_element != &"":
 		elem_mult = DamageCalculator.calculate_element_multiplier(
-			technique.element_key, target,
+			effective_element, target,
 		)
 
 	var balance: GameBalance = _get_balance()
@@ -362,7 +396,10 @@ static func _execute_damage_scaling(
 	var variance: float = DamageCalculator.roll_variance(rng, balance)
 
 	var final_dmg: int = maxi(roundi(base_damage * elem_mult * variance), 1)
-	var actual: int = target.apply_damage(final_dmg)
+	var shield_result: Dictionary = _apply_shielded_damage(
+		target, final_dmg, technique,
+	)
+	var actual: int = int(shield_result.get("actual_damage", 0))
 	target.counters["times_hit"] = int(
 		target.counters.get("times_hit", 0),
 	) + 1
@@ -377,13 +414,19 @@ static func _execute_damage_scaling(
 	elif elem_mult < 0.75:
 		effectiveness = &"not_very_effective"
 
-	return {
+	var result: Dictionary = {
 		"handled": true,
 		"damage": actual,
 		"was_critical": false,
 		"effectiveness": effectiveness,
 		"raw_damage": final_dmg,
 	}
+	if shield_result.get("shielded", false):
+		result["shielded"] = true
+		result["shield_type"] = shield_result.get("shield_type", "")
+	if shield_result.get("endured", false):
+		result["endured"] = true
+	return result
 
 
 ## Level damage: damage equals user's level.
@@ -452,7 +495,7 @@ static func _execute_damage_counter_scaling(
 	target: BattleDigimonState,
 	technique: TechniqueData,
 	battle: BattleState,
-	_execution_context: Dictionary,
+	execution_context: Dictionary,
 ) -> Dictionary:
 	var base_power: int = int(brick.get("basePower", 0))
 	var counter_name: String = brick.get("scalesWithCounter", "")
@@ -485,10 +528,18 @@ static func _execute_damage_counter_scaling(
 	var base_damage: float = 7.0 + (level / 200.0) \
 		* float(effective_power) * (atk / def_val)
 
+	# Element override from elementModifier brick
+	var element_override: StringName = execution_context.get(
+		"element_override", &"",
+	) as StringName
+	var effective_element: StringName = element_override \
+		if element_override != &"" \
+		else (technique.element_key if technique != null else &"")
+
 	var elem_mult: float = 1.0
-	if technique != null:
+	if effective_element != &"":
 		elem_mult = DamageCalculator.calculate_element_multiplier(
-			technique.element_key, target,
+			effective_element, target,
 		)
 
 	var balance: GameBalance = _get_balance()
@@ -497,7 +548,10 @@ static func _execute_damage_counter_scaling(
 	var variance: float = DamageCalculator.roll_variance(rng, balance)
 
 	var final_dmg: int = maxi(roundi(base_damage * elem_mult * variance), 1)
-	var actual: int = target.apply_damage(final_dmg)
+	var shield_result: Dictionary = _apply_shielded_damage(
+		target, final_dmg, technique,
+	)
+	var actual: int = int(shield_result.get("actual_damage", 0))
 	target.counters["times_hit"] = int(
 		target.counters.get("times_hit", 0),
 	) + 1
@@ -512,13 +566,19 @@ static func _execute_damage_counter_scaling(
 	elif elem_mult < 0.75:
 		effectiveness = &"not_very_effective"
 
-	return {
+	var result: Dictionary = {
 		"handled": true,
 		"damage": actual,
 		"was_critical": false,
 		"effectiveness": effectiveness,
 		"raw_damage": final_dmg,
 	}
+	if shield_result.get("shielded", false):
+		result["shielded"] = true
+		result["shield_type"] = shield_result.get("shield_type", "")
+	if shield_result.get("endured", false):
+		result["endured"] = true
+	return result
 
 
 ## Track last hit amounts in target's volatiles for returnDamage brick.
@@ -533,6 +593,7 @@ static func _track_last_hit(
 			target.volatiles["last_physical_hit"] = amount
 		elif technique.technique_class == Registry.TechniqueClass.SPECIAL:
 			target.volatiles["last_special_hit"] = amount
+		target.volatiles["last_technique_hit_by"] = technique.key
 
 
 ## Resolve a BattleCounter name to its current value.
@@ -606,12 +667,25 @@ static func _execute_status_effect(
 			):
 		return {"handled": true, "blocked": true, "reason": "side_immunity"}
 
+	# Shield blocks_status check: if target has any shield with blocks_status
+	var target_shields: Variant = actual_target.volatiles.get("shields", [])
+	if target_shields is Array:
+		for shield_entry: Variant in (target_shields as Array):
+			if shield_entry is Dictionary \
+					and (shield_entry as Dictionary).get(
+						"blocks_status", false,
+					):
+				return {
+					"handled": true, "blocked": true,
+					"reason": "shield_blocks_status",
+				}
+
 	# Element-trait immunity check
 	var immune_element: StringName = Registry.STATUS_ELEMENT_IMMUNITIES.get(
 		status_key, &"",
 	)
 	if immune_element != &"" and actual_target.data != null:
-		if immune_element in actual_target.data.element_traits:
+		if immune_element in actual_target.get_effective_element_traits():
 			return {"handled": true, "blocked": true, "reason": "element_immunity"}
 
 	# Status override rules (may fully handle the status, e.g. frostbitten upgrade)
@@ -1997,3 +2071,470 @@ static func _position_swap(
 		"slot_a": slot_a,
 		"slot_b": slot_b,
 	}
+
+
+## --- Element Modifier ---
+
+
+## Handle "elementModifier" brick — modify element traits, technique element,
+## or resistance profiles.
+static func _execute_element_modifier(
+	brick: Dictionary,
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	_technique: TechniqueData,
+	_battle: BattleState,
+	execution_context: Dictionary,
+) -> Dictionary:
+	var subtype: String = brick.get("type", "")
+	var element: StringName = StringName(brick.get("element", ""))
+
+	# Resolve actual target for trait operations
+	var brick_target: String = brick.get("target", "target")
+	var actual_target: BattleDigimonState = target
+	if brick_target == "self":
+		actual_target = user
+
+	match subtype:
+		"addElement":
+			var added: Variant = actual_target.volatiles.get(
+				"element_traits_added", [],
+			)
+			if added is Array and element not in (added as Array):
+				(added as Array).append(element)
+			return {"handled": true, "element_added": str(element)}
+
+		"removeElement":
+			var removed: Variant = actual_target.volatiles.get(
+				"element_traits_removed", [],
+			)
+			if removed is Array and element not in (removed as Array):
+				(removed as Array).append(element)
+			return {"handled": true, "element_removed": str(element)}
+
+		"replaceElements":
+			actual_target.volatiles["element_traits_replaced"] = element
+			return {"handled": true, "elements_replaced": str(element)}
+
+		"changeTechniqueElement":
+			execution_context["element_override"] = element
+			return {
+				"handled": true,
+				"technique_element_changed": str(element),
+			}
+
+		"matchTargetWeakness":
+			var weaknesses: Array[StringName] = target.get_weaknesses()
+			if weaknesses.is_empty():
+				return {"handled": true, "no_weakness_found": true}
+			execution_context["element_override"] = weaknesses[0]
+			return {
+				"handled": true,
+				"matched_weakness": str(weaknesses[0]),
+			}
+
+		"changeUserResistanceProfile":
+			var value: float = float(brick.get("value", 1.0))
+			user.volatiles["resistance_overrides"][element] = value
+			return {
+				"handled": true,
+				"user_resistance_changed": str(element),
+				"new_value": value,
+			}
+
+		"changeTargetResistanceProfile":
+			var value: float = float(brick.get("value", 1.0))
+			actual_target.volatiles["resistance_overrides"][element] = \
+				value
+			return {
+				"handled": true,
+				"target_resistance_changed": str(element),
+				"new_value": value,
+			}
+
+		_:
+			push_warning(
+				"BrickExecutor: Unknown elementModifier type '%s'" \
+					% subtype,
+			)
+			return {"handled": false, "subtype": subtype}
+
+
+## --- Resource ---
+
+
+## Handle "resource" brick — gear manipulation.
+static func _execute_resource(
+	brick: Dictionary,
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	_battle: BattleState,
+) -> Dictionary:
+	if brick.get("consumeItem", false):
+		# Consume target's gear or consumable
+		if target.equipped_gear_key != &"":
+			var consumed: StringName = target.equipped_gear_key
+			target.equipped_gear_key = &""
+			return {
+				"handled": true, "consumed": str(consumed),
+				"resource_action": "consumeItem",
+			}
+		elif target.equipped_consumable_key != &"":
+			var consumed: StringName = target.equipped_consumable_key
+			target.equipped_consumable_key = &""
+			return {
+				"handled": true, "consumed": str(consumed),
+				"resource_action": "consumeItem",
+			}
+		return {
+			"handled": true, "resource_failed": true,
+			"reason": "target_has_no_item",
+		}
+
+	if brick.get("stealItem", false):
+		# Steal target's gear to user
+		if target.equipped_gear_key == &"":
+			return {
+				"handled": true, "resource_failed": true,
+				"reason": "target_has_no_item",
+			}
+		if user.equipped_gear_key != &"":
+			return {
+				"handled": true, "resource_failed": true,
+				"reason": "user_already_has_gear",
+			}
+		var stolen: StringName = target.equipped_gear_key
+		user.equipped_gear_key = stolen
+		target.equipped_gear_key = &""
+		return {
+			"handled": true, "stolen": str(stolen),
+			"resource_action": "stealItem",
+		}
+
+	if brick.get("swapItems", false):
+		var user_gear: StringName = user.equipped_gear_key
+		var target_gear: StringName = target.equipped_gear_key
+		user.equipped_gear_key = target_gear
+		target.equipped_gear_key = user_gear
+		return {
+			"handled": true, "resource_action": "swapItems",
+			"user_got": str(target_gear),
+			"target_got": str(user_gear),
+		}
+
+	if brick.get("removeItem", false):
+		if target.equipped_gear_key != &"":
+			var removed: StringName = target.equipped_gear_key
+			target.equipped_gear_key = &""
+			return {
+				"handled": true, "removed": str(removed),
+				"resource_action": "removeItem",
+			}
+		return {
+			"handled": true, "resource_failed": true,
+			"reason": "target_has_no_item",
+		}
+
+	var give_key: Variant = brick.get("giveItem")
+	if give_key is String and str(give_key) != "":
+		var item_key: StringName = StringName(str(give_key))
+		var gear: Variant = Atlas.items.get(item_key)
+		if gear is GearData:
+			var gear_data: GearData = gear as GearData
+			if gear_data.gear_slot == Registry.GearSlot.CONSUMABLE:
+				if target.equipped_consumable_key != &"":
+					return {
+						"handled": true, "resource_failed": true,
+						"reason": "target_consumable_slot_occupied",
+					}
+				target.equipped_consumable_key = item_key
+			else:
+				if target.equipped_gear_key != &"":
+					return {
+						"handled": true, "resource_failed": true,
+						"reason": "target_gear_slot_occupied",
+					}
+				target.equipped_gear_key = item_key
+			return {
+				"handled": true, "given": str(item_key),
+				"resource_action": "giveItem",
+			}
+		return {
+			"handled": true, "resource_failed": true,
+			"reason": "invalid_item_key",
+		}
+
+	return {"handled": false, "reason": "no_resource_action"}
+
+
+## --- Shield ---
+
+
+## Handle "shield" brick — set up protective shields on the user.
+static func _execute_shield(
+	brick: Dictionary,
+	user: BattleDigimonState,
+	_battle: BattleState,
+) -> Dictionary:
+	var shield_type: String = brick.get("type", "")
+	var once_per_battle: bool = brick.get("oncePerBattle", false)
+
+	# Once-per-battle check
+	if once_per_battle:
+		if user.has_used_shield_once(StringName(shield_type)):
+			return {
+				"handled": true, "shield_failed": true,
+				"reason": "once_per_battle_used",
+			}
+
+	# HP cost deduction
+	var hp_cost: float = float(brick.get("hpCost", 0))
+	if hp_cost > 0.0:
+		var cost: int = roundi(float(user.max_hp) * hp_cost)
+		if cost >= user.current_hp:
+			return {
+				"handled": true, "shield_failed": true,
+				"reason": "not_enough_hp",
+			}
+		user.apply_damage(cost)
+
+	# Build shield entry
+	var shield_entry: Dictionary = {"type": shield_type}
+
+	match shield_type:
+		"hpDecoy":
+			var decoy_hp: int = roundi(
+				float(user.max_hp) * float(brick.get("hpCost", 0.25)),
+			)
+			shield_entry["decoy_hp"] = decoy_hp
+		"intactFormGuard":
+			if brick.has("hpThreshold"):
+				shield_entry["hp_threshold"] = float(
+					brick["hpThreshold"],
+				)
+		"negateOneMoveClass":
+			shield_entry["move_class"] = brick.get(
+				"moveClass", "physical",
+			)
+		"lastStand":
+			shield_entry["hp_threshold"] = float(
+				brick.get("hpThreshold", 0.25),
+			)
+
+	shield_entry["break_on_hit"] = brick.get("breakOnHit", false)
+	shield_entry["once_per_battle"] = once_per_battle
+	if brick.get("blocksStatus", false):
+		shield_entry["blocks_status"] = true
+
+	user.add_shield(shield_entry)
+
+	# Record once-per-battle usage
+	if once_per_battle:
+		user.record_shield_once_used(StringName(shield_type))
+
+	return {
+		"handled": true, "shield_applied": true,
+		"shield_type": shield_type,
+	}
+
+
+## --- Synergy ---
+
+
+## Handle "synergy" brick — check partner technique conditions and apply
+## bonus power for combos/follow-ups.
+static func _execute_synergy(
+	brick: Dictionary,
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	_technique: TechniqueData,
+	_battle: BattleState,
+	execution_context: Dictionary,
+) -> Dictionary:
+	var synergy_type: String = brick.get("synergyType", "")
+	var partner_techniques: Variant = brick.get("partnerTechniques", [])
+	var bonus_power: int = int(brick.get("bonusPower", 0))
+
+	if partner_techniques is not Array:
+		return {"handled": false, "reason": "invalid_partner_techniques"}
+
+	var partners: Array = partner_techniques as Array
+	var synergy_met: bool = false
+
+	match synergy_type:
+		"followUp":
+			var last_key: StringName = user.volatiles.get(
+				"last_technique_key", &"",
+			) as StringName
+			if str(last_key) in partners:
+				synergy_met = true
+
+		"combo":
+			# Check user's last technique
+			var user_last: StringName = user.volatiles.get(
+				"last_technique_key", &"",
+			) as StringName
+			if str(user_last) in partners:
+				synergy_met = true
+			# Also check target's last technique hit by
+			if not synergy_met and target != null:
+				var target_hit: StringName = target.volatiles.get(
+					"last_technique_hit_by", &"",
+				) as StringName
+				if str(target_hit) in partners:
+					synergy_met = true
+
+		_:
+			push_warning(
+				"BrickExecutor: Unknown synergy type '%s'" % synergy_type,
+			)
+			return {"handled": false, "synergy_type": synergy_type}
+
+	if synergy_met and bonus_power > 0:
+		execution_context["bonus_power"] = int(
+			execution_context.get("bonus_power", 0),
+		) + bonus_power
+
+	return {
+		"handled": true,
+		"synergy_met": synergy_met,
+		"synergy_type": synergy_type,
+	}
+
+
+## --- Shielded Damage ---
+
+
+## Apply damage through shield checks. Returns a dictionary with:
+## actual_damage, shielded, shield_type, endured.
+static func _apply_shielded_damage(
+	target: BattleDigimonState,
+	damage: int,
+	technique: TechniqueData,
+) -> Dictionary:
+	var remaining: int = damage
+	var result: Dictionary = {
+		"actual_damage": 0, "shielded": false,
+		"shield_type": "", "endured": false,
+	}
+
+	var shields: Variant = target.volatiles.get("shields", [])
+	if shields is not Array:
+		result["actual_damage"] = target.apply_damage(remaining)
+		return result
+
+	var shields_arr: Array = shields as Array
+	var shields_to_remove: Array[int] = []
+
+	for i: int in range(shields_arr.size()):
+		var shield: Variant = shields_arr[i]
+		if shield is not Dictionary:
+			continue
+		var s: Dictionary = shield as Dictionary
+		var stype: String = s.get("type", "")
+
+		match stype:
+			"hpDecoy":
+				# Absorb damage from decoy HP
+				var decoy_hp: int = int(s.get("decoy_hp", 0))
+				if decoy_hp > 0:
+					if remaining <= decoy_hp:
+						s["decoy_hp"] = decoy_hp - remaining
+						result["actual_damage"] = 0
+						result["shielded"] = true
+						result["shield_type"] = "hpDecoy"
+						return result
+					else:
+						remaining -= decoy_hp
+						s["decoy_hp"] = 0
+						shields_to_remove.append(i)
+						result["shielded"] = true
+						result["shield_type"] = "hpDecoy"
+
+			"intactFormGuard":
+				# Only blocks technique hits (not hazard etc.)
+				if technique != null:
+					var threshold: float = float(
+						s.get("hp_threshold", -1.0),
+					)
+					var triggers: bool = false
+					if threshold < 0.0:
+						# No threshold — always triggers (Disguise)
+						triggers = true
+					else:
+						var hp_pct: float = float(target.current_hp) \
+							/ float(maxi(target.max_hp, 1))
+						triggers = hp_pct >= threshold
+					if triggers:
+						if s.get("break_on_hit", false):
+							shields_to_remove.append(i)
+						result["actual_damage"] = 0
+						result["shielded"] = true
+						result["shield_type"] = "intactFormGuard"
+						_remove_shields(shields_arr, shields_to_remove)
+						return result
+
+			"negateOneMoveClass":
+				if technique != null:
+					var move_class: String = s.get(
+						"move_class", "physical",
+					)
+					var matches: bool = false
+					if move_class == "physical" and technique.technique_class \
+							== Registry.TechniqueClass.PHYSICAL:
+						matches = true
+					elif move_class == "special" \
+							and technique.technique_class \
+							== Registry.TechniqueClass.SPECIAL:
+						matches = true
+					if matches:
+						shields_to_remove.append(i)
+						result["actual_damage"] = 0
+						result["shielded"] = true
+						result["shield_type"] = "negateOneMoveClass"
+						_remove_shields(shields_arr, shields_to_remove)
+						return result
+
+			"lastStand":
+				var threshold: float = float(
+					s.get("hp_threshold", 0.25),
+				)
+				var hp_pct: float = float(target.current_hp) \
+					/ float(maxi(target.max_hp, 1))
+				if hp_pct <= threshold:
+					remaining = maxi(roundi(float(remaining) * 0.5), 1)
+
+			"endure":
+				# Handled after damage application below
+				pass
+
+	_remove_shields(shields_arr, shields_to_remove)
+
+	# Check endure: if damage would faint, survive with 1 HP
+	if remaining >= target.current_hp:
+		for i: int in range(shields_arr.size()):
+			var shield: Variant = shields_arr[i]
+			if shield is not Dictionary:
+				continue
+			var s: Dictionary = shield as Dictionary
+			if s.get("type", "") == "endure":
+				remaining = target.current_hp - 1
+				if remaining < 0:
+					remaining = 0
+				result["endured"] = true
+				if s.get("break_on_hit", false):
+					shields_arr.erase(s)
+				break
+
+	result["actual_damage"] = target.apply_damage(remaining)
+	return result
+
+
+## Remove shields by index (in reverse order to preserve indices).
+static func _remove_shields(
+	shields: Array, indices: Array[int],
+) -> void:
+	indices.sort()
+	for i: int in range(indices.size() - 1, -1, -1):
+		if indices[i] < shields.size():
+			shields.remove_at(indices[i])

@@ -74,7 +74,7 @@
 
 ### ShieldType
 
-`hpDecoy`, `intactFormGuard`, `endure`, `fullHpGuard`, `lastStand`, `negateOnePhysical`
+`hpDecoy`, `intactFormGuard`, `endure`, `lastStand`, `negateOneMoveClass`
 
 ---
 
@@ -387,11 +387,13 @@
 | Key | Type | Required | Description |
 |---|---|---|---|
 | `brick` | `"shield"` | Yes | Discriminator |
-| `type` | `String` | Yes | `hpDecoy`, `intactFormGuard`, `endure`, `fullHpGuard`, `lastStand`, `negateOnePhysical` |
+| `type` | `String` | Yes | `hpDecoy`, `intactFormGuard`, `endure`, `lastStand`, `negateOneMoveClass` |
 | `hpCost` | `float` | No | HP cost as % of max |
-| `hpThreshold` | `float` | No | HP must be above this % |
+| `hpThreshold` | `float` | No | HP threshold — optional for `intactFormGuard` (omit = always triggers like Disguise), required for `lastStand` |
+| `moveClass` | `String` | No | `physical` or `special` — required for `negateOneMoveClass` |
 | `breakOnHit` | `bool` | No | Breaks after one hit |
 | `oncePerBattle` | `bool` | No | Only activates once |
+| `blocksStatus` | `bool` | No | While this shield exists, status effects targeting this Digimon are blocked |
 
 ### 26. `copyTechnique`
 
@@ -508,9 +510,8 @@ The importer converts camelCase identifiers to snake_case:
 | `firstTurnProtection` | `first_turn_protection` |
 | `hpDecoy` | `hp_decoy` |
 | `intactFormGuard` | `intact_form_guard` |
-| `fullHpGuard` | `full_hp_guard` |
 | `lastStand` | `last_stand` |
-| `negateOnePhysical` | `negate_one_physical` |
+| `negateOneMoveClass` | `negate_one_move_class` |
 
 ---
 
