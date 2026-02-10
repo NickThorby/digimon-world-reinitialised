@@ -4,6 +4,15 @@ extends RefCounted
 ## Extensible: add new brick types as match arms + handler methods.
 
 
+static var _balance: GameBalance = null
+
+
+static func _get_balance() -> GameBalance:
+	if _balance == null:
+		_balance = load("res://data/config/game_balance.tres") as GameBalance
+	return _balance
+
+
 ## Execute a single brick. Returns a result dictionary (brick-type-specific).
 static func execute_brick(
 	brick: Dictionary,
@@ -22,6 +31,12 @@ static func execute_brick(
 			return _execute_stat_modifier(brick, user, target, battle)
 		"healing":
 			return _execute_healing(brick, user, target, battle)
+		"fieldEffect":
+			return _execute_field_effect(brick, user, target, battle)
+		"sideEffect":
+			return _execute_side_effect(brick, user, target, battle)
+		"hazard":
+			return _execute_hazard(brick, user, target, battle)
 		"damageModifier":
 			# Consumed by damage brick handler; standalone execution is a no-op
 			return {"handled": true, "skipped": true}
@@ -68,8 +83,23 @@ static func _execute_damage(
 
 	var crit_bonus: int = _extract_crit_bonus(technique)
 	var damage_result: DamageResult = DamageCalculator.calculate_damage(
-		user, target, technique, battle.rng, crit_bonus,
+		user, target, technique, battle, crit_bonus,
 	)
+
+	# Crit immunity: if target's side has crit_immunity, undo the crit
+	if damage_result.was_critical and battle != null \
+			and target.side_index < battle.sides.size() \
+			and battle.sides[target.side_index].has_side_effect(
+				&"crit_immunity",
+			):
+		var balance: GameBalance = _get_balance()
+		var crit_mult: float = balance.crit_damage_multiplier \
+			if balance else 1.5
+		damage_result.final_damage = maxi(
+			roundi(float(damage_result.final_damage) / crit_mult), 1,
+		)
+		damage_result.raw_damage = damage_result.final_damage
+		damage_result.was_critical = false
 
 	# Pre-compute effectiveness for condition context
 	var effectiveness: StringName = damage_result.effectiveness
@@ -134,6 +164,13 @@ static func _execute_status_effect(
 	if battle.rng.randf() > chance:
 		return {"handled": true, "action": "apply", "missed": true, "status": status_key}
 
+	# Status immunity check
+	if battle != null and actual_target.side_index < battle.sides.size() \
+			and battle.sides[actual_target.side_index].has_side_effect(
+				&"status_immunity",
+			):
+		return {"handled": true, "blocked": true}
+
 	# Status override rules (may fully handle the status, e.g. frostbitten upgrade)
 	var override_status: StringName = _apply_status_overrides(actual_target, status_key)
 	if override_status != &"":
@@ -193,6 +230,15 @@ static func _execute_stat_modifier(
 		actual_target = user
 
 	var stages: int = int(brick.get("stages", 0))
+
+	# Stat drop immunity check
+	if stages < 0 and battle != null \
+			and actual_target.side_index < battle.sides.size() \
+			and battle.sides[actual_target.side_index].has_side_effect(
+				&"stat_drop_immunity",
+			):
+		return {"handled": true, "blocked": true}
+
 	var raw_stats: Variant = brick.get("stats", [])
 
 	# Normalise stats to array
@@ -342,6 +388,22 @@ static func _collect_damage_modifiers(
 			target.equipped_consumable_key, def_context, modifiers,
 		)
 
+	# 5. Weather modifiers
+	if battle != null and technique != null:
+		var weather_mod: Dictionary = _get_weather_modifier(
+			battle, technique,
+		)
+		if not weather_mod.is_empty():
+			modifiers.append(weather_mod)
+
+	# 6. Barrier modifiers (side effects)
+	if battle != null and target != null and technique != null:
+		var barrier_mod: Dictionary = _get_barrier_modifier(
+			battle, target, technique,
+		)
+		if not barrier_mod.is_empty():
+			modifiers.append(barrier_mod)
+
 	return modifiers
 
 
@@ -366,6 +428,53 @@ static func _collect_gear_damage_modifiers(
 				modifiers.append(gear_brick)
 
 
+## Get weather damage modifier for the technique's element.
+static func _get_weather_modifier(
+	battle: BattleState, technique: TechniqueData,
+) -> Dictionary:
+	if not battle.field.has_weather():
+		return {}
+	var balance: GameBalance = _get_balance()
+	var weather_key: StringName = battle.field.weather.get(
+		"key", &"",
+	) as StringName
+	var element: StringName = technique.element_key
+
+	match str(weather_key):
+		"sun":
+			if element == &"fire":
+				return {"multiplier": balance.weather_damage_boost}
+			elif element == &"water":
+				return {"multiplier": balance.weather_damage_nerf}
+		"rain":
+			if element == &"water":
+				return {"multiplier": balance.weather_damage_boost}
+			elif element == &"fire":
+				return {"multiplier": balance.weather_damage_nerf}
+	return {}
+
+
+## Get barrier damage modifier from target's side effects.
+static func _get_barrier_modifier(
+	battle: BattleState,
+	target: BattleDigimonState,
+	technique: TechniqueData,
+) -> Dictionary:
+	var balance: GameBalance = _get_balance()
+	var side: SideState = battle.sides[target.side_index]
+	var tc: Registry.TechniqueClass = technique.technique_class
+
+	if side.has_side_effect(&"dual_barrier"):
+		return {"multiplier": balance.dual_barrier_multiplier}
+	if tc == Registry.TechniqueClass.PHYSICAL \
+			and side.has_side_effect(&"physical_barrier"):
+		return {"multiplier": balance.physical_barrier_multiplier}
+	if tc == Registry.TechniqueClass.SPECIAL \
+			and side.has_side_effect(&"special_barrier"):
+		return {"multiplier": balance.special_barrier_multiplier}
+	return {}
+
+
 ## Check if a Digimon's gear effects are suppressed.
 static func _is_gear_suppressed(
 	digimon: BattleDigimonState, battle: BattleState,
@@ -385,6 +494,174 @@ static func _extract_crit_bonus(technique: TechniqueData) -> int:
 		if brick.get("brick", "") == "criticalHit":
 			return int(brick.get("stages", 0))
 	return 0
+
+
+## Handle "fieldEffect" brick — set or remove weather, terrain, or global effects.
+static func _execute_field_effect(
+	brick: Dictionary,
+	user: BattleDigimonState,
+	_target: BattleDigimonState,
+	battle: BattleState,
+) -> Dictionary:
+	var effect_type: String = brick.get("type", "")
+	var remove: bool = brick.get("remove", false)
+	var balance: GameBalance = _get_balance()
+
+	match effect_type:
+		"weather":
+			var key: StringName = StringName(brick.get("weather", ""))
+			if key == &"":
+				return {"handled": false, "reason": "no_weather_key"}
+			if remove:
+				battle.field.clear_weather()
+				return {"handled": true, "weather": key, "action": "remove"}
+			var duration: int = int(brick.get(
+				"duration", balance.default_weather_duration,
+			))
+			battle.field.set_weather(key, duration, user.side_index)
+			return {"handled": true, "weather": key, "action": "set"}
+
+		"terrain":
+			var key: StringName = StringName(brick.get("terrain", ""))
+			if key == &"":
+				return {"handled": false, "reason": "no_terrain_key"}
+			if remove:
+				battle.field.clear_terrain()
+				return {"handled": true, "terrain": key, "action": "remove"}
+			var duration: int = int(brick.get(
+				"duration", balance.default_terrain_duration,
+			))
+			battle.field.set_terrain(key, duration, user.side_index)
+			return {"handled": true, "terrain": key, "action": "set"}
+
+		"global":
+			var key: StringName = StringName(brick.get("effect", ""))
+			if key == &"":
+				return {"handled": false, "reason": "no_global_effect_key"}
+			if remove:
+				battle.field.remove_global_effect(key)
+				return {"handled": true, "global": key, "action": "remove"}
+			var duration: int = int(brick.get(
+				"duration", balance.default_global_effect_duration,
+			))
+			battle.field.add_global_effect(key, duration)
+			return {"handled": true, "global": key, "action": "set"}
+
+		_:
+			push_warning(
+				"BrickExecutor: Unknown fieldEffect type '%s'" % effect_type,
+			)
+			return {"handled": false, "type": effect_type}
+
+
+## Handle "sideEffect" brick — add or remove side effects (barriers, immunities).
+static func _execute_side_effect(
+	brick: Dictionary,
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	battle: BattleState,
+) -> Dictionary:
+	var effect_key: StringName = StringName(brick.get("effect", ""))
+	if effect_key == &"":
+		return {"handled": false, "reason": "no_effect_key"}
+
+	var remove: bool = brick.get("remove", false)
+	var balance: GameBalance = _get_balance()
+	var duration: int = int(brick.get(
+		"duration", balance.default_side_effect_duration,
+	))
+	var side_target: String = brick.get("side", "user")
+
+	var sides: Array[SideState] = _resolve_side_targets(
+		side_target, user, target, battle,
+	)
+
+	for side: SideState in sides:
+		if remove:
+			side.remove_side_effect(effect_key)
+		else:
+			side.add_side_effect(effect_key, duration)
+
+	var action: String = "remove" if remove else "set"
+	return {"handled": true, "effect": effect_key, "action": action}
+
+
+## Handle "hazard" brick — lay, remove, or clear hazards on a side.
+static func _execute_hazard(
+	brick: Dictionary,
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	battle: BattleState,
+) -> Dictionary:
+	var side_target: String = brick.get("side", "target")
+	var sides: Array[SideState] = _resolve_side_targets(
+		side_target, user, target, battle,
+	)
+
+	# Remove all hazards from target sides
+	if brick.get("removeAll", false):
+		for side: SideState in sides:
+			side.clear_hazards()
+		return {"handled": true, "hazard": &"all", "action": "removeAll"}
+
+	# Remove a specific hazard
+	var remove_key: StringName = StringName(brick.get("remove", ""))
+	if remove_key != &"":
+		for side: SideState in sides:
+			side.remove_hazard(remove_key)
+		return {"handled": true, "hazard": remove_key, "action": "remove"}
+
+	# Lay a hazard
+	var hazard_type: StringName = StringName(brick.get("hazardType", ""))
+	if hazard_type == &"":
+		return {"handled": false, "reason": "no_hazard_type"}
+
+	var max_layers: int = int(brick.get("maxLayers", 1))
+	var extra: Dictionary = {}
+	if brick.has("damagePercent"):
+		extra["damagePercent"] = float(brick["damagePercent"])
+	if brick.has("element"):
+		extra["element"] = StringName(brick["element"])
+	if brick.has("stat"):
+		extra["stat"] = String(brick["stat"])
+	if brick.has("stages"):
+		extra["stages"] = int(brick["stages"])
+	extra["maxLayers"] = max_layers
+
+	for side: SideState in sides:
+		var current: int = side.get_hazard_layers(hazard_type)
+		if current >= max_layers:
+			continue
+		side.add_hazard(hazard_type, 1, extra)
+
+	return {"handled": true, "hazard": hazard_type, "action": "set"}
+
+
+## Resolve side targets from a brick's "side" field.
+## Returns an array of SideState references.
+static func _resolve_side_targets(
+	side_target: String,
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	battle: BattleState,
+) -> Array[SideState]:
+	var result: Array[SideState] = []
+	match side_target:
+		"user":
+			if user != null and user.side_index < battle.sides.size():
+				result.append(battle.sides[user.side_index])
+		"target":
+			if target != null and target.side_index < battle.sides.size():
+				result.append(battle.sides[target.side_index])
+		"allFoes":
+			if user != null:
+				for side: SideState in battle.sides:
+					if battle.are_foes(user.side_index, side.side_index):
+						result.append(side)
+		"both":
+			for side: SideState in battle.sides:
+				result.append(side)
+	return result
 
 
 ## Apply status override rules (Burned removes Frostbitten/Frozen, etc.).

@@ -18,11 +18,23 @@ static func calculate_damage(
 	user: BattleDigimonState,
 	target: BattleDigimonState,
 	technique: TechniqueData,
-	rng: RandomNumberGenerator,
+	battle_or_rng: Variant = null,
 	crit_bonus: int = 0,
 ) -> DamageResult:
 	var result := DamageResult.new()
 	var balance: GameBalance = _get_balance()
+
+	# Support both BattleState and bare RandomNumberGenerator for backwards
+	# compatibility. Existing callers that pass an RNG directly still work.
+	var rng: RandomNumberGenerator
+	var battle: BattleState = null
+	if battle_or_rng is BattleState:
+		battle = battle_or_rng as BattleState
+		rng = battle.rng
+	elif battle_or_rng is RandomNumberGenerator:
+		rng = battle_or_rng as RandomNumberGenerator
+	else:
+		rng = RandomNumberGenerator.new()
 
 	# Status techniques deal no damage
 	if technique.technique_class == Registry.TechniqueClass.STATUS:
@@ -43,6 +55,14 @@ static func calculate_damage(
 	else:
 		atk = float(user.get_effective_stat(&"special_attack"))
 		def = float(target.get_effective_stat(&"special_defence"))
+
+	# Defence swap: global effect swaps which defence stat is used
+	if battle != null \
+			and battle.field.has_global_effect(&"defence_swap"):
+		if technique.technique_class == Registry.TechniqueClass.PHYSICAL:
+			def = float(target.get_effective_stat(&"special_defence"))
+		else:
+			def = float(target.get_effective_stat(&"defence"))
 
 	# Prevent division by zero
 	if def <= 0.0:

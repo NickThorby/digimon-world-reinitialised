@@ -27,6 +27,12 @@ func connect_engine_signals(engine: BattleEngine) -> void:
 	engine.stat_changed.connect(_on_stat_changed)
 	engine.status_applied.connect(_on_status_applied)
 	engine.status_removed.connect(_on_status_removed)
+	engine.hazard_applied.connect(_on_hazard_applied)
+	engine.hazard_removed.connect(_on_hazard_removed)
+	engine.side_effect_applied.connect(_on_side_effect_applied)
+	engine.side_effect_removed.connect(_on_side_effect_removed)
+	engine.global_effect_applied.connect(_on_global_effect_applied)
+	engine.global_effect_removed.connect(_on_global_effect_removed)
 	engine.turn_started.connect(_on_turn_started)
 	engine.turn_ended.connect(_on_turn_ended)
 	engine.battle_ended.connect(_on_battle_ended)
@@ -389,6 +395,46 @@ func _on_status_removed(
 		"slot_index": slot_index,
 		"snapshot": _snapshot_digimon(side_index, slot_index),
 	})
+
+
+func _on_hazard_applied(side_index: int, _hazard_key: StringName) -> void:
+	_event_queue.append({
+		"type": &"hazard_applied",
+		"side_index": side_index,
+	})
+
+
+func _on_hazard_removed(side_index: int, _hazard_key: StringName) -> void:
+	_event_queue.append({
+		"type": &"hazard_removed",
+		"side_index": side_index,
+	})
+
+
+func _on_side_effect_applied(
+	side_index: int, _effect_key: StringName,
+) -> void:
+	_event_queue.append({
+		"type": &"side_effect_applied",
+		"side_index": side_index,
+	})
+
+
+func _on_side_effect_removed(
+	side_index: int, _effect_key: StringName,
+) -> void:
+	_event_queue.append({
+		"type": &"side_effect_removed",
+		"side_index": side_index,
+	})
+
+
+func _on_global_effect_applied(_effect_key: StringName) -> void:
+	_event_queue.append({"type": &"global_effect_applied"})
+
+
+func _on_global_effect_removed(_effect_key: StringName) -> void:
+	_event_queue.append({"type": &"global_effect_removed"})
 
 
 func _on_turn_started(turn_number: int) -> void:

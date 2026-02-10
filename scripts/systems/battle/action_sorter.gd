@@ -41,6 +41,22 @@ static func calculate_action_speed(action: BattleAction, battle: BattleState) ->
 		action.effective_speed = digimon.get_effective_speed(
 			action.priority as Registry.Priority
 		)
+
+		# Speed boost side effect
+		if digimon.side_index < battle.sides.size() \
+				and battle.sides[digimon.side_index].has_side_effect(
+					&"speed_boost",
+				):
+			var balance: GameBalance = load(
+				"res://data/config/game_balance.tres",
+			) as GameBalance
+			var mult: float = balance.speed_boost_multiplier \
+				if balance else 1.5
+			action.effective_speed *= mult
+
+		# Speed inversion global effect
+		if battle.field.has_global_effect(&"speed_inversion"):
+			action.effective_speed = -action.effective_speed
 	else:
 		action.effective_speed = 0.0
 

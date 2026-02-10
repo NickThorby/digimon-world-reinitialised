@@ -24,6 +24,22 @@ extends Resource
 @export var default_global_effect_duration: int = 5
 @export var default_side_effect_duration: int = 5
 
+# --- Weather ---
+
+@export var weather_damage_boost: float = 1.5
+@export var weather_damage_nerf: float = 0.5
+@export var weather_tick_damage_percent: float = 0.0625  # 1/16 max HP
+
+# --- Barriers ---
+
+@export var physical_barrier_multiplier: float = 0.5
+@export var special_barrier_multiplier: float = 0.5
+@export var dual_barrier_multiplier: float = 0.67
+
+# --- Side effects ---
+
+@export var speed_boost_multiplier: float = 1.5
+
 # --- Status durations ---
 
 @export var sleep_min_turns: int = 1

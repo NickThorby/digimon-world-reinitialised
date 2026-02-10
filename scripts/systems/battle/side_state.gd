@@ -56,12 +56,21 @@ func has_side_effect(key: StringName) -> bool:
 	return false
 
 
-func add_hazard(key: StringName, layers: int = 1) -> void:
+func add_hazard(key: StringName, layers: int = 1, extra: Dictionary = {}) -> void:
 	for hazard: Dictionary in hazards:
 		if hazard.get("key", &"") == key:
 			hazard["layers"] = int(hazard.get("layers", 0)) + layers
 			return
-	hazards.append({"key": key, "layers": layers})
+	var hazard: Dictionary = {"key": key, "layers": layers}
+	hazard.merge(extra)
+	hazards.append(hazard)
+
+
+func get_hazard_layers(key: StringName) -> int:
+	for hazard: Dictionary in hazards:
+		if hazard.get("key", &"") == key:
+			return int(hazard.get("layers", 0))
+	return 0
 
 
 func remove_hazard(key: StringName) -> void:

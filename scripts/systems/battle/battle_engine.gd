@@ -21,6 +21,12 @@ signal technique_animation_requested(
 	user_side: int, user_slot: int, technique_class: Registry.TechniqueClass,
 	element_key: StringName, target_side: int, target_slot: int
 )
+signal hazard_applied(side_index: int, hazard_key: StringName)
+signal hazard_removed(side_index: int, hazard_key: StringName)
+signal side_effect_applied(side_index: int, effect_key: StringName)
+signal side_effect_removed(side_index: int, effect_key: StringName)
+signal global_effect_applied(effect_key: StringName)
+signal global_effect_removed(effect_key: StringName)
 signal turn_started(turn_number: int)
 signal turn_ended(turn_number: int)
 signal battle_ended(result: BattleResult)
@@ -293,6 +299,9 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 						int(change.get("stages", 0)), sc_actual,
 					)
 
+			# Field effect results
+			_emit_field_effect_signals(brick_result)
+
 		all_results.append_array(brick_results)
 
 		# Fire damage-related ability and gear triggers
@@ -377,6 +386,11 @@ func _resolve_switch(action: BattleAction) -> Array[Dictionary]:
 	var name_in: String = _get_digimon_name(new_battle_mon)
 	battle_message.emit("%s switched out for %s!" % [name_out, name_in])
 	digimon_switched.emit(action.user_side, action.user_slot, new_battle_mon)
+
+	# Apply entry hazards before abilities/gear
+	_apply_entry_hazards(new_battle_mon)
+	if new_battle_mon.is_fainted:
+		return [{"switched": true, "fainted_on_entry": true}]
 
 	# Fire ON_ENTRY abilities and gear for the incoming Digimon
 	_fire_ability_trigger(
@@ -1119,6 +1133,11 @@ func _end_of_turn() -> void:
 
 	_clear_fainted_no_reserve()
 
+	# 1b. Weather tick damage
+	_tick_weather_damage()
+
+	_clear_fainted_no_reserve()
+
 	# 2. Field duration ticks
 	var expired: Dictionary = _battle.field.tick_durations()
 	if expired.get("weather", false):
@@ -1130,9 +1149,20 @@ func _end_of_turn() -> void:
 		terrain_changed.emit({})
 		_fire_ability_trigger(Registry.AbilityTrigger.ON_TERRAIN_CHANGE)
 
+	# 2b. Expired global effects
+	var expired_globals: Variant = expired.get("global_effects", [])
+	if expired_globals is Array:
+		for key: Variant in expired_globals:
+			var effect_key: StringName = key as StringName
+			battle_message.emit("%s wore off." % str(effect_key))
+			global_effect_removed.emit(effect_key)
+
 	# 3. Side effect ticks
 	for side: SideState in _battle.sides:
-		side.tick_durations()
+		var expired_effects: Array[StringName] = side.tick_durations()
+		for effect_key: StringName in expired_effects:
+			battle_message.emit("%s wore off." % str(effect_key))
+			side_effect_removed.emit(side.side_index, effect_key)
 
 	# 4. Energy regeneration (5% per turn for all active Digimon)
 	var regen_pct: float = _balance.energy_regen_per_turn if _balance else 0.05
@@ -1411,6 +1441,199 @@ func _calculate_accuracy(
 	if user.has_status(&"blinded"):
 		effective *= 0.5
 	return effective
+
+
+## Apply weather tick damage at end of turn.
+func _tick_weather_damage() -> void:
+	if not _battle.field.has_weather():
+		return
+
+	var weather_key: StringName = _battle.field.weather.get(
+		"key", &"",
+	) as StringName
+	var percent: float = _balance.weather_tick_damage_percent if _balance \
+		else 0.0625
+
+	# Determine which weather deals tick damage and which elements are immune
+	var immune_elements: Array[StringName] = []
+	match str(weather_key):
+		"sandstorm":
+			immune_elements = [&"earth", &"metal"] as Array[StringName]
+		"hail":
+			immune_elements = [&"ice"] as Array[StringName]
+		_:
+			return  # sun/rain don't deal tick damage
+
+	for digimon: BattleDigimonState in _battle.get_active_digimon():
+		if digimon.is_fainted:
+			continue
+
+		# Check element trait immunity
+		var is_immune: bool = false
+		if digimon.data != null:
+			for elem: StringName in digimon.data.element_traits:
+				if elem in immune_elements:
+					is_immune = true
+					break
+		if is_immune:
+			continue
+
+		var damage: int = maxi(
+			floori(float(digimon.max_hp) * percent), 1,
+		)
+		var actual: int = digimon.apply_damage(damage)
+		battle_message.emit(
+			"%s is buffeted by the %s! (%d damage)" % [
+				_get_digimon_name(digimon), str(weather_key), actual,
+			],
+		)
+		damage_dealt.emit(
+			digimon.side_index, digimon.slot_index,
+			actual, &"weather",
+		)
+		_check_faint_or_threshold(digimon, null)
+
+
+## Apply entry hazards to a Digimon switching in.
+func _apply_entry_hazards(digimon: BattleDigimonState) -> void:
+	var side: SideState = _battle.sides[digimon.side_index]
+	for hazard: Dictionary in side.hazards:
+		if digimon.is_fainted:
+			break
+		var key: StringName = hazard.get("key", &"") as StringName
+		var layers: int = int(hazard.get("layers", 1))
+
+		# Check for grounding field disabling aerial trait
+		var has_aerial: bool = false
+		if digimon.data != null:
+			has_aerial = &"aerial" in digimon.data.element_traits
+		if has_aerial and _battle.field.has_global_effect(&"grounding_field"):
+			has_aerial = false
+
+		if hazard.has("damagePercent"):
+			# Entry damage hazard
+			var percent: float = float(hazard["damagePercent"])
+			var element: StringName = hazard.get(
+				"element", &"",
+			) as StringName
+
+			# Element resistance scaling
+			var resistance: float = 1.0
+			if element != &"" and digimon.data != null:
+				resistance = float(
+					digimon.data.resistances.get(element, 1.0),
+				)
+
+			# Immune (0.0 resistance) = no damage
+			if resistance <= 0.0:
+				battle_message.emit(
+					"%s is immune to the hazard!" \
+						% _get_digimon_name(digimon),
+				)
+				continue
+
+			var damage: int = maxi(
+				floori(float(digimon.max_hp) * percent * float(layers) \
+					* resistance), 1,
+			)
+			var actual: int = digimon.apply_damage(damage)
+			battle_message.emit(
+				"%s was hurt by %s! (%d damage)" % [
+					_get_digimon_name(digimon), str(key), actual,
+				],
+			)
+			damage_dealt.emit(
+				digimon.side_index, digimon.slot_index,
+				actual, &"hazard",
+			)
+			hazard_applied.emit(digimon.side_index, key)
+			if _check_faint_or_threshold(digimon, null):
+				return
+
+		elif hazard.has("stat"):
+			# Entry stat reduction hazard
+			var stat_abbr: String = String(hazard["stat"])
+			var stages: int = int(hazard.get("stages", -1))
+			var battle_stat: Variant = Registry.BRICK_STAT_MAP.get(
+				stat_abbr,
+			)
+			if battle_stat == null:
+				continue
+			var stage_key: Variant = Registry.BATTLE_STAT_STAGE_KEYS.get(
+				battle_stat,
+			)
+			if stage_key == null:
+				continue
+			var stat_key: StringName = stage_key as StringName
+			var actual: int = digimon.modify_stat_stage(stat_key, stages)
+			stat_changed.emit(
+				digimon.side_index, digimon.slot_index,
+				stat_key, actual,
+			)
+			_emit_stat_change_message(
+				_get_digimon_name(digimon), stat_key, stages, actual,
+			)
+			hazard_applied.emit(digimon.side_index, key)
+
+
+## Emit signals for field effect, side effect, and hazard brick results.
+func _emit_field_effect_signals(result: Dictionary) -> void:
+	# Weather
+	if result.has("weather"):
+		var key: StringName = result["weather"] as StringName
+		var action: String = result.get("action", "set")
+		if action == "set":
+			battle_message.emit("The weather changed to %s!" % str(key))
+			weather_changed.emit(_battle.field.weather)
+			_fire_ability_trigger(Registry.AbilityTrigger.ON_WEATHER_CHANGE)
+		else:
+			battle_message.emit("The weather cleared.")
+			weather_changed.emit({})
+			_fire_ability_trigger(Registry.AbilityTrigger.ON_WEATHER_CHANGE)
+
+	# Terrain
+	if result.has("terrain"):
+		var key: StringName = result["terrain"] as StringName
+		var action: String = result.get("action", "set")
+		if action == "set":
+			battle_message.emit("The terrain changed to %s!" % str(key))
+			terrain_changed.emit(_battle.field.terrain)
+			_fire_ability_trigger(Registry.AbilityTrigger.ON_TERRAIN_CHANGE)
+		else:
+			battle_message.emit("The terrain cleared.")
+			terrain_changed.emit({})
+			_fire_ability_trigger(Registry.AbilityTrigger.ON_TERRAIN_CHANGE)
+
+	# Global effect
+	if result.has("global"):
+		var key: StringName = result["global"] as StringName
+		var action: String = result.get("action", "set")
+		if action == "set":
+			battle_message.emit("%s is now active!" % str(key))
+			global_effect_applied.emit(key)
+		else:
+			battle_message.emit("%s wore off." % str(key))
+			global_effect_removed.emit(key)
+
+	# Side effect
+	if result.has("effect"):
+		var key: StringName = result["effect"] as StringName
+		var action: String = result.get("action", "set")
+		if action == "set":
+			battle_message.emit("%s was set up!" % str(key))
+		else:
+			battle_message.emit("%s was removed." % str(key))
+
+	# Hazard
+	if result.has("hazard"):
+		var key: StringName = result["hazard"] as StringName
+		var action: String = result.get("action", "set")
+		if action == "set":
+			battle_message.emit("Hazard %s was laid!" % str(key))
+		elif action == "remove":
+			battle_message.emit("Hazard %s was cleared." % str(key))
+		elif action == "removeAll":
+			battle_message.emit("All hazards were cleared!")
 
 
 ## Get display name for a BattleDigimonState.

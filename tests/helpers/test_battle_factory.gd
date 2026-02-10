@@ -121,6 +121,28 @@ static func _inject_digimon() -> void:
 	speedster.type_trait = &"insect"
 	Atlas.digimon[&"test_speedster"] = speedster
 
+	var ice_mon: DigimonData = _make_digimon(
+		&"test_ice_mon", "Test Ice Mon", Registry.Attribute.DATA,
+		[&"ice"], 80, 50, 60, 60, 60, 60, 60,
+		{&"ice": 0.5, &"fire": 1.5},
+		&"",
+	)
+	ice_mon.size_trait = &"medium"
+	ice_mon.movement_traits = [&"terrestrial"] as Array[StringName]
+	ice_mon.type_trait = &"beast"
+	Atlas.digimon[&"test_ice_mon"] = ice_mon
+
+	var earth_mon: DigimonData = _make_digimon(
+		&"test_earth_mon", "Test Earth Mon", Registry.Attribute.DATA,
+		[&"earth"], 80, 50, 60, 80, 50, 80, 50,
+		{&"earth": 0.5, &"lightning": 1.5},
+		&"",
+	)
+	earth_mon.size_trait = &"large"
+	earth_mon.movement_traits = [&"terrestrial"] as Array[StringName]
+	earth_mon.type_trait = &"mineral"
+	Atlas.digimon[&"test_earth_mon"] = earth_mon
+
 
 static func _make_digimon(
 	key: StringName,
@@ -256,6 +278,83 @@ static func _inject_techniques() -> void:
 	Atlas.techniques[&"test_level_10_tech"] = _make_technique(
 		&"test_level_10_tech", "Test Level 10 Tech",
 		Registry.TechniqueClass.PHYSICAL, &"", 50, 100, 8,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{"brick": "damage", "type": "standard"}],
+	)
+	# --- Weather techniques ---
+	Atlas.techniques[&"test_sunny_day"] = _make_technique(
+		&"test_sunny_day", "Test Sunny Day",
+		Registry.TechniqueClass.STATUS, &"fire", 0, 0, 5,
+		Registry.Targeting.FIELD, Registry.Priority.NORMAL,
+		[], [{"brick": "fieldEffect", "type": "weather", "weather": "sun"}],
+	)
+	Atlas.techniques[&"test_rain_dance"] = _make_technique(
+		&"test_rain_dance", "Test Rain Dance",
+		Registry.TechniqueClass.STATUS, &"water", 0, 0, 5,
+		Registry.Targeting.FIELD, Registry.Priority.NORMAL,
+		[], [{"brick": "fieldEffect", "type": "weather", "weather": "rain"}],
+	)
+	Atlas.techniques[&"test_sandstorm"] = _make_technique(
+		&"test_sandstorm", "Test Sandstorm",
+		Registry.TechniqueClass.STATUS, &"earth", 0, 0, 5,
+		Registry.Targeting.FIELD, Registry.Priority.NORMAL,
+		[], [{"brick": "fieldEffect", "type": "weather", "weather": "sandstorm"}],
+	)
+	Atlas.techniques[&"test_hail"] = _make_technique(
+		&"test_hail", "Test Hail",
+		Registry.TechniqueClass.STATUS, &"ice", 0, 0, 5,
+		Registry.Targeting.FIELD, Registry.Priority.NORMAL,
+		[], [{"brick": "fieldEffect", "type": "weather", "weather": "hail"}],
+	)
+	# --- Hazard techniques ---
+	Atlas.techniques[&"test_fire_hazard"] = _make_technique(
+		&"test_fire_hazard", "Test Fire Hazard",
+		Registry.TechniqueClass.STATUS, &"fire", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "hazard", "hazardType": "entry_damage",
+			"damagePercent": 0.125, "element": "fire",
+			"maxLayers": 3, "side": "target",
+		}],
+	)
+	Atlas.techniques[&"test_stat_hazard"] = _make_technique(
+		&"test_stat_hazard", "Test Stat Hazard",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "hazard", "hazardType": "entry_stat_reduction",
+			"stat": "spe", "stages": -1,
+			"maxLayers": 1, "side": "target",
+		}],
+	)
+	Atlas.techniques[&"test_defog"] = _make_technique(
+		&"test_defog", "Test Defog",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{"brick": "hazard", "removeAll": true, "side": "target"}],
+	)
+	# --- Side effect techniques ---
+	Atlas.techniques[&"test_physical_barrier"] = _make_technique(
+		&"test_physical_barrier", "Test Physical Barrier",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.FIELD, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "sideEffect", "effect": "physical_barrier",
+			"side": "user", "duration": 5,
+		}],
+	)
+	Atlas.techniques[&"test_special_barrier"] = _make_technique(
+		&"test_special_barrier", "Test Special Barrier",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.FIELD, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "sideEffect", "effect": "special_barrier",
+			"side": "user", "duration": 5,
+		}],
+	)
+	Atlas.techniques[&"test_water_gun"] = _make_technique(
+		&"test_water_gun", "Test Water Gun",
+		Registry.TechniqueClass.SPECIAL, &"water", 60, 100, 8,
 		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
 		[], [{"brick": "damage", "type": "standard"}],
 	)
