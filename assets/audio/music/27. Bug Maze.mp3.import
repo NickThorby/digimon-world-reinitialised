@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://bqq1rwnwj6qq8"
+path="res://.godot/imported/27. Bug Maze.mp3-577529c7a5eb19c9ef0a8439525d86b6.mp3str"
+
+[deps]
+
+source_file="res://assets/audio/music/27. Bug Maze.mp3"
+dest_files=["res://.godot/imported/27. Bug Maze.mp3-577529c7a5eb19c9ef0a8439525d86b6.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

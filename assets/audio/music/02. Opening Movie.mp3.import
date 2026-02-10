@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://dritkgi0rna0g"
+path="res://.godot/imported/02. Opening Movie.mp3-b2cb9702fb0f64294cda934a0747735a.mp3str"
+
+[deps]
+
+source_file="res://assets/audio/music/02. Opening Movie.mp3"
+dest_files=["res://.godot/imported/02. Opening Movie.mp3-b2cb9702fb0f64294cda934a0747735a.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

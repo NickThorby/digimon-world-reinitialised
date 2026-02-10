@@ -22,6 +22,7 @@ Atlas="*res://autoload/atlas.gd"
 Game="*res://autoload/game.gd"
 SceneManager="*res://autoload/scene_manager.gd"
 Settings="*res://autoload/settings.gd"
+MusicManager="*res://autoload/music_manager.gd"
 
 [display]
 

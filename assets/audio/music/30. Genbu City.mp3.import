@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://pltt4wc4j7e"
+path="res://.godot/imported/30. Genbu City.mp3-0dff1db806b4f86d18af1ce998809688.mp3str"
+
+[deps]
+
+source_file="res://assets/audio/music/30. Genbu City.mp3"
+dest_files=["res://.godot/imported/30. Genbu City.mp3-0dff1db806b4f86d18af1ce998809688.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

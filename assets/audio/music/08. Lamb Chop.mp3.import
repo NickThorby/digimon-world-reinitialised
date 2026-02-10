@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://dyqrulhv4ku0h"
+path="res://.godot/imported/08. Lamb Chop.mp3-2b21d9cc63a746fdc6e86b2d0b6080c9.mp3str"
+
+[deps]
+
+source_file="res://assets/audio/music/08. Lamb Chop.mp3"
+dest_files=["res://.godot/imported/08. Lamb Chop.mp3-2b21d9cc63a746fdc6e86b2d0b6080c9.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

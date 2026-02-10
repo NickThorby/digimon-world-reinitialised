@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://d237qctgcaokw"
+path="res://.godot/imported/03. MAGAMI Online Center.mp3-bc5b61cc24f3a189463e36940259e61a.mp3str"
+
+[deps]
+
+source_file="res://assets/audio/music/03. MAGAMI Online Center.mp3"
+dest_files=["res://.godot/imported/03. MAGAMI Online Center.mp3-bc5b61cc24f3a189463e36940259e61a.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

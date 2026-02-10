@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://btii7trjoetva"
+path="res://.godot/imported/31. Legendary Gym.mp3-c51b3882c0f1c73f32f6b280339d2a28.mp3str"
+
+[deps]
+
+source_file="res://assets/audio/music/31. Legendary Gym.mp3"
+dest_files=["res://.godot/imported/31. Legendary Gym.mp3-c51b3882c0f1c73f32f6b280339d2a28.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://dy8uh0wbkeicf"
+path="res://.godot/imported/21. Seabed.mp3-5797f125758039c316ee38aa108096ea.mp3str"
+
+[deps]
+
+source_file="res://assets/audio/music/21. Seabed.mp3"
+dest_files=["res://.godot/imported/21. Seabed.mp3-5797f125758039c316ee38aa108096ea.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

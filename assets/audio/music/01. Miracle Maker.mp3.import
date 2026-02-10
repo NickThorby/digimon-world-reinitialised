@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://ckrekovtsothi"
+path="res://.godot/imported/01. Miracle Maker.mp3-6b6b54fb474916afde9cd383a19f02ca.mp3str"
+
+[deps]
+
+source_file="res://assets/audio/music/01. Miracle Maker.mp3"
+dest_files=["res://.godot/imported/01. Miracle Maker.mp3-6b6b54fb474916afde9cd383a19f02ca.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

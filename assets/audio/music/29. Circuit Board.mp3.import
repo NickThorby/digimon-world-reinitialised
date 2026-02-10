@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://gk1agbr47scd"
+path="res://.godot/imported/29. Circuit Board.mp3-39313b622c258534dded860866f9c31b.mp3str"
+
+[deps]
+
+source_file="res://assets/audio/music/29. Circuit Board.mp3"
+dest_files=["res://.godot/imported/29. Circuit Board.mp3-39313b622c258534dded860866f9c31b.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

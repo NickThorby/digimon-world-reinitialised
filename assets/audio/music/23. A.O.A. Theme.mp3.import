@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://bch66dsv7knd8"
+path="res://.godot/imported/23. A.O.A. Theme.mp3-54b3e2870f964a535290cbd4f39f11b4.mp3str"
+
+[deps]
+
+source_file="res://assets/audio/music/23. A.O.A. Theme.mp3"
+dest_files=["res://.godot/imported/23. A.O.A. Theme.mp3-54b3e2870f964a535290cbd4f39f11b4.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

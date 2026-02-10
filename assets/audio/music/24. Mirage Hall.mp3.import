@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://3l0omx0gf6aq"
+path="res://.godot/imported/24. Mirage Hall.mp3-2d8f4b2d25078a325e93633e9a37465d.mp3str"
+
+[deps]
+
+source_file="res://assets/audio/music/24. Mirage Hall.mp3"
+dest_files=["res://.godot/imported/24. Mirage Hall.mp3-2d8f4b2d25078a325e93633e9a37465d.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

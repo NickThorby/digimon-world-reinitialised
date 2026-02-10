@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://brcqe4vvc1x32"
+path="res://.godot/imported/18. Jungle Grave.mp3-11cf3298f546f163d06cad42ce9c30c6.mp3str"
+
+[deps]
+
+source_file="res://assets/audio/music/18. Jungle Grave.mp3"
+dest_files=["res://.godot/imported/18. Jungle Grave.mp3-11cf3298f546f163d06cad42ce9c30c6.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

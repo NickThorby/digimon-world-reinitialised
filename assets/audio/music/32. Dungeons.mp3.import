@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://ponuh0rrhldc"
+path="res://.godot/imported/32. Dungeons.mp3-d4e5adc078b464a66e75166a4fb2928a.mp3str"
+
+[deps]
+
+source_file="res://assets/audio/music/32. Dungeons.mp3"
+dest_files=["res://.godot/imported/32. Dungeons.mp3-d4e5adc078b464a66e75166a4fb2928a.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://c4a8s6swfrtlk"
+path="res://.godot/imported/36. Leader Battle.mp3-b02d2eada28af1ceaccbfd5ada14fccb.mp3str"
+
+[deps]
+
+source_file="res://assets/audio/music/36. Leader Battle.mp3"
+dest_files=["res://.godot/imported/36. Leader Battle.mp3-b02d2eada28af1ceaccbfd5ada14fccb.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

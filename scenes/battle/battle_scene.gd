@@ -89,13 +89,18 @@ func _ready() -> void:
 	_display.position_battlefield(self)
 	_display.update_all_panels()
 
-	# Check if this is a wild battle (for run button)
+	# Check if this is a wild battle (for run button and music)
 	var is_wild: bool = false
 	for side: SideState in _battle.sides:
 		if side.is_wild:
 			is_wild = true
 			break
 	_action_menu.set_run_visible(is_wild)
+
+	if is_wild:
+		MusicManager.play("res://assets/audio/music/33. Wild Digimon Battle.mp3")
+	else:
+		MusicManager.play("res://assets/audio/music/35. Tamer Battle.mp3")
 
 	# Start input phase
 	await _message_box.show_message("Battle start!")

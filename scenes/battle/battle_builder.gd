@@ -30,6 +30,8 @@ var _bag_category_filter: int = -1  ## -1 = All
 
 
 func _ready() -> void:
+	MusicManager.play("res://assets/audio/music/04. Main Lobby.mp3")
+
 	var returning_from_picker: bool = Game.picker_context.size() > 0
 	if returning_from_picker:
 		_restore_from_picker()
