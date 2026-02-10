@@ -810,6 +810,52 @@ static func create_1v1_with_reserves_and_bag(
 	return BattleFactory.create_battle(config, seed)
 
 
+## Create a 3-way FFA battle (3 sides, each on own team).
+static func create_3_way_ffa_battle(
+	s0_key: StringName = &"test_agumon",
+	s1_key: StringName = &"test_gabumon",
+	s2_key: StringName = &"test_patamon",
+	seed: int = DEFAULT_SEED,
+) -> BattleState:
+	var config := BattleConfig.new()
+	config.apply_preset(BattleConfig.FormatPreset.FFA_3)
+	config.side_configs[0] = {
+		"controller": BattleConfig.ControllerType.PLAYER,
+		"party": [make_digimon_state(s0_key)] as Array[DigimonState],
+		"is_wild": false,
+	}
+	config.side_configs[1] = {
+		"controller": BattleConfig.ControllerType.AI,
+		"party": [make_digimon_state(s1_key)] as Array[DigimonState],
+		"is_wild": false,
+	}
+	config.side_configs[2] = {
+		"controller": BattleConfig.ControllerType.AI,
+		"party": [make_digimon_state(s2_key)] as Array[DigimonState],
+		"is_wild": false,
+	}
+	return BattleFactory.create_battle(config, seed)
+
+
+## Simulate switching out the active Digimon in a slot to reserves, without
+## running the full engine. Useful for testing XP participation tracking.
+static func simulate_switch_out(
+	battle: BattleState, side_index: int, slot_index: int,
+) -> void:
+	var side: SideState = battle.sides[side_index]
+	var slot: SlotState = side.slots[slot_index]
+	var outgoing: BattleDigimonState = slot.digimon
+	if outgoing == null:
+		return
+	outgoing.reset_volatiles()
+	if outgoing.source_state != null:
+		outgoing.source_state.current_hp = outgoing.current_hp
+		outgoing.source_state.current_energy = outgoing.current_energy
+		side.party.append(outgoing.source_state)
+	side.retired_battle_digimon.append(outgoing)
+	slot.digimon = null
+
+
 # --- Engine setup ---
 
 

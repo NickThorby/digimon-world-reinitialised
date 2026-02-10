@@ -20,5 +20,10 @@ var winning_team: int = -1
 var turn_count: int = 0
 
 ## XP awards per Digimon. Each: { "digimon_state": DigimonState, "xp": int,
-##   "levels_gained": int, "new_techniques": Array[StringName] }
+##   "old_level": int, "old_experience": int, "old_stats": Dictionary,
+##   "levels_gained": int, "new_techniques": Array[StringName],
+##   "participated": bool }
 var xp_awards: Array[Dictionary] = []
+
+## All party DigimonState on the winning side, for post-battle display.
+var party_digimon: Array[DigimonState] = []

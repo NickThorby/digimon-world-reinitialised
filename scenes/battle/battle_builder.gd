@@ -13,6 +13,7 @@ const TEAM_SAVE_POPUP_SCENE := preload("res://ui/components/team_save_popup.tscn
 @onready var _controller_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/ControllerRow/ControllerOption
 @onready var _wild_toggle: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/WildRow/WildToggle
 @onready var _xp_toggle: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/XPRow/XPToggle
+@onready var _exp_share_toggle: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/ExpShareRow/ExpShareToggle
 @onready var _launch_button: Button = $MarginContainer/VBox/BottomBar/LaunchButton
 @onready var _back_button: Button = $MarginContainer/VBox/HeaderBar/HBox/BackButton
 @onready var _save_team_button: Button = $MarginContainer/VBox/HSplit/LeftPanel/TeamButtonRow/SaveTeamButton
@@ -106,6 +107,7 @@ func _sync_format_selector() -> void:
 	var idx: int = preset_map.get(_config.format_preset, 0)
 	_format_option.selected = idx
 	_xp_toggle.button_pressed = _config.xp_enabled
+	_exp_share_toggle.button_pressed = _config.exp_share_enabled
 
 
 func _connect_signals() -> void:
@@ -115,6 +117,7 @@ func _connect_signals() -> void:
 	_controller_option.item_selected.connect(_on_controller_selected)
 	_wild_toggle.toggled.connect(_on_wild_toggled)
 	_xp_toggle.toggled.connect(_on_xp_toggled)
+	_exp_share_toggle.toggled.connect(_on_exp_share_toggled)
 	_launch_button.pressed.connect(_on_launch)
 	_back_button.pressed.connect(_on_back)
 	_save_team_button.pressed.connect(_on_save_team)
@@ -164,6 +167,10 @@ func _on_wild_toggled(pressed: bool) -> void:
 
 func _on_xp_toggled(pressed: bool) -> void:
 	_config.xp_enabled = pressed
+
+
+func _on_exp_share_toggled(pressed: bool) -> void:
+	_config.exp_share_enabled = pressed
 
 
 func _on_launch() -> void:

@@ -4,76 +4,154 @@ extends RefCounted
 
 
 ## Calculate XP awards for all victorious Digimon after battle.
-static func calculate_xp_awards(battle: BattleState) -> Array[Dictionary]:
+## Returns an array of award dictionaries with keys:
+##   digimon_state, xp, old_level, old_experience, old_stats,
+##   levels_gained, new_techniques, participated
+static func calculate_xp_awards(
+	battle: BattleState, exp_share_enabled: bool = false,
+) -> Array[Dictionary]:
 	var awards: Array[Dictionary] = []
 
 	if battle.result == null:
 		return awards
 
-	# Collect defeated foe data (need base_xp_yield and level)
+	var winning_team: int = battle.result.winning_team
+	if winning_team < 0:
+		return awards
+
+	# Collect defeated foes from all losing sides (active + retired)
 	var defeated_foes: Array[Dictionary] = []
 	for side: SideState in battle.sides:
-		if battle.are_foes(0, side.side_index):
-			for slot: SlotState in side.slots:
-				if slot.digimon != null and slot.digimon.is_fainted:
-					defeated_foes.append({
-						"data": slot.digimon.data,
-						"level": slot.digimon.source_state.level if slot.digimon.source_state else 1,
-						"key": slot.digimon.source_state.key if slot.digimon.source_state else &"",
-					})
+		if side.team_index == winning_team:
+			continue
+		for slot: SlotState in side.slots:
+			if slot.digimon != null and slot.digimon.is_fainted:
+				defeated_foes.append({
+					"data": slot.digimon.data,
+					"level": slot.digimon.source_state.level \
+						if slot.digimon.source_state else 1,
+					"key": slot.digimon.source_state.key \
+						if slot.digimon.source_state else &"",
+				})
+		for retired: BattleDigimonState in side.retired_battle_digimon:
+			if retired.is_fainted:
+				defeated_foes.append({
+					"data": retired.data,
+					"level": retired.source_state.level \
+						if retired.source_state else 1,
+					"key": retired.source_state.key \
+						if retired.source_state else &"",
+				})
 
 	if defeated_foes.is_empty():
 		return awards
 
-	# Award XP to each Digimon on the winning side
+	# Collect ALL winning-side BattleDigimonState (active + retired)
+	var winning_digimon: Array[BattleDigimonState] = []
+	var seen_sources: Array[DigimonState] = []
 	for side: SideState in battle.sides:
-		if not battle.are_foes(0, side.side_index):
-			# Check all slots + reserve
-			var all_digimon: Array[BattleDigimonState] = []
-			for slot: SlotState in side.slots:
-				if slot.digimon != null:
-					all_digimon.append(slot.digimon)
+		if side.team_index != winning_team:
+			continue
+		for slot: SlotState in side.slots:
+			if slot.digimon != null and slot.digimon.source_state != null:
+				winning_digimon.append(slot.digimon)
+				seen_sources.append(slot.digimon.source_state)
+		for retired: BattleDigimonState in side.retired_battle_digimon:
+			if retired.source_state != null \
+					and retired.source_state not in seen_sources:
+				winning_digimon.append(retired)
+				seen_sources.append(retired.source_state)
 
-			for battle_mon: BattleDigimonState in all_digimon:
-				if battle_mon.source_state == null:
-					continue
+	# Award XP to each winning Digimon
+	for battle_mon: BattleDigimonState in winning_digimon:
+		if battle_mon.source_state == null:
+			continue
+		# Fainted allies get no XP
+		if battle_mon.is_fainted:
+			continue
 
-				var total_xp: int = 0
-				for foe: Dictionary in defeated_foes:
-					var foe_data: DigimonData = foe["data"] as DigimonData
-					if foe_data == null:
-						continue
+		var state: DigimonState = battle_mon.source_state
+		var total_xp: int = 0
+		var did_participate: bool = false
 
-					# Check if this Digimon participated against this foe
-					var foe_key: StringName = foe["key"] as StringName
-					var participants: int = _count_participants(battle, foe_key)
-					participants = maxi(participants, 1)
+		for foe: Dictionary in defeated_foes:
+			var foe_data: DigimonData = foe["data"] as DigimonData
+			if foe_data == null:
+				continue
 
-					total_xp += calculate_xp_gain(
-						foe_data.base_xp_yield,
-						int(foe["level"]),
-						battle_mon.source_state.level,
-						participants,
-					)
+			var foe_key: StringName = foe["key"] as StringName
+			var participated: bool = foe_key in battle_mon.participated_against
 
-				if total_xp > 0:
-					var award: Dictionary = apply_xp(battle_mon.source_state, total_xp)
-					award["digimon_state"] = battle_mon.source_state
-					award["xp"] = total_xp
-					awards.append(award)
+			if participated:
+				did_participate = true
+				var participants: int = _count_participants(
+					battle, foe_key, winning_team,
+				)
+				total_xp += calculate_xp_gain(
+					foe_data.base_xp_yield, int(foe["level"]),
+					state.level, participants,
+				)
+			elif exp_share_enabled:
+				# Non-participants get 50% XP (not split by participant count)
+				var base_xp: int = calculate_xp_gain(
+					foe_data.base_xp_yield, int(foe["level"]),
+					state.level, 1,
+				)
+				total_xp += maxi(base_xp / 2, 1)
+
+		if total_xp <= 0:
+			continue
+
+		# Capture pre-XP state
+		var old_level: int = state.level
+		var old_experience: int = state.experience
+		var old_stats: Dictionary = _calculate_display_stats(state)
+
+		var result: Dictionary = apply_xp(state, total_xp)
+		result["digimon_state"] = state
+		result["xp"] = total_xp
+		result["old_level"] = old_level
+		result["old_experience"] = old_experience
+		result["old_stats"] = old_stats
+		result["participated"] = did_participate
+		awards.append(result)
 
 	return awards
 
 
-## Count how many allied Digimon participated against a specific foe.
-static func _count_participants(battle: BattleState, foe_key: StringName) -> int:
+## Count how many winning-side Digimon participated against a specific foe.
+## Includes both active and retired Digimon.
+static func _count_participants(
+	battle: BattleState, foe_key: StringName, winning_team: int,
+) -> int:
 	var count: int = 0
 	for side: SideState in battle.sides:
-		if not battle.are_foes(0, side.side_index):
-			for slot: SlotState in side.slots:
-				if slot.digimon != null and foe_key in slot.digimon.participated_against:
-					count += 1
+		if side.team_index != winning_team:
+			continue
+		for slot: SlotState in side.slots:
+			if slot.digimon != null \
+					and foe_key in slot.digimon.participated_against:
+				count += 1
+		for retired: BattleDigimonState in side.retired_battle_digimon:
+			if foe_key in retired.participated_against:
+				count += 1
 	return maxi(count, 1)
+
+
+## Calculate display stats for a DigimonState (with personality applied).
+static func _calculate_display_stats(state: DigimonState) -> Dictionary:
+	var data: DigimonData = Atlas.digimon.get(state.key) as DigimonData
+	if data == null:
+		return {}
+	var stats: Dictionary = StatCalculator.calculate_all_stats(data, state)
+	var personality: PersonalityData = Atlas.personalities.get(
+		state.personality_key,
+	) as PersonalityData
+	for stat_key: StringName in stats:
+		stats[stat_key] = StatCalculator.apply_personality(
+			stats[stat_key], stat_key, personality,
+		)
+	return stats
 
 
 ## Gen V-style XP gain formula.

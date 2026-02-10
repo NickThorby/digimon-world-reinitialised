@@ -30,6 +30,9 @@ var hazards: Array[Dictionary] = []
 ## Item bag for this side (null if no items available).
 var bag: BagState = null
 
+## Retired BattleDigimonState instances (switched out). Preserved for XP tracking.
+var retired_battle_digimon: Array[BattleDigimonState] = []
+
 
 func add_side_effect(key: StringName, duration: int) -> void:
 	for effect: Dictionary in side_effects:

@@ -873,6 +873,7 @@ BattleState
 │   ├── team_index: int
 │   ├── side_effects: Array[{ key, duration }]
 │   ├── hazards: Array[{ key, layers }]
+│   ├── retired_battle_digimon: Array[BattleDigimonState]  (switched-out, for XP)
 │   └── slots: Array[SlotState]  (1-3)
 │       └── digimon: BattleDigimonState
 ├── action_queue: Array[BattleAction]
@@ -1024,6 +1025,59 @@ tests/
 ### Signal Verification
 
 Integration tests use GUT's `watch_signals()` + `assert_signal_emitted()` / `assert_signal_emit_count()`. For parameter checking, tests connect lambdas to capture values before asserting.
+
+---
+
+## Post-Battle System
+
+### XP Award Algorithm
+
+XP is calculated by `XPCalculator.calculate_xp_awards(battle, exp_share_enabled)` after a battle ends with a winner:
+
+1. **Determine winning team** from `battle.result.winning_team`. Draw/fled = no XP.
+2. **Collect defeated foes** from all losing sides — both active slots and `side.retired_battle_digimon` where `is_fainted == true`.
+3. **Collect winning-side Digimon** — active slots + retired (deduplicated by `source_state`).
+4. **Skip fainted winners** — fainted allies on the winning team receive no XP.
+5. **Per winner × per defeated foe**:
+   - If `foe_key in participated_against`: full XP, split by participant count.
+   - If NOT participated AND `exp_share_enabled`: 50% XP (not split by participants).
+   - Otherwise: 0 XP for this foe.
+6. **Capture pre-XP state** (`old_level`, `old_experience`, `old_stats`) before calling `apply_xp`.
+7. **Apply XP** — levels up, learns new techniques, returns award dict.
+
+### Participation Tracking
+
+- `BattleDigimonState.participated_against` tracks which foes a Digimon has dealt damage to.
+- When a Digimon switches out, its `BattleDigimonState` is preserved in `SideState.retired_battle_digimon`.
+- When a Digimon switches back in, its previous participation data is carried forward from the retired entry.
+- `_count_participants` counts both active and retired Digimon when splitting XP.
+
+### BattleConfig Extensions
+
+- `exp_share_enabled: bool` — when true, non-participants receive 50% XP. Serialised in `to_dict()`/`from_dict()`.
+
+### BattleResult Extensions
+
+- `party_digimon: Array[DigimonState]` — all DigimonState on the winning side, for post-battle display (active + reserves, deduplicated).
+- `xp_awards` dict now includes: `digimon_state`, `xp`, `old_level`, `old_experience`, `old_stats`, `levels_gained`, `new_techniques`, `participated`.
+
+### Post-Battle Screen Flow
+
+1. Show outcome and turn count.
+2. Build `XPAwardRow` for each party Digimon — full row if XP earned, greyed out if no XP.
+3. Auto-equip new techniques if equipped slots have room (`< max_equipped_techniques`).
+4. Queue technique swap popups for any new technique when slots are full.
+5. Animate all XP bars (tween through level-ups).
+6. Process technique swap queue sequentially (one popup at a time).
+7. Enable continue button after all animations and swaps resolve.
+
+### Technique Swap Flow
+
+When a Digimon learns a new technique at level-up and already has `max_equipped_techniques` equipped:
+- `TechniqueSwapPopup` shows all currently equipped techniques + the new one.
+- Player can click an equipped technique to forget it (replaced by the new one).
+- Player can click "Don't Learn" to keep current setup (new technique remains in `known_technique_keys` only).
+- The forgotten technique is NOT removed from `known_technique_keys` — it can be re-equipped later.
 
 ---
 

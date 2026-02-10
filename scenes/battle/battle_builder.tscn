@@ -145,6 +145,16 @@ text = "XP Enabled:"
 layout_mode = 2
 button_pressed = true
 
+[node name="ExpShareRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel"]
+layout_mode = 2
+
+[node name="ExpShareLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/ExpShareRow"]
+layout_mode = 2
+text = "EXP Share:"
+
+[node name="ExpShareToggle" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/ExpShareRow" unique_name_in_owner=true]
+layout_mode = 2
+
 [node name="SettingsSeparator" type="HSeparator" parent="MarginContainer/VBox/HSplit/RightPanel"]
 layout_mode = 2
 

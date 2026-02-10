@@ -185,19 +185,42 @@ func replay_events(
 			&"battle_ended":
 				var result: BattleResult = event.get("result") as BattleResult
 
-				# Write back to source states
+				# Write back to source states (active slots)
 				for side: SideState in _battle.sides:
 					for slot: SlotState in side.slots:
 						if slot.digimon != null:
 							slot.digimon.current_energy = slot.digimon.max_energy
 							slot.digimon.write_back()
+					# Restore energy for retired Digimon
+					for retired: BattleDigimonState in side.retired_battle_digimon:
+						if retired.source_state != null:
+							retired.current_energy = retired.max_energy
+							retired.source_state.current_energy = \
+								retired.current_energy
 
 				# XP awards
 				if _battle.config.xp_enabled \
 						and result.outcome == BattleResult.Outcome.WIN:
 					result.xp_awards = XPCalculator.calculate_xp_awards(
-						_battle,
+						_battle, _battle.config.exp_share_enabled,
 					)
+
+				# Populate party_digimon for post-battle display
+				if result.winning_team >= 0:
+					var seen: Array[DigimonState] = []
+					for side: SideState in _battle.sides:
+						if side.team_index != result.winning_team:
+							continue
+						for slot: SlotState in side.slots:
+							if slot.digimon != null \
+									and slot.digimon.source_state != null \
+									and slot.digimon.source_state \
+										not in seen:
+								seen.append(slot.digimon.source_state)
+						for reserve: DigimonState in side.party:
+							if reserve not in seen:
+								seen.append(reserve)
+					result.party_digimon = seen
 
 				post_battle_screen.show_results(result)
 

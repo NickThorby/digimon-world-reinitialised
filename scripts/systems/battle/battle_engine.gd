@@ -361,6 +361,8 @@ func _resolve_switch(action: BattleAction) -> Array[Dictionary]:
 			outgoing.source_state.current_hp = outgoing.current_hp
 			outgoing.source_state.current_energy = outgoing.current_energy
 			side.party.append(outgoing.source_state)
+		# Preserve for XP tracking
+		side.retired_battle_digimon.append(outgoing)
 
 	# Take new Digimon from reserve
 	var new_state: DigimonState = side.party[action.switch_to_party_index]
@@ -370,6 +372,15 @@ func _resolve_switch(action: BattleAction) -> Array[Dictionary]:
 	var new_battle_mon: BattleDigimonState = BattleFactory.create_battle_digimon(
 		new_state, action.user_side, action.user_slot,
 	)
+
+	# Carry forward participation data from previous stints
+	for retired: BattleDigimonState in side.retired_battle_digimon:
+		if retired.source_state == new_state:
+			for foe_key: StringName in retired.participated_against:
+				if foe_key not in new_battle_mon.participated_against:
+					new_battle_mon.participated_against.append(foe_key)
+			break
+
 	slot.digimon = new_battle_mon
 
 	var name_out: String = _get_digimon_name(outgoing) if outgoing else "?"

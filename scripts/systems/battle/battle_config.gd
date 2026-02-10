@@ -40,6 +40,9 @@ var side_configs: Array[Dictionary] = []
 ## Whether XP is awarded after battle.
 var xp_enabled: bool = true
 
+## Whether non-participants receive 50% XP (EXP Share).
+var exp_share_enabled: bool = false
+
 
 ## Apply a preset format, setting side_count, slots_per_side, and team_assignments.
 func apply_preset(preset: FormatPreset) -> void:
@@ -128,6 +131,7 @@ func to_dict() -> Dictionary:
 		"team_assignments": Array(team_assignments),
 		"side_configs": configs_data,
 		"xp_enabled": xp_enabled,
+		"exp_share_enabled": exp_share_enabled,
 	}
 
 
@@ -138,6 +142,7 @@ static func from_dict(data: Dictionary) -> BattleConfig:
 	config.side_count = data.get("side_count", 2)
 	config.slots_per_side = data.get("slots_per_side", 1)
 	config.xp_enabled = data.get("xp_enabled", true)
+	config.exp_share_enabled = data.get("exp_share_enabled", false)
 
 	for ta: Variant in data.get("team_assignments", [0, 1]):
 		config.team_assignments.append(int(ta))
