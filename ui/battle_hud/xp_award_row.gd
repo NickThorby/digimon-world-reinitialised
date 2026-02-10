@@ -9,6 +9,7 @@ signal row_clicked(digimon_state: DigimonState)
 @onready var _name_label: Label = $InfoVBox/NameRow/NameLabel
 @onready var _level_label: Label = $InfoVBox/NameRow/LevelLabel
 @onready var _xp_bar: ProgressBar = $InfoVBox/XPBar
+@onready var _level_up_label: Label = $InfoVBox/NameRow/LevelUpLabel
 @onready var _technique_label: Label = $InfoVBox/TechniqueLabel
 
 var _digimon_state: DigimonState = null
@@ -113,9 +114,16 @@ func animate_xp_bar() -> void:
 		tween.tween_property(_xp_bar, "value", range_size, 0.3)
 		await tween.finished
 
-		# Level-up flash
+		# Level-up indication
 		_level_label.text = "Lv. %d" % (lvl + 1)
-		await get_tree().create_timer(0.15).timeout
+		_level_up_label.visible = true
+		_level_up_label.modulate = Color(1, 1, 1, 0)
+		var flash_tween: Tween = create_tween()
+		flash_tween.tween_property(
+			_level_up_label, "modulate", Color(1, 1, 1, 1), 0.15,
+		)
+		await flash_tween.finished
+		await get_tree().create_timer(0.4).timeout
 
 		# Reset bar for next level
 		_xp_bar.value = 0

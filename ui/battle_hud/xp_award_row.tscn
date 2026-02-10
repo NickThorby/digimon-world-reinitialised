@@ -29,6 +29,13 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.631, 0.631, 0.667, 1)
 text = "Lv. 50"
 
+[node name="LevelUpLabel" type="Label" parent="InfoVBox/NameRow" unique_name_in_owner=true]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1.0, 0.85, 0.0, 1)
+theme_override_font_sizes/font_size = 14
+text = "Level Up!"
+
 [node name="XPBar" type="ProgressBar" parent="InfoVBox" unique_name_in_owner=true]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 16)

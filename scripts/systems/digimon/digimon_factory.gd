@@ -18,6 +18,7 @@ static func create_digimon(
 	state.key = digimon_key
 	state.nickname = nickname
 	state.level = level
+	state.experience = XPCalculator.total_xp_for_level(level, data.growth_rate)
 
 	# Roll random IVs (0 to max_iv per stat)
 	var balance: GameBalance = load("res://data/config/game_balance.tres") as GameBalance

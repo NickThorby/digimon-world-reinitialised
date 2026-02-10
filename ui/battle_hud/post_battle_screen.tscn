@@ -56,11 +56,6 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="PopupLayer" type="Control" parent="Panel/VBox" unique_name_in_owner=true]
-layout_mode = 2
-custom_minimum_size = Vector2(0, 0)
-mouse_filter = 2
-
 [node name="Spacer" type="Control" parent="Panel/VBox"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 8)
@@ -68,3 +63,10 @@ custom_minimum_size = Vector2(0, 8)
 [node name="ContinueButton" type="Button" parent="Panel/VBox" unique_name_in_owner=true]
 layout_mode = 2
 text = "Return to Builder"
+
+[node name="PopupLayer" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2

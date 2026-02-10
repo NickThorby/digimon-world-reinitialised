@@ -15,7 +15,7 @@ const TECHNIQUE_SWAP_POPUP_SCENE := preload(
 @onready var _outcome_label: Label = $Panel/VBox/OutcomeLabel
 @onready var _turn_count_label: Label = $Panel/VBox/TurnCountLabel
 @onready var _xp_container: VBoxContainer = $Panel/VBox/ScrollContainer/XPContainer
-@onready var _popup_layer: Control = $Panel/VBox/PopupLayer
+@onready var _popup_layer: Control = $PopupLayer
 @onready var _continue_button: Button = $Panel/VBox/ContinueButton
 
 var _xp_rows: Array[XPAwardRow] = []

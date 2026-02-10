@@ -1153,6 +1153,26 @@ func _end_of_turn() -> void:
 		digimon.restore_energy(amount)
 		energy_restored.emit(digimon.side_index, digimon.slot_index, amount)
 
+	# 4b. Energy regeneration for reserve Digimon (same rate, applied to DigimonState)
+	for side: SideState in _battle.sides:
+		for state: DigimonState in side.party:
+			if state.current_hp <= 0:
+				continue
+			var data: DigimonData = Atlas.digimon.get(state.key) as DigimonData
+			if data == null:
+				continue
+			var all_stats: Dictionary = StatCalculator.calculate_all_stats(
+				data, state,
+			)
+			var personality: PersonalityData = Atlas.personalities.get(
+				state.personality_key,
+			) as PersonalityData
+			var max_en: int = StatCalculator.apply_personality(
+				all_stats.get(&"energy", 1), &"energy", personality,
+			)
+			var amt: int = maxi(floori(float(max_en) * regen_pct), 1)
+			state.current_energy = mini(state.current_energy + amt, max_en)
+
 	# 5. Fire ON_TURN_END abilities and gear
 	_fire_ability_trigger(Registry.AbilityTrigger.ON_TURN_END)
 	_fire_gear_trigger(Registry.AbilityTrigger.ON_TURN_END)
