@@ -29,6 +29,9 @@ extends Resource
 @export var weather_damage_boost: float = 1.5
 @export var weather_damage_nerf: float = 0.5
 @export var weather_tick_damage_percent: float = 0.0625  # 1/16 max HP
+@export var weather_healing_boost: float = 0.667  # 2/3 in favourable weather
+@export var weather_healing_nerf: float = 0.25  # 1/4 in unfavourable weather
+@export var weather_healing_default: float = 0.5  # 1/2 in no weather
 
 # --- Barriers ---
 

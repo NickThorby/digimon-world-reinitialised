@@ -1408,6 +1408,10 @@ func _end_of_turn() -> void:
 			battle_message.emit("%s wore off." % str(effect_key))
 			side_effect_removed.emit(side.side_index, effect_key)
 
+	# 3b. Stat protection duration ticks
+	for digimon: BattleDigimonState in _battle.get_active_digimon():
+		_tick_stat_protections(digimon)
+
 	# 4. Energy regeneration (5% per turn for all active Digimon)
 	var regen_pct: float = _balance.energy_regen_per_turn if _balance else 0.05
 	for digimon: BattleDigimonState in _battle.get_active_digimon():
@@ -1562,6 +1566,27 @@ func _tick_status_conditions(digimon: BattleDigimonState) -> bool:
 		status_removed.emit(digimon.side_index, digimon.slot_index, key)
 
 	return false
+
+
+## Tick stat protection durations and remove expired entries.
+func _tick_stat_protections(digimon: BattleDigimonState) -> void:
+	var protections: Variant = digimon.volatiles.get("stat_protections")
+	if protections == null or not (protections is Array):
+		return
+	var arr: Array = protections as Array
+	var i: int = arr.size() - 1
+	while i >= 0:
+		var entry: Dictionary = arr[i]
+		var remaining: int = int(entry.get("remaining_turns", -1))
+		if remaining == -1:
+			i -= 1
+			continue  # No expiry (while on field)
+		remaining -= 1
+		if remaining <= 0:
+			arr.remove_at(i)
+		else:
+			entry["remaining_turns"] = remaining
+		i -= 1
 
 
 ## Handle a Digimon fainting — emit signal, update counters, fire faint triggers.

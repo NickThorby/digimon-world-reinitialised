@@ -37,6 +37,10 @@ var stat_stages: Dictionary = {
 ## Status conditions active in battle: [{ "key": StringName, "duration": int, ... }]
 var status_conditions: Array[Dictionary] = []
 
+## Non-stage stat modifiers (percent/fixed) — reset on switch-out.
+## {stat_key: [{type: "percent"|"fixed", value: float|int}]}
+var volatile_stat_modifiers: Dictionary = {}
+
 ## Volatile battle state — reset on switch-out.
 var volatiles: Dictionary = {
 	"turns_on_field": 0,
@@ -93,12 +97,13 @@ var xp_earned: int = 0
 var participated_against: Array[StringName] = []
 
 
-## Get a stat value with stages and status modifiers applied.
+## Get a stat value with stages, status modifiers, and volatile modifiers applied.
 func get_effective_stat(stat_key: StringName) -> int:
 	var base: int = base_stats.get(stat_key, 0)
 	var stage: int = stat_stages.get(stat_key, 0)
 	var staged: int = StatCalculator.apply_stat_stage(base, stage)
-	return _apply_status_stat_modifiers(staged, stat_key)
+	var after_status: int = _apply_status_stat_modifiers(staged, stat_key)
+	return _apply_volatile_stat_modifiers(after_status, stat_key)
 
 
 ## Apply status-based stat reductions (burned halves attack, etc.).
@@ -110,6 +115,22 @@ func _apply_status_stat_modifiers(value: int, stat_key: StringName) -> int:
 		result *= 0.5
 	if stat_key == &"speed" and has_status(&"paralysed"):
 		result *= 0.5
+	return maxi(floori(result), 1)
+
+
+## Apply volatile (non-stage) stat modifiers (percent and fixed).
+func _apply_volatile_stat_modifiers(value: int, stat_key: StringName) -> int:
+	var mods: Variant = volatile_stat_modifiers.get(stat_key)
+	if mods == null or not (mods is Array):
+		return value
+	var result: float = float(value)
+	for mod: Dictionary in (mods as Array):
+		var mod_type: String = mod.get("type", "")
+		match mod_type:
+			"percent":
+				result *= (1.0 + float(mod.get("value", 0)) / 100.0)
+			"fixed":
+				result += float(mod.get("value", 0))
 	return maxi(floori(result), 1)
 
 
@@ -255,6 +276,8 @@ func reset_volatiles() -> void:
 	# Reset stat stages
 	for key: StringName in stat_stages:
 		stat_stages[key] = 0
+	# Reset volatile stat modifiers (percent/fixed)
+	volatile_stat_modifiers = {}
 	# Reset per-switch ability trigger counter
 	ability_trigger_counts["per_switch"] = 0
 	gear_trigger_counts["equip_per_switch"] = 0

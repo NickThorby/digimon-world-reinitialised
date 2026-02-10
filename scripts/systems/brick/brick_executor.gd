@@ -50,6 +50,12 @@ static func execute_brick(
 			return _execute_hazard(brick, user, target, battle)
 		"protection":
 			return _execute_protection(brick, user, target, battle)
+		"statProtection":
+			return _execute_stat_protection(brick, user, target, battle)
+		"statusInteraction":
+			return _execute_status_interaction(
+				brick, user, target, battle, execution_context,
+			)
 		"conditional":
 			return _execute_conditional(
 				brick, user, target, technique, battle, execution_context,
@@ -627,6 +633,8 @@ static func _execute_status_effect(
 
 
 ## Handle "statModifier" brick — modify stat stages on the target.
+## Supports subtypes: stage (default), percent, fixed, setToMax, swapWithTarget,
+## scalesWithCounter.
 static func _execute_stat_modifier(
 	brick: Dictionary,
 	user: BattleDigimonState,
@@ -640,11 +648,6 @@ static func _execute_stat_modifier(
 		if not BrickConditionEvaluator.evaluate(condition_str, ctx):
 			return {"handled": true, "condition_failed": true}
 
-	var modifier_type: String = brick.get("modifierType", "stage")
-	if modifier_type != "stage":
-		push_warning("BrickExecutor: Unimplemented statModifier type '%s'" % modifier_type)
-		return {"handled": false, "modifier_type": modifier_type}
-
 	# Chance check
 	var chance: float = float(brick.get("chance", 100)) / 100.0
 	if chance < 1.0 and battle.rng.randf() > chance:
@@ -656,7 +659,87 @@ static func _execute_stat_modifier(
 	if brick_target == "self":
 		actual_target = user
 
+	# --- swapWithTarget: swap all stat stages between user and target ---
+	if brick.get("swapWithTarget", false):
+		var stat_changes: Array[Dictionary] = []
+		for key: StringName in user.stat_stages:
+			var user_stage: int = user.stat_stages[key]
+			var target_stage: int = actual_target.stat_stages[key]
+			user.stat_stages[key] = target_stage
+			actual_target.stat_stages[key] = user_stage
+			stat_changes.append({
+				"target": user, "stat_key": key,
+				"stages": target_stage - user_stage,
+				"actual": target_stage - user_stage,
+			})
+			stat_changes.append({
+				"target": actual_target, "stat_key": key,
+				"stages": user_stage - target_stage,
+				"actual": user_stage - target_stage,
+			})
+		return {"handled": true, "stat_changes": stat_changes}
+
+	var modifier_type: String = brick.get("modifierType", "stage")
+
+	# --- percent / fixed: volatile non-stage modifiers ---
+	if modifier_type == "percent" or modifier_type == "fixed":
+		var raw_stats: Variant = brick.get("stats", [])
+		var stat_keys: Array = _normalise_stat_keys(raw_stats)
+		if stat_keys.is_empty():
+			return {"handled": false, "reason": "invalid_stats"}
+
+		var mod_value: Variant
+		if modifier_type == "percent":
+			mod_value = float(brick.get("percent", 0))
+		else:
+			mod_value = int(brick.get("value", 0))
+
+		var stat_changes: Array[Dictionary] = []
+		for abbr: Variant in stat_keys:
+			var resolved: Dictionary = _resolve_stat_key(str(abbr))
+			if resolved.is_empty():
+				continue
+			var stat_key: StringName = resolved["stat_key"] as StringName
+			if not actual_target.volatile_stat_modifiers.has(stat_key):
+				actual_target.volatile_stat_modifiers[stat_key] = []
+			(actual_target.volatile_stat_modifiers[stat_key] as Array).append({
+				"type": modifier_type, "value": mod_value,
+			})
+			stat_changes.append({
+				"target": actual_target, "stat_key": stat_key,
+				"type": modifier_type,
+			})
+		return {"handled": true, "stat_changes": stat_changes}
+
+	# --- stage-based modifiers (default) ---
 	var stages: int = int(brick.get("stages", 0))
+
+	# --- setToMax: set all listed stats to +6 ---
+	if brick.get("setToMax", false):
+		var raw_stats: Variant = brick.get("stats", [])
+		var stat_keys: Array = _normalise_stat_keys(raw_stats)
+		var stat_changes: Array[Dictionary] = []
+		for abbr: Variant in stat_keys:
+			var resolved: Dictionary = _resolve_stat_key(str(abbr))
+			if resolved.is_empty():
+				continue
+			var stat_key: StringName = resolved["stat_key"] as StringName
+			var current: int = actual_target.stat_stages.get(stat_key, 0)
+			var needed: int = 6 - current
+			var actual: int = actual_target.modify_stat_stage(stat_key, needed)
+			stat_changes.append({
+				"target": actual_target, "stat_key": stat_key,
+				"stages": needed, "actual": actual,
+			})
+		return {"handled": true, "stat_changes": stat_changes}
+
+	# --- scalesWithCounter: stages derived from counter ---
+	if brick.has("scalesWithCounter"):
+		var counter_name: String = brick.get("scalesWithCounter", "")
+		var count: int = _resolve_counter(counter_name, user, target)
+		var scaling: float = float(brick.get("scalingPerCount", 0))
+		var cap: int = int(brick.get("scalingCap", 999))
+		stages = mini(roundi(float(count) * scaling), cap)
 
 	# Stat drop immunity check
 	if stages < 0 and battle != null \
@@ -667,27 +750,26 @@ static func _execute_stat_modifier(
 		return {"handled": true, "blocked": true}
 
 	var raw_stats: Variant = brick.get("stats", [])
-
-	# Normalise stats to array
-	var stat_keys: Array = []
-	if raw_stats is String:
-		stat_keys = [raw_stats]
-	elif raw_stats is Array:
-		stat_keys = raw_stats as Array
-	else:
+	var stat_keys: Array = _normalise_stat_keys(raw_stats)
+	if stat_keys.is_empty() and not (raw_stats is String or raw_stats is Array):
 		return {"handled": false, "reason": "invalid_stats"}
 
 	var stat_changes: Array[Dictionary] = []
 	for abbr: Variant in stat_keys:
-		var abbr_str: String = str(abbr)
-		var battle_stat: Variant = Registry.BRICK_STAT_MAP.get(abbr_str)
-		if battle_stat == null:
-			push_warning("BrickExecutor: Unknown stat abbreviation '%s'" % abbr_str)
+		var resolved: Dictionary = _resolve_stat_key(str(abbr))
+		if resolved.is_empty():
 			continue
-		var stage_key: Variant = Registry.BATTLE_STAT_STAGE_KEYS.get(battle_stat)
-		if stage_key == null:
+		var stat_key: StringName = resolved["stat_key"] as StringName
+
+		# Stat protection check
+		if _is_stat_change_blocked(actual_target, stat_key, stages):
+			stat_changes.append({
+				"target": actual_target, "stat_key": stat_key,
+				"stages": stages, "actual": 0, "blocked": true,
+				"reason": "stat_protection",
+			})
 			continue
-		var stat_key: StringName = stage_key as StringName
+
 		var actual: int = actual_target.modify_stat_stage(stat_key, stages)
 		stat_changes.append({
 			"target": actual_target,
@@ -700,6 +782,55 @@ static func _execute_stat_modifier(
 		"handled": true,
 		"stat_changes": stat_changes,
 	}
+
+
+## Normalise a stats field (String or Array) to an Array of abbreviation strings.
+static func _normalise_stat_keys(raw_stats: Variant) -> Array:
+	if raw_stats is String:
+		return [raw_stats]
+	elif raw_stats is Array:
+		return raw_stats as Array
+	return []
+
+
+## Resolve a stat abbreviation to its stage key.
+## Returns {"stat_key": StringName} or {} if unknown.
+static func _resolve_stat_key(abbr_str: String) -> Dictionary:
+	var battle_stat: Variant = Registry.BRICK_STAT_MAP.get(abbr_str)
+	if battle_stat == null:
+		push_warning(
+			"BrickExecutor: Unknown stat abbreviation '%s'" % abbr_str,
+		)
+		return {}
+	var stage_key: Variant = Registry.BATTLE_STAT_STAGE_KEYS.get(battle_stat)
+	if stage_key == null:
+		return {}
+	return {"stat_key": stage_key as StringName}
+
+
+## Check whether a stat change is blocked by stat protection volatiles.
+static func _is_stat_change_blocked(
+	digimon: BattleDigimonState,
+	stat_key: StringName,
+	stages: int,
+) -> bool:
+	var protections: Variant = digimon.volatiles.get("stat_protections")
+	if protections == null or not (protections is Array):
+		return false
+	for prot: Dictionary in (protections as Array):
+		var protected_stats: Variant = prot.get("stats")
+		var covers: bool = false
+		if protected_stats is String and (protected_stats as String) == "all":
+			covers = true
+		elif protected_stats is Array:
+			covers = stat_key in (protected_stats as Array)
+		if not covers:
+			continue
+		if stages < 0 and prot.get("prevent_lowering", false):
+			return true
+		if stages > 0 and prot.get("prevent_raising", false):
+			return true
+	return false
 
 
 ## Handle "recoil" brick — self-damage based on damage dealt or user HP.
@@ -802,6 +933,44 @@ static func _execute_healing(
 				result["healing"] = healed
 				result["drain_target_side"] = _user.side_index
 				result["drain_target_slot"] = _user.slot_index
+
+		"weather":
+			var balance: GameBalance = _get_balance()
+			var base_percent: float = float(brick.get("percent", 50))
+			var heal_percent: float = balance.weather_healing_default \
+				if balance else 0.5
+			if _battle != null and _battle.field.has_weather():
+				var weather_key: StringName = _battle.field.weather.get(
+					"key", &"",
+				) as StringName
+				match str(weather_key):
+					"sun", "rain":
+						heal_percent = balance.weather_healing_boost \
+							if balance else 0.667
+					"sandstorm", "hail":
+						heal_percent = balance.weather_healing_nerf \
+							if balance else 0.25
+			var amount: int = maxi(
+				floori(float(target.max_hp) * heal_percent), 1,
+			)
+			var healed: int = target.restore_hp(amount)
+			result["healing"] = healed
+
+		"status":
+			# Heal + cure status
+			var amount: int = 0
+			if brick.has("amount"):
+				amount = int(brick["amount"])
+			elif brick.has("percent"):
+				var pct: float = float(brick["percent"])
+				amount = maxi(
+					floori(float(target.max_hp) * pct / 100.0), 1,
+				)
+			if amount > 0:
+				var healed: int = target.restore_hp(amount)
+				result["healing"] = healed
+			else:
+				result["healing"] = 0
 
 		_:
 			push_warning(
@@ -1324,6 +1493,118 @@ static func _execute_protection(
 		"protected": true,
 		"protection_type": protection_type,
 	}
+
+
+## --- Stat Protection ---
+
+
+## Handle "statProtection" brick — prevent stat stage changes for a duration.
+static func _execute_stat_protection(
+	brick: Dictionary,
+	user: BattleDigimonState,
+	_target: BattleDigimonState,
+	_battle: BattleState,
+) -> Dictionary:
+	# Resolve target
+	var brick_target: String = brick.get("target", "self")
+	var actual_target: BattleDigimonState = _target
+	if brick_target == "self":
+		actual_target = user
+
+	var raw_stats: Variant = brick.get("stats", "all")
+	var protected_stats: Variant
+	if raw_stats is String and (raw_stats as String) == "all":
+		protected_stats = "all"
+	else:
+		var normalised: Array = _normalise_stat_keys(raw_stats)
+		var resolved: Array[StringName] = []
+		for abbr: Variant in normalised:
+			var r: Dictionary = _resolve_stat_key(str(abbr))
+			if not r.is_empty():
+				resolved.append(r["stat_key"] as StringName)
+		protected_stats = resolved
+
+	var prevent_lowering: bool = brick.get("preventLowering", false)
+	var prevent_raising: bool = brick.get("preventRaising", false)
+	var duration: int = int(brick.get("duration", -1))
+
+	var entry: Dictionary = {
+		"stats": protected_stats,
+		"prevent_lowering": prevent_lowering,
+		"prevent_raising": prevent_raising,
+		"remaining_turns": duration,
+	}
+
+	if not actual_target.volatiles.has("stat_protections"):
+		actual_target.volatiles["stat_protections"] = []
+	(actual_target.volatiles["stat_protections"] as Array).append(entry)
+
+	return {"handled": true, "stat_protection_applied": true}
+
+
+## --- Status Interaction ---
+
+
+## Handle "statusInteraction" brick — cure, transfer, or apply bonuses based
+## on the user's or target's status conditions.
+static func _execute_status_interaction(
+	brick: Dictionary,
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	_battle: BattleState,
+	execution_context: Dictionary,
+) -> Dictionary:
+	# Determine which condition to check and who has it
+	var check_user: bool = brick.has("ifUserHas")
+	var check_target: bool = brick.has("ifTargetHas")
+	var status_key: StringName = &""
+	var status_owner: BattleDigimonState = null
+
+	if check_user:
+		status_key = StringName(brick.get("ifUserHas", ""))
+		status_owner = user
+		if not user.has_status(status_key):
+			return {"handled": true, "condition_failed": true}
+	elif check_target:
+		status_key = StringName(brick.get("ifTargetHas", ""))
+		status_owner = target
+		if not target.has_status(status_key):
+			return {"handled": true, "condition_failed": true}
+	else:
+		return {"handled": false, "reason": "no_status_condition"}
+
+	var result: Dictionary = {"handled": true, "interaction_applied": true}
+
+	# Cure: remove the status from whoever has it
+	if brick.get("cure", false):
+		status_owner.remove_status(status_key)
+		result["cured"] = str(status_key)
+		result["cured_side"] = status_owner.side_index
+		result["cured_slot"] = status_owner.slot_index
+
+	# Transfer: remove from source, add to opponent
+	if brick.get("transfer", false):
+		status_owner.remove_status(status_key)
+		var recipient: BattleDigimonState = target if check_user else user
+		recipient.add_status(status_key)
+		result["transferred"] = str(status_key)
+		result["transferred_to_side"] = recipient.side_index
+		result["transferred_to_slot"] = recipient.slot_index
+
+	# Bonus damage multiplier
+	if brick.has("bonusDamage"):
+		var mult: float = float(brick["bonusDamage"])
+		execution_context["damage_multiplier"] = float(
+			execution_context.get("damage_multiplier", 1.0),
+		) * mult
+		result["bonus_damage"] = mult
+
+	# Bonus effect
+	if brick.has("bonusEffect"):
+		execution_context["bonus_effect"] = brick["bonusEffect"]
+		result["bonus_effect"] = brick["bonusEffect"]
+
+	return result
 
 
 ## --- Conditional ---

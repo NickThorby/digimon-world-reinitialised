@@ -689,6 +689,131 @@ static func _inject_techniques() -> void:
 			{"brick": "damage", "type": "standard"},
 		],
 	)
+	# --- Session 4: statModifier subtypes ---
+	# statModifier percent: +50% ATK
+	Atlas.techniques[&"test_stat_percent_boost"] = _make_technique(
+		&"test_stat_percent_boost", "Test Stat Percent Boost",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SELF, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "statModifier", "modifierType": "percent",
+			"stats": ["atk"], "percent": 50, "target": "self",
+		}],
+	)
+	# statModifier fixed: +20 DEF
+	Atlas.techniques[&"test_stat_fixed_boost"] = _make_technique(
+		&"test_stat_fixed_boost", "Test Stat Fixed Boost",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SELF, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "statModifier", "modifierType": "fixed",
+			"stats": ["def"], "value": 20, "target": "self",
+		}],
+	)
+	# statModifier setToMax: ATK to +6
+	Atlas.techniques[&"test_stat_set_max"] = _make_technique(
+		&"test_stat_set_max", "Test Stat Set Max",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SELF, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "statModifier", "modifierType": "stage",
+			"stats": ["atk"], "setToMax": true, "target": "self",
+		}],
+	)
+	# statModifier swapWithTarget
+	Atlas.techniques[&"test_stat_swap"] = _make_technique(
+		&"test_stat_swap", "Test Stat Swap",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "statModifier", "modifierType": "stage",
+			"swapWithTarget": true,
+		}],
+	)
+	# statModifier scalesWithCounter: timesHitThisBattle
+	Atlas.techniques[&"test_stat_counter_scaling"] = _make_technique(
+		&"test_stat_counter_scaling", "Test Stat Counter Scaling",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SELF, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "statModifier", "modifierType": "stage",
+			"stats": ["atk"], "scalesWithCounter": "timesHitThisBattle",
+			"scalingPerCount": 1, "scalingCap": 3, "target": "self",
+		}],
+	)
+	# --- Session 4: statProtection ---
+	# statProtection: preventLowering all stats
+	Atlas.techniques[&"test_stat_protection_lower"] = _make_technique(
+		&"test_stat_protection_lower", "Test Stat Protection Lower",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SELF, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "statProtection", "stats": "all",
+			"preventLowering": true, "duration": 5, "target": "self",
+		}],
+	)
+	# statProtection: preventRaising ATK and SPA (applied to target)
+	Atlas.techniques[&"test_stat_protection_raise"] = _make_technique(
+		&"test_stat_protection_raise", "Test Stat Protection Raise",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "statProtection", "stats": ["atk", "spa"],
+			"preventRaising": true, "duration": 5, "target": "target",
+		}],
+	)
+	# --- Session 4: statusInteraction ---
+	# statusInteraction: cure target's burned
+	Atlas.techniques[&"test_status_interaction_cure"] = _make_technique(
+		&"test_status_interaction_cure", "Test Status Interaction Cure",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "statusInteraction", "ifTargetHas": "burned",
+			"cure": true,
+		}],
+	)
+	# statusInteraction: transfer user's poison to target
+	Atlas.techniques[&"test_status_interaction_transfer"] = _make_technique(
+		&"test_status_interaction_transfer", "Test Status Interaction Transfer",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "statusInteraction", "ifUserHas": "poisoned",
+			"transfer": true,
+		}],
+	)
+	# statusInteraction: bonusDamage 2.0 if target paralysed
+	Atlas.techniques[&"test_status_interaction_bonus"] = _make_technique(
+		&"test_status_interaction_bonus", "Test Status Interaction Bonus",
+		Registry.TechniqueClass.PHYSICAL, &"", 60, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [
+			{
+				"brick": "statusInteraction", "ifTargetHas": "paralysed",
+				"bonusDamage": 2.0,
+			},
+			{"brick": "damage", "type": "standard"},
+		],
+	)
+	# --- Session 4: healing subtypes ---
+	# healing weather: percent 50
+	Atlas.techniques[&"test_weather_heal"] = _make_technique(
+		&"test_weather_heal", "Test Weather Heal",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SELF, Registry.Priority.NORMAL,
+		[], [{"brick": "healing", "type": "weather", "percent": 50}],
+	)
+	# healing status: amount 30, cureStatus burned
+	Atlas.techniques[&"test_status_heal"] = _make_technique(
+		&"test_status_heal", "Test Status Heal",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SELF, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "healing", "type": "status",
+			"amount": 30, "cureStatus": "burned",
+		}],
+	)
 	# Contact technique for counter protection tests
 	Atlas.techniques[&"test_contact_tackle"] = _make_technique(
 		&"test_contact_tackle", "Test Contact Tackle",
