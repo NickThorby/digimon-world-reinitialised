@@ -94,6 +94,22 @@ static func execute_brick(
 			return _execute_synergy(
 				brick, user, target, technique, battle, execution_context,
 			)
+		"useRandomTechnique":
+			return _execute_use_random_technique(
+				brick, user, target, technique, battle, execution_context,
+			)
+		"transform":
+			return _execute_transform(brick, user, target, battle)
+		"copyTechnique":
+			return _execute_copy_technique(brick, user, target, battle)
+		"abilityManipulation":
+			return _execute_ability_manipulation(
+				brick, user, target, battle,
+			)
+		"turnOrder":
+			return _execute_turn_order(
+				brick, user, target, execution_context,
+			)
 		_:
 			push_warning(
 				"BrickExecutor: Unimplemented brick type '%s'" % brick_type,
@@ -2400,6 +2416,414 @@ static func _execute_synergy(
 		"synergy_met": synergy_met,
 		"synergy_type": synergy_type,
 	}
+
+
+## --- Session 7 Brick Handlers ---
+
+
+## Handle "useRandomTechnique" brick — redirect technique to a random one.
+static func _execute_use_random_technique(
+	brick: Dictionary,
+	user: BattleDigimonState,
+	_target: BattleDigimonState,
+	technique: TechniqueData,
+	battle: BattleState,
+	execution_context: Dictionary,
+) -> Dictionary:
+	var source: String = brick.get("source", "allTechniques")
+	var exclude_list: Variant = brick.get("excludeTechniques", [])
+	var only_damaging: bool = brick.get("onlyDamaging", false)
+	var only_status: bool = brick.get("onlyStatus", false)
+
+	# Build candidate list based on source
+	var candidates: Array[StringName] = []
+	match source:
+		"allTechniques":
+			for key: StringName in Atlas.techniques:
+				candidates.append(key)
+		"userKnown":
+			candidates = user.equipped_technique_keys.duplicate()
+		"userKnownExceptThis":
+			for key: StringName in user.equipped_technique_keys:
+				if key != technique.key:
+					candidates.append(key)
+		"targetKnown":
+			if _target != null:
+				candidates = _target.equipped_technique_keys.duplicate()
+
+	# Apply filters
+	var filtered: Array[StringName] = []
+	for key: StringName in candidates:
+		# Exclude list
+		if exclude_list is Array:
+			var skip: bool = false
+			for excl: Variant in (exclude_list as Array):
+				if str(excl) == str(key):
+					skip = true
+					break
+			if skip:
+				continue
+
+		# Class filters
+		if only_damaging or only_status:
+			var tech: TechniqueData = Atlas.techniques.get(key) as TechniqueData
+			if tech == null:
+				continue
+			if only_damaging \
+					and tech.technique_class == Registry.TechniqueClass.STATUS:
+				continue
+			if only_status \
+					and tech.technique_class != Registry.TechniqueClass.STATUS:
+				continue
+
+		filtered.append(key)
+
+	if filtered.is_empty():
+		return {
+			"handled": true, "redirect_failed": true,
+			"reason": "no_candidates",
+		}
+
+	# Pick randomly
+	var chosen_idx: int = battle.rng.randi() % filtered.size()
+	var chosen_key: StringName = filtered[chosen_idx]
+	execution_context["redirect_technique"] = chosen_key
+
+	return {"handled": true, "redirect_technique": str(chosen_key)}
+
+
+## Handle "transform" brick — copy aspects of target onto user.
+static func _execute_transform(
+	brick: Dictionary,
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	_battle: BattleState,
+) -> Dictionary:
+	if target == null:
+		return {"handled": false, "reason": "no_target"}
+
+	# Block double-transform
+	var existing_backup: Variant = user.volatiles.get("transform_backup", {})
+	if existing_backup is Dictionary and not (existing_backup as Dictionary).is_empty():
+		return {"handled": true, "already_transformed": true}
+
+	# Store backup
+	user.store_transform_backup()
+
+	# Duration
+	var duration: int = int(brick.get("duration", -1))
+	user.volatiles["transform_duration"] = duration
+
+	var copied_aspects: Array[String] = []
+
+	# copyStats — now an Array[String] of stat abbreviations
+	var copy_stats: Variant = brick.get("copyStats", false)
+	if copy_stats is Array:
+		for stat_abbr: Variant in (copy_stats as Array):
+			var abbr: String = str(stat_abbr)
+			var battle_stat: Variant = Registry.BRICK_STAT_MAP.get(abbr)
+			if battle_stat == null:
+				continue
+			var stat_enum: Registry.BattleStat = battle_stat as Registry.BattleStat
+			# Map BattleStat enum to base_stats key
+			var base_key: StringName = _battle_stat_to_base_key(stat_enum)
+			if base_key != &"" and target.base_stats.has(base_key):
+				user.base_stats[base_key] = target.base_stats[base_key]
+			if abbr == "hp" and target.base_stats.has(&"hp"):
+				user.max_hp = target.base_stats.get(&"hp", user.max_hp)
+				user.current_hp = mini(user.current_hp, user.max_hp)
+		# Recalculate energy cap if energy was copied
+		if "energy" in str(copy_stats):
+			user.max_energy = target.base_stats.get(
+				&"energy", user.max_energy,
+			)
+			user.current_energy = mini(user.current_energy, user.max_energy)
+		copied_aspects.append("stats")
+	elif copy_stats == true:
+		# Legacy bool support: copy all base stats
+		user.base_stats = target.base_stats.duplicate()
+		user.max_hp = target.base_stats.get(&"hp", user.max_hp)
+		user.current_hp = mini(user.current_hp, user.max_hp)
+		user.max_energy = target.base_stats.get(&"energy", user.max_energy)
+		user.current_energy = mini(user.current_energy, user.max_energy)
+		copied_aspects.append("stats")
+
+	# copyTechniques
+	if brick.get("copyTechniques", false):
+		user.equipped_technique_keys = target.equipped_technique_keys.duplicate()
+		user.known_technique_keys = target.known_technique_keys.duplicate()
+		copied_aspects.append("techniques")
+
+	# copyAbility
+	if brick.get("copyAbility", false):
+		user.ability_key = target.ability_key
+		copied_aspects.append("ability")
+
+	# copyResistances
+	if brick.get("copyResistances", false):
+		if target.data != null:
+			user.volatiles["resistance_overrides"] = \
+				target.data.resistances.duplicate()
+		copied_aspects.append("resistances")
+
+	# copyElementTraits
+	if brick.get("copyElementTraits", false):
+		if target.data != null and target.data.element_traits.size() > 0:
+			user.volatiles["element_traits_replaced"] = \
+				target.data.element_traits[0]
+			if target.data.element_traits.size() > 1:
+				var added: Array = []
+				for i: int in range(1, target.data.element_traits.size()):
+					added.append(target.data.element_traits[i])
+				user.volatiles["element_traits_added"] = added
+		copied_aspects.append("element_traits")
+
+	# copyAppearance
+	if brick.get("copyAppearance", false):
+		user.volatiles["transform_appearance_key"] = target.data.key \
+			if target.data != null else &""
+		copied_aspects.append("appearance")
+
+	return {
+		"handled": true, "transformed": true,
+		"copied_aspects": copied_aspects,
+	}
+
+
+## Map BattleStat enum to base_stats dictionary key.
+static func _battle_stat_to_base_key(stat: Registry.BattleStat) -> StringName:
+	match stat:
+		Registry.BattleStat.HP:
+			return &"hp"
+		Registry.BattleStat.ATTACK:
+			return &"attack"
+		Registry.BattleStat.DEFENCE:
+			return &"defence"
+		Registry.BattleStat.SPECIAL_ATTACK:
+			return &"special_attack"
+		Registry.BattleStat.SPECIAL_DEFENCE:
+			return &"special_defence"
+		Registry.BattleStat.SPEED:
+			return &"speed"
+		Registry.BattleStat.ENERGY:
+			return &"energy"
+	return &""
+
+
+## Handle "copyTechnique" brick — copy a technique into user's moveset.
+static func _execute_copy_technique(
+	brick: Dictionary,
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	battle: BattleState,
+) -> Dictionary:
+	var source: String = brick.get("source", "")
+	var copy_key: StringName = &""
+
+	match source:
+		"lastUsedByTarget":
+			if target != null:
+				copy_key = target.volatiles.get(
+					"last_technique_key", &"",
+				) as StringName
+		"lastUsedByAny":
+			copy_key = battle.last_technique_used_key
+		"lastUsedOnUser":
+			copy_key = user.volatiles.get(
+				"last_technique_hit_by", &"",
+			) as StringName
+		"randomFromTarget":
+			if target != null \
+					and target.equipped_technique_keys.size() > 0:
+				var idx: int = battle.rng.randi() \
+					% target.equipped_technique_keys.size()
+				copy_key = target.equipped_technique_keys[idx]
+
+	if copy_key == &"":
+		return {"handled": true, "copy_failed": true, "reason": "no_technique"}
+
+	var tech: TechniqueData = Atlas.techniques.get(copy_key) as TechniqueData
+	if tech == null:
+		return {"handled": true, "copy_failed": true, "reason": "invalid_technique"}
+
+	# Determine slot
+	var replace_slot: int = int(brick.get("replaceSlot", -1))
+	if replace_slot < 0 or replace_slot >= user.equipped_technique_keys.size():
+		replace_slot = user.equipped_technique_keys.size() - 1
+	if replace_slot < 0:
+		return {"handled": true, "copy_failed": true, "reason": "no_slots"}
+
+	var is_permanent: bool = brick.get("permanent", false)
+
+	# Store original for restoration (unless permanent)
+	if not is_permanent:
+		var original_key: StringName = user.equipped_technique_keys[replace_slot]
+		var duration: int = int(brick.get("duration", -1))
+		var slots: Variant = user.volatiles.get("copied_technique_slots", [])
+		if slots is Array:
+			(slots as Array).append({
+				"slot": replace_slot,
+				"original_key": original_key,
+				"duration": duration,
+			})
+
+	# Apply the copy
+	user.equipped_technique_keys[replace_slot] = copy_key
+	if copy_key not in user.known_technique_keys:
+		user.known_technique_keys.append(copy_key)
+
+	return {
+		"handled": true, "technique_copied": str(copy_key),
+		"replaced_slot": replace_slot,
+	}
+
+
+## Handle "abilityManipulation" brick — copy/swap/suppress/replace/give/nullify.
+static func _execute_ability_manipulation(
+	brick: Dictionary,
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	_battle: BattleState,
+) -> Dictionary:
+	var manipulation_type: String = brick.get("type", "")
+	var duration: int = int(brick.get("duration", -1))
+
+	match manipulation_type:
+		"copy":
+			if target == null:
+				return {"handled": false, "reason": "no_target"}
+			# Backup user's original ability (first manipulation only)
+			if (user.volatiles.get("ability_backup", &"") as StringName) == &"":
+				user.volatiles["ability_backup"] = user.ability_key
+			user.volatiles["ability_manipulation_duration"] = duration
+			user.ability_key = target.ability_key
+			return {
+				"handled": true, "ability_action": "copy",
+				"new_ability": str(target.ability_key),
+			}
+
+		"swap":
+			if target == null:
+				return {"handled": false, "reason": "no_target"}
+			if (user.volatiles.get("ability_backup", &"") as StringName) == &"":
+				user.volatiles["ability_backup"] = user.ability_key
+			if (target.volatiles.get("ability_backup", &"") as StringName) == &"":
+				target.volatiles["ability_backup"] = target.ability_key
+			user.volatiles["ability_manipulation_duration"] = duration
+			target.volatiles["ability_manipulation_duration"] = duration
+			var temp: StringName = user.ability_key
+			user.ability_key = target.ability_key
+			target.ability_key = temp
+			return {
+				"handled": true, "ability_action": "swap",
+				"user_ability": str(user.ability_key),
+				"target_ability": str(target.ability_key),
+			}
+
+		"suppress":
+			if target == null:
+				return {"handled": false, "reason": "no_target"}
+			if (target.volatiles.get("ability_backup", &"") as StringName) == &"":
+				target.volatiles["ability_backup"] = target.ability_key
+			target.volatiles["ability_manipulation_duration"] = duration
+			target.ability_key = &""
+			return {"handled": true, "ability_action": "suppress"}
+
+		"replace":
+			if target == null:
+				return {"handled": false, "reason": "no_target"}
+			var new_ability: StringName = StringName(
+				brick.get("abilityName", ""),
+			)
+			if (target.volatiles.get("ability_backup", &"") as StringName) == &"":
+				target.volatiles["ability_backup"] = target.ability_key
+			target.volatiles["ability_manipulation_duration"] = duration
+			target.ability_key = new_ability
+			return {
+				"handled": true, "ability_action": "replace",
+				"new_ability": str(new_ability),
+			}
+
+		"give":
+			if target == null:
+				return {"handled": false, "reason": "no_target"}
+			if (target.volatiles.get("ability_backup", &"") as StringName) == &"":
+				target.volatiles["ability_backup"] = target.ability_key
+			target.volatiles["ability_manipulation_duration"] = duration
+			target.ability_key = user.ability_key
+			return {
+				"handled": true, "ability_action": "give",
+				"given_ability": str(user.ability_key),
+			}
+
+		"nullify":
+			if target == null:
+				return {"handled": false, "reason": "no_target"}
+			if (target.volatiles.get("ability_backup", &"") as StringName) == &"":
+				target.volatiles["ability_backup"] = target.ability_key
+			target.volatiles["ability_manipulation_duration"] = duration
+			target.ability_key = &""
+			return {"handled": true, "ability_action": "nullify"}
+
+	return {"handled": false, "reason": "unknown_type"}
+
+
+## Handle "turnOrder" brick — manipulate action queue ordering.
+static func _execute_turn_order(
+	brick: Dictionary,
+	user: BattleDigimonState,
+	target: BattleDigimonState,
+	execution_context: Dictionary,
+) -> Dictionary:
+	var order_type: String = brick.get("type", "")
+	var brick_target: String = brick.get("target", "target")
+
+	# Resolve target Digimon
+	var resolved: BattleDigimonState = target
+	if brick_target == "self":
+		resolved = user
+
+	if resolved == null:
+		return {"handled": false, "reason": "no_target"}
+
+	match order_type:
+		"makeTargetMoveNext":
+			execution_context["turn_order_move_next"] = {
+				"side": resolved.side_index,
+				"slot": resolved.slot_index,
+			}
+			return {
+				"handled": true, "turn_order_action": "moveNext",
+				"target_side": resolved.side_index,
+				"target_slot": resolved.slot_index,
+			}
+		"makeTargetMoveLast":
+			execution_context["turn_order_move_last"] = {
+				"side": resolved.side_index,
+				"slot": resolved.slot_index,
+			}
+			return {
+				"handled": true, "turn_order_action": "moveLast",
+				"target_side": resolved.side_index,
+				"target_slot": resolved.slot_index,
+			}
+		"repeatTargetMove":
+			var last_key: StringName = resolved.volatiles.get(
+				"last_technique_key", &"",
+			) as StringName
+			execution_context["turn_order_repeat"] = {
+				"side": resolved.side_index,
+				"slot": resolved.slot_index,
+				"technique_key": last_key,
+			}
+			return {
+				"handled": true, "turn_order_action": "repeat",
+				"target_side": resolved.side_index,
+				"target_slot": resolved.slot_index,
+				"technique_key": str(last_key),
+			}
+
+	return {"handled": false, "reason": "unknown_order_type"}
 
 
 ## --- Shielded Damage ---

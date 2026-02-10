@@ -29,6 +29,9 @@ var pending_effects: Array[Dictionary] = []
 ## Seeded PRNG for deterministic randomness.
 var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
+## Key of the last technique used by any Digimon this turn (for copyTechnique).
+var last_technique_used_key: StringName = &""
+
 
 ## Get all active (non-fainted) BattleDigimonState on the field.
 func get_active_digimon() -> Array[BattleDigimonState]:

@@ -239,6 +239,20 @@ static func _make_digimon(
 		{"key": &"test_negate_physical", "requirements": [{"type": "innate"}]},
 		{"key": &"test_synergy_followup", "requirements": [{"type": "innate"}]},
 		{"key": &"test_synergy_combo", "requirements": [{"type": "innate"}]},
+		{"key": &"test_metronome", "requirements": [{"type": "innate"}]},
+		{"key": &"test_random_damaging", "requirements": [{"type": "innate"}]},
+		{"key": &"test_copycat_random", "requirements": [{"type": "innate"}]},
+		{"key": &"test_full_transform", "requirements": [{"type": "innate"}]},
+		{"key": &"test_partial_transform", "requirements": [{"type": "innate"}]},
+		{"key": &"test_mimic", "requirements": [{"type": "innate"}]},
+		{"key": &"test_sketch", "requirements": [{"type": "innate"}]},
+		{"key": &"test_copy_random", "requirements": [{"type": "innate"}]},
+		{"key": &"test_ability_copy", "requirements": [{"type": "innate"}]},
+		{"key": &"test_ability_swap", "requirements": [{"type": "innate"}]},
+		{"key": &"test_ability_suppress", "requirements": [{"type": "innate"}]},
+		{"key": &"test_ability_nullify", "requirements": [{"type": "innate"}]},
+		{"key": &"test_after_you", "requirements": [{"type": "innate"}]},
+		{"key": &"test_quash", "requirements": [{"type": "innate"}]},
 	]
 	return d
 
@@ -1145,6 +1159,128 @@ static func _inject_techniques() -> void:
 			},
 			{"brick": "damage", "type": "standard"},
 		],
+	)
+	# --- Session 7: useRandomTechnique ---
+	# Metronome: pick random from user's known (excluding self)
+	Atlas.techniques[&"test_metronome"] = _make_technique(
+		&"test_metronome", "Test Metronome",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SELF, Registry.Priority.NORMAL,
+		[], [{"brick": "useRandomTechnique", "source": "userKnownExceptThis"}],
+	)
+	# Random damaging: pick from all techniques, only damaging
+	Atlas.techniques[&"test_random_damaging"] = _make_technique(
+		&"test_random_damaging", "Test Random Damaging",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SELF, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "useRandomTechnique",
+			"source": "allTechniques", "onlyDamaging": true,
+		}],
+	)
+	# Copycat: pick from target's known techniques
+	Atlas.techniques[&"test_copycat_random"] = _make_technique(
+		&"test_copycat_random", "Test Copycat Random",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{"brick": "useRandomTechnique", "source": "targetKnown"}],
+	)
+	# --- Session 7: transform ---
+	# Full transform: copy all aspects
+	Atlas.techniques[&"test_full_transform"] = _make_technique(
+		&"test_full_transform", "Test Full Transform",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "transform",
+			"copyStats": ["atk", "def", "spa", "spd", "spe"],
+			"copyTechniques": true, "copyAbility": true,
+			"copyResistances": true, "copyElementTraits": true,
+			"copyAppearance": true,
+		}],
+	)
+	# Partial transform: copy only atk/spa + techniques, with duration
+	Atlas.techniques[&"test_partial_transform"] = _make_technique(
+		&"test_partial_transform", "Test Partial Transform",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "transform",
+			"copyStats": ["atk", "spa"],
+			"copyTechniques": true, "duration": 3,
+		}],
+	)
+	# --- Session 7: copyTechnique ---
+	# Mimic: copy last used by target, temporary
+	Atlas.techniques[&"test_mimic"] = _make_technique(
+		&"test_mimic", "Test Mimic",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "copyTechnique",
+			"source": "lastUsedByTarget", "replaceSlot": 3, "duration": 5,
+		}],
+	)
+	# Sketch: copy last used by any, permanent
+	Atlas.techniques[&"test_sketch"] = _make_technique(
+		&"test_sketch", "Test Sketch",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "copyTechnique",
+			"source": "lastUsedByAny", "permanent": true, "replaceSlot": 3,
+		}],
+	)
+	# Copy random from target
+	Atlas.techniques[&"test_copy_random"] = _make_technique(
+		&"test_copy_random", "Test Copy Random",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "copyTechnique",
+			"source": "randomFromTarget", "replaceSlot": 3,
+		}],
+	)
+	# --- Session 7: abilityManipulation ---
+	Atlas.techniques[&"test_ability_copy"] = _make_technique(
+		&"test_ability_copy", "Test Ability Copy",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{"brick": "abilityManipulation", "type": "copy"}],
+	)
+	Atlas.techniques[&"test_ability_swap"] = _make_technique(
+		&"test_ability_swap", "Test Ability Swap",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{"brick": "abilityManipulation", "type": "swap"}],
+	)
+	Atlas.techniques[&"test_ability_suppress"] = _make_technique(
+		&"test_ability_suppress", "Test Ability Suppress",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "abilityManipulation", "type": "suppress",
+			"duration": 3,
+		}],
+	)
+	Atlas.techniques[&"test_ability_nullify"] = _make_technique(
+		&"test_ability_nullify", "Test Ability Nullify",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{"brick": "abilityManipulation", "type": "nullify"}],
+	)
+	# --- Session 7: turnOrder ---
+	Atlas.techniques[&"test_after_you"] = _make_technique(
+		&"test_after_you", "Test After You",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{"brick": "turnOrder", "type": "makeTargetMoveNext"}],
+	)
+	Atlas.techniques[&"test_quash"] = _make_technique(
+		&"test_quash", "Test Quash",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{"brick": "turnOrder", "type": "makeTargetMoveLast"}],
 	)
 
 

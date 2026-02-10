@@ -59,6 +59,12 @@ var volatiles: Dictionary = {
 	"resistance_overrides": {},
 	"shields": [],
 	"last_technique_hit_by": &"",
+	"transform_backup": {},
+	"transform_duration": -1,
+	"transform_appearance_key": &"",
+	"copied_technique_slots": [],
+	"ability_backup": &"",
+	"ability_manipulation_duration": -1,
 }
 
 ## Counters that persist through switches within the same battle.
@@ -274,6 +280,11 @@ func modify_stat_stage(stat_key: StringName, stages: int) -> int:
 
 ## Reset volatile state (called on switch-out).
 func reset_volatiles() -> void:
+	# Restore any temporary transformations, copied techniques, or ability changes
+	restore_transform()
+	restore_copied_techniques()
+	restore_ability()
+
 	volatiles = {
 		"turns_on_field": 0,
 		"last_technique_key": &"",
@@ -291,6 +302,12 @@ func reset_volatiles() -> void:
 		"resistance_overrides": {},
 		"shields": [],
 		"last_technique_hit_by": &"",
+		"transform_backup": {},
+		"transform_duration": -1,
+		"transform_appearance_key": &"",
+		"copied_technique_slots": [],
+		"ability_backup": &"",
+		"ability_manipulation_duration": -1,
 	}
 	# Reset stat stages
 	for key: StringName in stat_stages:
@@ -427,6 +444,73 @@ func record_shield_once_used(shield_type: StringName) -> void:
 			(used as Array).append(shield_type)
 	else:
 		counters["shield_once_per_battle_used"] = [shield_type]
+
+
+## Store pre-transform state for later restoration.
+func store_transform_backup() -> void:
+	volatiles["transform_backup"] = {
+		"base_stats": base_stats.duplicate(),
+		"equipped_technique_keys": equipped_technique_keys.duplicate(),
+		"known_technique_keys": known_technique_keys.duplicate(),
+		"ability_key": ability_key,
+		"element_traits_added": (volatiles.get("element_traits_added", []) as Array).duplicate(),
+		"element_traits_removed": (volatiles.get("element_traits_removed", []) as Array).duplicate(),
+		"element_traits_replaced": volatiles.get("element_traits_replaced", &""),
+		"resistance_overrides": (volatiles.get("resistance_overrides", {}) as Dictionary).duplicate(),
+	}
+
+
+## Restore from transform backup, clearing the transform.
+func restore_transform() -> void:
+	var backup: Variant = volatiles.get("transform_backup", {})
+	if not (backup is Dictionary) or (backup as Dictionary).is_empty():
+		return
+	var b: Dictionary = backup as Dictionary
+	base_stats = (b.get("base_stats", {}) as Dictionary).duplicate()
+	equipped_technique_keys = []
+	for k: Variant in b.get("equipped_technique_keys", []):
+		equipped_technique_keys.append(k as StringName)
+	known_technique_keys = []
+	for k: Variant in b.get("known_technique_keys", []):
+		known_technique_keys.append(k as StringName)
+	ability_key = b.get("ability_key", &"") as StringName
+	volatiles["element_traits_added"] = (b.get("element_traits_added", []) as Array).duplicate()
+	volatiles["element_traits_removed"] = (b.get("element_traits_removed", []) as Array).duplicate()
+	volatiles["element_traits_replaced"] = b.get("element_traits_replaced", &"")
+	volatiles["resistance_overrides"] = (b.get("resistance_overrides", {}) as Dictionary).duplicate()
+	# Recalculate HP/energy caps from restored base stats
+	var old_max_hp: int = max_hp
+	max_hp = base_stats.get(&"hp", max_hp)
+	current_hp = mini(current_hp, max_hp)
+	max_energy = base_stats.get(&"energy", max_energy)
+	current_energy = mini(current_energy, max_energy)
+	volatiles["transform_backup"] = {}
+	volatiles["transform_appearance_key"] = &""
+
+
+## Restore original technique keys from copied_technique_slots.
+func restore_copied_techniques() -> void:
+	var slots: Variant = volatiles.get("copied_technique_slots", [])
+	if not (slots is Array):
+		return
+	for entry: Variant in (slots as Array):
+		if not (entry is Dictionary):
+			continue
+		var e: Dictionary = entry as Dictionary
+		var slot: int = int(e.get("slot", -1))
+		var original_key: StringName = e.get("original_key", &"") as StringName
+		if slot >= 0 and slot < equipped_technique_keys.size():
+			equipped_technique_keys[slot] = original_key
+	volatiles["copied_technique_slots"] = []
+
+
+## Restore ability from ability_backup.
+func restore_ability() -> void:
+	var backup: StringName = volatiles.get("ability_backup", &"") as StringName
+	if backup == &"":
+		return
+	ability_key = backup
+	volatiles["ability_backup"] = &""
 
 
 ## Write persistent changes back to the source DigimonState.

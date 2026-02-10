@@ -69,11 +69,15 @@ func execute_turn(actions: Array[BattleAction]) -> void:
 	# Sort actions
 	var sorted: Array[BattleAction] = ActionSorter.sort_actions(actions, _battle)
 
-	# Resolve each action
-	for action: BattleAction in sorted:
+	# Resolve each action (mutable queue for turn order manipulation)
+	var action_queue: Array[BattleAction] = sorted.duplicate()
+	var action_idx: int = 0
+	while action_idx < action_queue.size():
 		if _battle.is_battle_over:
 			break
+		var action: BattleAction = action_queue[action_idx]
 		if action.is_cancelled:
+			action_idx += 1
 			continue
 
 		# Verify actor is still alive
@@ -81,11 +85,13 @@ func execute_turn(actions: Array[BattleAction]) -> void:
 			action.user_side, action.user_slot
 		)
 		if user == null or user.is_fainted:
+			action_idx += 1
 			continue
 
 		# Pre-action state checks (recharging, multi-turn lock, charging)
 		var pre_action: Dictionary = _check_pre_action_state(user, action)
 		if pre_action.get("skip_action", false):
+			action_idx += 1
 			continue
 		if pre_action.get("override_technique", &"") != &"":
 			action.technique_key = pre_action["override_technique"] as StringName
@@ -97,11 +103,15 @@ func execute_turn(actions: Array[BattleAction]) -> void:
 		var results: Array[Dictionary] = _resolve_action(action)
 		action_resolved.emit(action, results)
 
+		# Process turn order manipulation from brick results
+		_process_turn_order(action_queue, action_idx, results)
+
 		# Clear fainted slots with no reserve
 		_clear_fainted_no_reserve()
 
 		if _battle.check_end_conditions():
 			break
+		action_idx += 1
 
 	# End of turn
 	if not _battle.is_battle_over:
@@ -303,6 +313,29 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 	_fire_gear_trigger(Registry.AbilityTrigger.ON_BEFORE_TECHNIQUE, {
 		"subject": user, "technique": technique,
 	})
+
+	# Pre-scan for useRandomTechnique redirect
+	for b: Dictionary in technique.bricks:
+		if b.get("brick", "") == "useRandomTechnique":
+			var redirect_ctx: Dictionary = {}
+			BrickExecutor.execute_brick(
+				b, user, user, technique, _battle, redirect_ctx,
+			)
+			if redirect_ctx.has("redirect_technique"):
+				var new_key: StringName = \
+					redirect_ctx["redirect_technique"] as StringName
+				var new_tech: TechniqueData = \
+					Atlas.techniques.get(new_key) as TechniqueData
+				if new_tech != null:
+					battle_message.emit(
+						"%s used %s!" % [
+							_get_digimon_name(user),
+							new_tech.display_name,
+						],
+					)
+					technique = new_tech
+					action.technique_key = new_key
+			break
 
 	# Resolve targets
 	var targets: Array[BattleDigimonState] = _resolve_targets(
@@ -596,6 +629,87 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 								sc_actual,
 							)
 
+			# Session 7: transform / copy / ability / turnOrder messages
+			if brick_result.get("transformed", false):
+				var appearance: StringName = user.volatiles.get(
+					"transform_appearance_key", &"",
+				) as StringName
+				if appearance != &"":
+					battle_message.emit(
+						"%s transformed into %s!" % [
+							_get_digimon_name(user), str(appearance),
+						],
+					)
+				else:
+					battle_message.emit(
+						"%s transformed!" % _get_digimon_name(user),
+					)
+			if brick_result.get("technique_copied", "") != "":
+				var copied_key: StringName = StringName(
+					brick_result["technique_copied"],
+				)
+				var copied_tech: TechniqueData = Atlas.techniques.get(
+					copied_key,
+				) as TechniqueData
+				var copy_name: String = str(copied_key)
+				if copied_tech != null:
+					copy_name = copied_tech.display_name
+				battle_message.emit(
+					"%s copied %s!" % [
+						_get_digimon_name(user), copy_name,
+					],
+				)
+			if brick_result.has("ability_action"):
+				var ab_action: String = brick_result.get(
+					"ability_action", "",
+				)
+				match ab_action:
+					"copy":
+						battle_message.emit(
+							"%s copied the foe's ability!" \
+								% _get_digimon_name(user),
+						)
+					"swap":
+						battle_message.emit(
+							"%s swapped abilities!" \
+								% _get_digimon_name(user),
+						)
+					"suppress", "nullify":
+						battle_message.emit(
+							"%s's ability was suppressed!" \
+								% _get_digimon_name(target),
+						)
+					"replace":
+						battle_message.emit(
+							"%s's ability was changed!" \
+								% _get_digimon_name(target),
+						)
+					"give":
+						battle_message.emit(
+							"%s gave its ability!" \
+								% _get_digimon_name(user),
+						)
+			if brick_result.has("turn_order_action"):
+				var to_action: String = brick_result.get(
+					"turn_order_action", "",
+				)
+				match to_action:
+					"moveNext":
+						battle_message.emit(
+							"%s was urged to move next!" \
+								% _get_digimon_name(target),
+						)
+					"moveLast":
+						battle_message.emit(
+							"%s was forced to move last!" \
+								% _get_digimon_name(target),
+						)
+					"repeat":
+						battle_message.emit(
+							"%s will repeat its move!" \
+								% _get_digimon_name(target),
+						)
+
 		all_results.append_array(brick_results)
 
 		# Fire ON_AFTER_HIT abilities and gear for the target
@@ -633,6 +747,7 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 
 	# Update volatiles
 	user.volatiles["last_technique_key"] = action.technique_key
+	_battle.last_technique_used_key = action.technique_key
 
 	# Post-execution turn economy effects
 	if not user.is_fainted:
@@ -793,6 +908,74 @@ func _process_position_control(
 					side.slots[slot_a].digimon.slot_index = slot_a
 				if side.slots[slot_b].digimon != null:
 					side.slots[slot_b].digimon.slot_index = slot_b
+
+
+## Process turn order manipulation from brick results.
+func _process_turn_order(
+	queue: Array[BattleAction],
+	current_idx: int,
+	results: Array[Dictionary],
+) -> void:
+	for result: Dictionary in results:
+		if result.get("turn_order_action", "") == "moveNext":
+			var target_side: int = int(result.get("target_side", -1))
+			var target_slot: int = int(result.get("target_slot", -1))
+			_reorder_action(
+				queue, current_idx, target_side, target_slot, true,
+			)
+		elif result.get("turn_order_action", "") == "moveLast":
+			var target_side: int = int(result.get("target_side", -1))
+			var target_slot: int = int(result.get("target_slot", -1))
+			_reorder_action(
+				queue, current_idx, target_side, target_slot, false,
+			)
+		elif result.get("turn_order_action", "") == "repeat":
+			var target_side: int = int(result.get("target_side", -1))
+			var target_slot: int = int(result.get("target_slot", -1))
+			var tech_key: StringName = StringName(
+				result.get("technique_key", ""),
+			)
+			if tech_key != &"":
+				var repeat_action := BattleAction.new()
+				repeat_action.action_type = BattleAction.ActionType.TECHNIQUE
+				repeat_action.user_side = target_side
+				repeat_action.user_slot = target_slot
+				repeat_action.technique_key = tech_key
+				# Target the opponent by default
+				if _battle.sides.size() > 1:
+					repeat_action.target_side = 1 - target_side
+					repeat_action.target_slot = 0
+				queue.insert(current_idx + 1, repeat_action)
+
+
+## Reorder a pending action in the queue. If move_next is true, move it right
+## after current_idx. If false, move it to the end of the queue.
+func _reorder_action(
+	queue: Array[BattleAction],
+	current_idx: int,
+	target_side: int,
+	target_slot: int,
+	move_next: bool,
+) -> void:
+	# Find the target's pending action (after current position)
+	var found_idx: int = -1
+	for i: int in range(current_idx + 1, queue.size()):
+		var a: BattleAction = queue[i]
+		if a.user_side == target_side and a.user_slot == target_slot \
+				and not a.is_cancelled:
+			found_idx = i
+			break
+
+	if found_idx < 0:
+		return
+
+	var moved_action: BattleAction = queue[found_idx]
+	queue.remove_at(found_idx)
+
+	if move_next:
+		queue.insert(current_idx + 1, moved_action)
+	else:
+		queue.append(moved_action)
 
 
 ## Create a switch BattleAction (avoids dependency on test factory).
@@ -1802,6 +1985,12 @@ func _end_of_turn() -> void:
 	for digimon: BattleDigimonState in _battle.get_active_digimon():
 		_tick_stat_protections(digimon)
 
+	# 3c. Transform / copy / ability duration ticks
+	for digimon: BattleDigimonState in _battle.get_active_digimon():
+		_tick_transform_duration(digimon)
+		_tick_copy_technique_duration(digimon)
+		_tick_ability_manipulation_duration(digimon)
+
 	# 4. Energy regeneration (5% per turn for all active Digimon)
 	var regen_pct: float = _balance.energy_regen_per_turn if _balance else 0.05
 	for digimon: BattleDigimonState in _battle.get_active_digimon():
@@ -2053,6 +2242,81 @@ func _tick_stat_protections(digimon: BattleDigimonState) -> void:
 		else:
 			entry["remaining_turns"] = remaining
 		i -= 1
+
+
+## Tick transform duration. When expired, restore from backup.
+func _tick_transform_duration(digimon: BattleDigimonState) -> void:
+	var duration: int = int(digimon.volatiles.get("transform_duration", -1))
+	if duration == -1:
+		return  # Until switch — no tick
+	var backup: Variant = digimon.volatiles.get("transform_backup", {})
+	if not (backup is Dictionary) or (backup as Dictionary).is_empty():
+		return  # Not actually transformed
+	duration -= 1
+	if duration <= 0:
+		digimon.restore_transform()
+		battle_message.emit(
+			"%s reverted to its original form!" \
+				% _get_digimon_name(digimon),
+		)
+	else:
+		digimon.volatiles["transform_duration"] = duration
+
+
+## Tick copied technique durations. When expired, restore original key.
+func _tick_copy_technique_duration(digimon: BattleDigimonState) -> void:
+	var slots: Variant = digimon.volatiles.get("copied_technique_slots", [])
+	if not (slots is Array):
+		return
+	var arr: Array = slots as Array
+	var i: int = arr.size() - 1
+	while i >= 0:
+		var entry: Variant = arr[i]
+		if not (entry is Dictionary):
+			i -= 1
+			continue
+		var e: Dictionary = entry as Dictionary
+		var dur: int = int(e.get("duration", -1))
+		if dur == -1:
+			i -= 1
+			continue  # Until switch — no tick
+		dur -= 1
+		if dur <= 0:
+			var slot: int = int(e.get("slot", -1))
+			var original: StringName = e.get(
+				"original_key", &"",
+			) as StringName
+			if slot >= 0 \
+					and slot < digimon.equipped_technique_keys.size():
+				digimon.equipped_technique_keys[slot] = original
+			arr.remove_at(i)
+		else:
+			e["duration"] = dur
+		i -= 1
+
+
+## Tick ability manipulation duration. When expired, restore original.
+func _tick_ability_manipulation_duration(
+	digimon: BattleDigimonState,
+) -> void:
+	var duration: int = int(
+		digimon.volatiles.get("ability_manipulation_duration", -1),
+	)
+	if duration == -1:
+		return  # Until switch — no tick
+	var backup: StringName = digimon.volatiles.get(
+		"ability_backup", &"",
+	) as StringName
+	if backup == &"":
+		return  # Not actually manipulated
+	duration -= 1
+	if duration <= 0:
+		digimon.restore_ability()
+		battle_message.emit(
+			"%s's ability was restored!" % _get_digimon_name(digimon),
+		)
+	else:
+		digimon.volatiles["ability_manipulation_duration"] = duration
 
 
 ## Handle a Digimon fainting — emit signal, update counters, fire faint triggers.

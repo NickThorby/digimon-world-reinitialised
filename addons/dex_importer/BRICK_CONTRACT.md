@@ -374,7 +374,7 @@
 | Key | Type | Required | Description |
 |---|---|---|---|
 | `brick` | `"transform"` | Yes | Discriminator |
-| `copyStats` | `bool` | No | Copy base stats |
+| `copyStats` | `Array[String]` or `bool` | No | Stat abbreviations to copy (e.g. `["atk", "spa"]`). Uses BRICK_STAT_MAP keys: `hp`, `atk`, `def`, `spa`, `spd`, `spe`, `energy`. Also accepts `true` (bool) to copy all base stats. |
 | `copyTechniques` | `bool` | No | Copy known techniques |
 | `copyAbility` | `bool` | No | Copy ability |
 | `copyResistances` | `bool` | No | Copy resistance profile |
