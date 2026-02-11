@@ -377,6 +377,100 @@ func test_fainted_ally_gets_no_xp() -> void:
 # --- 2v2 XP after fainted cleared ---
 
 
+# --- Party reserve EXP Share ---
+
+
+func _make_won_battle_with_reserve() -> BattleState:
+	## Build a 1v1 with reserves. Side 0: Agumon (active, participated), Patamon
+	## (party reserve, never entered). Side 1: Gabumon (fainted). Side 0 wins.
+	var battle: BattleState = TestBattleFactory.create_1v1_with_reserves(
+		[&"test_agumon", &"test_patamon"],
+		[&"test_gabumon"],
+	)
+	var agumon: BattleDigimonState = battle.sides[0].slots[0].digimon
+	var gabumon_source: DigimonState = battle.sides[1].slots[0].digimon.source_state
+	agumon.participated_against.append(gabumon_source)
+	battle.sides[1].slots[0].digimon.current_hp = 0
+	battle.sides[1].slots[0].digimon.is_fainted = true
+	battle.is_battle_over = true
+	battle.result = BattleResult.new()
+	battle.result.outcome = BattleResult.Outcome.WIN
+	battle.result.winning_team = 0
+	battle.result.turn_count = 2
+	return battle
+
+
+func test_party_reserve_gets_exp_share_xp() -> void:
+	var battle: BattleState = _make_won_battle_with_reserve()
+	var awards: Array[Dictionary] = XPCalculator.calculate_xp_awards(
+		battle, true,
+	)
+	var patamon_xp: int = 0
+	for award: Dictionary in awards:
+		var state: DigimonState = award.get("digimon_state") as DigimonState
+		if state != null and state.key == &"test_patamon":
+			patamon_xp = int(award.get("xp", 0))
+			assert_false(
+				award.get("participated", true) as bool,
+				"Reserve should be marked as non-participant",
+			)
+	assert_gt(patamon_xp, 0,
+		"Party reserve should get XP with EXP Share enabled")
+
+
+func test_party_reserve_no_xp_without_exp_share() -> void:
+	var battle: BattleState = _make_won_battle_with_reserve()
+	var awards: Array[Dictionary] = XPCalculator.calculate_xp_awards(
+		battle, false,
+	)
+	for award: Dictionary in awards:
+		var state: DigimonState = award.get("digimon_state") as DigimonState
+		if state != null:
+			assert_ne(state.key, &"test_patamon",
+				"Party reserve should get no XP without EXP Share")
+
+
+func test_fainted_party_reserve_no_xp_with_exp_share() -> void:
+	var battle: BattleState = _make_won_battle_with_reserve()
+	# Faint Patamon in the party reserve
+	for reserve: DigimonState in battle.sides[0].party:
+		if reserve.key == &"test_patamon":
+			reserve.current_hp = 0
+	var awards: Array[Dictionary] = XPCalculator.calculate_xp_awards(
+		battle, true,
+	)
+	for award: Dictionary in awards:
+		var state: DigimonState = award.get("digimon_state") as DigimonState
+		if state != null:
+			assert_ne(state.key, &"test_patamon",
+				"Fainted party reserve should not get XP even with EXP Share")
+
+
+func test_party_reserve_xp_is_half_of_full() -> void:
+	var battle: BattleState = _make_won_battle_with_reserve()
+	var awards: Array[Dictionary] = XPCalculator.calculate_xp_awards(
+		battle, true,
+	)
+	var agumon_xp: int = 0
+	var patamon_xp: int = 0
+	for award: Dictionary in awards:
+		var state: DigimonState = award.get("digimon_state") as DigimonState
+		if state == null:
+			continue
+		if state.key == &"test_agumon":
+			agumon_xp = int(award.get("xp", 0))
+		elif state.key == &"test_patamon":
+			patamon_xp = int(award.get("xp", 0))
+	assert_gt(agumon_xp, 0, "Agumon (participant) should get XP")
+	assert_gt(patamon_xp, 0, "Patamon (reserve) should get XP")
+	# Reserve gets 50% of base (unsplit), participant gets full (split by 1)
+	# So reserve XP should be roughly half of participant XP
+	@warning_ignore("integer_division")
+	var expected_half: int = agumon_xp / 2
+	assert_between(patamon_xp, maxi(expected_half - 1, 1), expected_half + 1,
+		"Reserve XP should be ~50%% of participant XP")
+
+
 func test_2v2_xp_awarded_after_fainted_cleared() -> void:
 	## In 2v2 battles, fainted foes with no reserves are cleared from slots.
 	## XP must still be awarded via retired_battle_digimon.

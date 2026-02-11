@@ -115,6 +115,41 @@ static func calculate_xp_awards(
 		result["participated"] = did_participate
 		awards.append(result)
 
+	# Award EXP Share to party reserves (never entered field)
+	if exp_share_enabled:
+		for side: SideState in battle.sides:
+			if side.team_index != winning_team:
+				continue
+			for reserve: DigimonState in side.party:
+				if reserve in seen_sources:
+					continue
+				if reserve.current_hp <= 0:
+					continue
+				var reserve_xp: int = 0
+				for foe: Dictionary in defeated_foes:
+					var foe_data: DigimonData = foe["data"] as DigimonData
+					if foe_data == null:
+						continue
+					var base_xp: int = calculate_xp_gain(
+						foe_data.base_xp_yield, int(foe["level"]),
+						reserve.level, 1,
+					)
+					@warning_ignore("integer_division")
+					reserve_xp += maxi(base_xp / 2, 1)
+				if reserve_xp <= 0:
+					continue
+				var old_level: int = reserve.level
+				var old_experience: int = reserve.experience
+				var old_stats: Dictionary = _calculate_display_stats(reserve)
+				var result: Dictionary = apply_xp(reserve, reserve_xp)
+				result["digimon_state"] = reserve
+				result["xp"] = reserve_xp
+				result["old_level"] = old_level
+				result["old_experience"] = old_experience
+				result["old_stats"] = old_stats
+				result["participated"] = false
+				awards.append(result)
+
 	return awards
 
 
