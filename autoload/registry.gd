@@ -644,6 +644,72 @@ const SIDE_EFFECT_TYPES: Array[StringName] = [
 	&"first_turn_protection",
 ]
 
+## Data-driven weather config. Used by brick_executor and battle_engine.
+## Keys: boost_elements, nerf_elements (damage modifiers), healing_modifier (boost|nerf),
+## tick_damage (bool), immune_elements (tick damage immunity).
+const WEATHER_CONFIG: Dictionary = {
+	&"sun": {
+		"boost_elements": [&"fire"],
+		"nerf_elements": [&"water"],
+		"healing_modifier": "boost",
+	},
+	&"rain": {
+		"boost_elements": [&"water"],
+		"nerf_elements": [&"fire"],
+		"healing_modifier": "boost",
+	},
+	&"sandstorm": {
+		"tick_damage": true,
+		"immune_elements": [&"earth", &"metal"],
+		"healing_modifier": "nerf",
+	},
+	&"hail": {
+		"tick_damage": true,
+		"immune_elements": [&"ice"],
+		"healing_modifier": "nerf",
+	},
+	&"snow": {
+		"healing_modifier": "nerf",
+	},
+	&"fog": {},
+}
+
+## Data-driven side effect config. Used by brick_executor and action_sorter.
+## Keys: barrier (bool), technique_class (filter), multiplier_key (GameBalance property),
+## blocks_stat_drops, blocks_status, blocks_crits (bool), speed_multiplier_key.
+const SIDE_EFFECT_CONFIG: Dictionary = {
+	&"physical_barrier": {
+		"barrier": true,
+		"technique_class": TechniqueClass.PHYSICAL,
+		"multiplier_key": "physical_barrier_multiplier",
+	},
+	&"special_barrier": {
+		"barrier": true,
+		"technique_class": TechniqueClass.SPECIAL,
+		"multiplier_key": "special_barrier_multiplier",
+	},
+	&"dual_barrier": {
+		"barrier": true,
+		"multiplier_key": "dual_barrier_multiplier",
+	},
+	&"stat_drop_immunity": {"blocks_stat_drops": true},
+	&"status_immunity": {"blocks_status": true},
+	&"speed_boost": {"speed_multiplier_key": "speed_boost_multiplier"},
+	&"crit_immunity": {"blocks_crits": true},
+	&"spread_protection": {},
+	&"priority_protection": {},
+	&"first_turn_protection": {},
+}
+
+## Data-driven global effect config. Single source of truth and documentation.
+## These are consumed as simple boolean checks (has_global_effect(&"key")).
+const GLOBAL_EFFECT_CONFIG: Dictionary = {
+	&"grounding_field": {"description": "Disables aerial trait for hazard immunity"},
+	&"speed_inversion": {"description": "Negates effective speed for turn order"},
+	&"gear_suppression": {"description": "Suppresses all gear effects"},
+	&"defence_swap": {"description": "Swaps physical/special defence for damage calc"},
+}
+
 const SHIELD_TYPES: Array[StringName] = [
 	&"hp_decoy", &"intact_form_guard", &"endure",
 	&"last_stand", &"negate_one_move_class",

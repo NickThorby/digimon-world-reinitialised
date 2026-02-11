@@ -1036,18 +1036,21 @@ static func _execute_healing(
 
 		"weather":
 			var balance: GameBalance = _get_balance()
-			var base_percent: float = float(brick.get("percent", 50))
 			var heal_percent: float = balance.weather_healing_default \
 				if balance else 0.5
 			if _battle != null and _battle.field.has_weather():
 				var weather_key: StringName = _battle.field.weather.get(
 					"key", &"",
 				) as StringName
-				match str(weather_key):
-					"sun", "rain":
+				var config: Dictionary = Registry.WEATHER_CONFIG.get(
+					weather_key, {},
+				)
+				var heal_mod: String = config.get("healing_modifier", "")
+				match heal_mod:
+					"boost":
 						heal_percent = balance.weather_healing_boost \
 							if balance else 0.667
-					"sandstorm", "hail":
+					"nerf":
 						heal_percent = balance.weather_healing_nerf \
 							if balance else 0.25
 			var amount: int = maxi(
@@ -1202,19 +1205,12 @@ static func _get_weather_modifier(
 	var weather_key: StringName = battle.field.weather.get(
 		"key", &"",
 	) as StringName
+	var config: Dictionary = Registry.WEATHER_CONFIG.get(weather_key, {})
 	var element: StringName = technique.element_key
-
-	match str(weather_key):
-		"sun":
-			if element == &"fire":
-				return {"multiplier": balance.weather_damage_boost}
-			elif element == &"water":
-				return {"multiplier": balance.weather_damage_nerf}
-		"rain":
-			if element == &"water":
-				return {"multiplier": balance.weather_damage_boost}
-			elif element == &"fire":
-				return {"multiplier": balance.weather_damage_nerf}
+	if element in config.get("boost_elements", []):
+		return {"multiplier": balance.weather_damage_boost}
+	if element in config.get("nerf_elements", []):
+		return {"multiplier": balance.weather_damage_nerf}
 	return {}
 
 
@@ -1227,15 +1223,18 @@ static func _get_barrier_modifier(
 	var balance: GameBalance = _get_balance()
 	var side: SideState = battle.sides[target.side_index]
 	var tc: Registry.TechniqueClass = technique.technique_class
-
-	if side.has_side_effect(&"dual_barrier"):
-		return {"multiplier": balance.dual_barrier_multiplier}
-	if tc == Registry.TechniqueClass.PHYSICAL \
-			and side.has_side_effect(&"physical_barrier"):
-		return {"multiplier": balance.physical_barrier_multiplier}
-	if tc == Registry.TechniqueClass.SPECIAL \
-			and side.has_side_effect(&"special_barrier"):
-		return {"multiplier": balance.special_barrier_multiplier}
+	for key: StringName in Registry.SIDE_EFFECT_CONFIG:
+		var config: Dictionary = Registry.SIDE_EFFECT_CONFIG[key]
+		if not config.get("barrier", false):
+			continue
+		if not side.has_side_effect(key):
+			continue
+		# dual_barrier has no technique_class filter (applies to both)
+		if config.has("technique_class") and config["technique_class"] != tc:
+			continue
+		var mult_key: String = config.get("multiplier_key", "")
+		if mult_key != "" and balance != null:
+			return {"multiplier": balance.get(mult_key)}
 	return {}
 
 

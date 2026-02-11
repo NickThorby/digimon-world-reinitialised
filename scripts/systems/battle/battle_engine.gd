@@ -2800,18 +2800,13 @@ func _tick_weather_damage() -> void:
 	var weather_key: StringName = _battle.field.weather.get(
 		"key", &"",
 	) as StringName
+	var config: Dictionary = Registry.WEATHER_CONFIG.get(weather_key, {})
+	if not config.get("tick_damage", false):
+		return
+
 	var percent: float = _balance.weather_tick_damage_percent if _balance \
 		else 0.0625
-
-	# Determine which weather deals tick damage and which elements are immune
-	var immune_elements: Array[StringName] = []
-	match str(weather_key):
-		"sandstorm":
-			immune_elements = [&"earth", &"metal"] as Array[StringName]
-		"hail":
-			immune_elements = [&"ice"] as Array[StringName]
-		_:
-			return  # sun/rain don't deal tick damage
+	var immune_elements: Array = config.get("immune_elements", [])
 
 	for digimon: BattleDigimonState in _battle.get_active_digimon():
 		if digimon.is_fainted:
