@@ -3243,9 +3243,13 @@ func _apply_entry_hazards(digimon: BattleDigimonState) -> void:
 
 			# Immune (0.0 resistance) = no damage
 			if resistance <= 0.0:
+				var immune_name: String = String(
+					hazard.get("source_name", str(key)),
+				)
 				battle_message.emit(
-					"%s is immune to the hazard!" \
-						% _get_digimon_name(digimon),
+					"%s is immune to %s!" % [
+						_get_digimon_name(digimon), immune_name,
+					],
 				)
 				continue
 
@@ -3256,9 +3260,12 @@ func _apply_entry_hazards(digimon: BattleDigimonState) -> void:
 			var hazard_result: Dictionary = _apply_damage_and_emit(
 				digimon, damage, &"hazard",
 			)
+			var hazard_name: String = String(
+				hazard.get("source_name", str(key)),
+			)
 			battle_message.emit(
 				"%s was hurt by %s! (%d damage)" % [
-					_get_digimon_name(digimon), str(key),
+					_get_digimon_name(digimon), hazard_name,
 					int(hazard_result["actual"]),
 				],
 			)
@@ -3285,6 +3292,14 @@ func _apply_entry_hazards(digimon: BattleDigimonState) -> void:
 			stat_changed.emit(
 				digimon.side_index, digimon.slot_index,
 				stat_key, actual,
+			)
+			var stat_hazard_name: String = String(
+				hazard.get("source_name", str(key)),
+			)
+			battle_message.emit(
+				"%s was affected by %s!" % [
+					_get_digimon_name(digimon), stat_hazard_name,
+				],
 			)
 			_emit_stat_change_message(
 				_get_digimon_name(digimon), stat_key, stages, actual,

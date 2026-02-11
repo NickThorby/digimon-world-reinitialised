@@ -50,6 +50,18 @@ func is_queue_empty() -> bool:
 	return _event_queue.is_empty()
 
 
+## Extract the snapshot from a queued digimon_switched event (pre-hazard HP).
+func extract_switch_snapshot(
+	side_index: int, slot_index: int,
+) -> Dictionary:
+	for event: Dictionary in _event_queue:
+		if event.get("type", &"") == &"digimon_switched" \
+				and int(event.get("side_index", -1)) == side_index \
+				and int(event.get("slot_index", -1)) == slot_index:
+			return event.get("snapshot", {}) as Dictionary
+	return {}
+
+
 ## Remove switch-related events from the queue (used when switch is handled inline).
 func filter_switch_events() -> void:
 	var filtered: Array[Dictionary] = []

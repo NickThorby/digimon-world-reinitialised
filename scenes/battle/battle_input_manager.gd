@@ -258,7 +258,14 @@ func _prompt_forced_switch() -> void:
 				_display.update_placeholder(
 					side.side_index, slot.slot_index,
 				)
-				_display.update_panel(side.side_index, slot.slot_index)
+				var switch_snapshot: Dictionary = \
+					_event_replay.extract_switch_snapshot(
+						side.side_index, slot.slot_index,
+					)
+				_display.update_panel_from_snapshot(
+					side.side_index, slot.slot_index,
+					switch_snapshot,
+				)
 
 				var in_dur: float = _display.anim_switch_in(
 					side.side_index, slot.slot_index,
@@ -430,7 +437,14 @@ func _on_switch_chosen(party_index: int) -> void:
 		switch_action.user_slot = _current_input_slot
 		switch_action.switch_to_party_index = party_index
 		_engine.resolve_forced_switch(switch_action)
-		_display.update_all_panels()
+		var switch_snapshot: Dictionary = \
+			_event_replay.extract_switch_snapshot(
+				_current_input_side, _current_input_slot,
+			)
+		_display.update_panel_from_snapshot(
+			_current_input_side, _current_input_slot,
+			switch_snapshot,
+		)
 		_display.update_placeholder(
 			_current_input_side, _current_input_slot,
 		)
