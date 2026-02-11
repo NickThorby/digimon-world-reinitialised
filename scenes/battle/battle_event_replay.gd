@@ -114,11 +114,16 @@ func replay_events(
 				)
 
 			&"energy_restored":
+				var er_side: int = int(event["side_index"])
+				var er_slot: int = int(event["slot_index"])
+				var rest_dur: float = display.anim_rest(er_side, er_slot)
 				display.update_panel_from_snapshot(
-					int(event["side_index"]), int(event["slot_index"]),
+					er_side, er_slot,
 					event.get("snapshot", {}) as Dictionary,
 				)
-				await scene.get_tree().create_timer(0.3).timeout
+				if rest_dur > 0.0:
+					await scene.get_tree().create_timer(rest_dur).timeout
+				await scene.get_tree().create_timer(0.15).timeout
 
 			&"hp_restored":
 				display.update_panel_from_snapshot(

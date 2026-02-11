@@ -438,6 +438,19 @@ func anim_stat_lower(side_index: int, slot_index: int) -> float:
 	return 0.35
 
 
+func anim_rest(side_index: int, slot_index: int) -> float:
+	var placeholder: Node = get_battlefield_placeholder(side_index, slot_index)
+	if placeholder is not Control:
+		return 0.0
+	var ctrl: Control = placeholder as Control
+
+	var glow := Color(0.5, 0.75, 1.4)  # Energy-blue tint
+	var tween: Tween = get_tree().create_tween()
+	tween.tween_property(ctrl, "modulate", glow, 0.15)
+	tween.tween_property(ctrl, "modulate", Color.WHITE, 0.25)
+	return 0.4
+
+
 func anim_switch_out(side_index: int, slot_index: int) -> float:
 	var placeholder: Node = get_battlefield_placeholder(side_index, slot_index)
 	if placeholder is not Control:
