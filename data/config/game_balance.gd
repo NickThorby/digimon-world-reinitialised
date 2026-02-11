@@ -39,6 +39,10 @@ extends Resource
 @export var terrain_tick_damage_percent: float = 0.0625  # 1/16 max HP
 @export var terrain_tick_healing_percent: float = 0.0625  # 1/16 max HP
 
+# --- Preset field effects ---
+
+@export var preset_hazard_return_delay: int = 2  ## Turns before removed preset hazard returns
+
 # --- Barriers ---
 
 @export var physical_barrier_multiplier: float = 0.5

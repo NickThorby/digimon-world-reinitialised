@@ -22,6 +22,11 @@ const TEAM_SAVE_POPUP_SCENE := preload("res://ui/components/team_save_popup.tscn
 @onready var _side_label: Label = $MarginContainer/VBox/HSplit/RightPanel/SideLabel
 @onready var _bag_category_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/BagSection/BagCategoryRow/BagCategoryOption
 @onready var _bag_item_list: VBoxContainer = $MarginContainer/VBox/HSplit/RightPanel/BagSection/BagScroll/BagItemList
+@onready var _weather_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/WeatherRow/WeatherOption
+@onready var _weather_permanent: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/WeatherRow/WeatherPermanent
+@onready var _terrain_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/TerrainRow/TerrainOption
+@onready var _terrain_permanent: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/TerrainRow/TerrainPermanent
+@onready var _global_effects_list: VBoxContainer = $MarginContainer/VBox/HSplit/RightPanel/GlobalEffectsList
 
 var _config: BattleConfig = BattleConfig.new()
 var _current_side: int = 0
@@ -46,6 +51,7 @@ func _ready() -> void:
 	if returning_from_picker:
 		_sync_format_selector()
 
+	_setup_field_effect_options()
 	_update_side_selector()
 	_update_team_display()
 	_update_controller_display()
@@ -108,6 +114,7 @@ func _sync_format_selector() -> void:
 	_format_option.selected = idx
 	_xp_toggle.button_pressed = _config.xp_enabled
 	_exp_share_toggle.button_pressed = _config.exp_share_enabled
+	_sync_field_effect_selectors()
 
 
 func _connect_signals() -> void:
@@ -174,6 +181,8 @@ func _on_exp_share_toggled(pressed: bool) -> void:
 
 
 func _on_launch() -> void:
+	_apply_field_effects_to_config()
+
 	var errors: Array[String] = _config.validate()
 	if errors.size() > 0:
 		_show_validation_errors(errors)
@@ -451,3 +460,133 @@ func _create_bag_item_row(item: ItemData) -> HBoxContainer:
 	)
 
 	return row
+
+
+# --- Field Effects ---
+
+
+func _setup_field_effect_options() -> void:
+	# Weather dropdown
+	_weather_option.clear()
+	_weather_option.add_item("None")
+	for weather_key: StringName in Registry.WEATHER_TYPES:
+		_weather_option.add_item(str(weather_key).capitalize())
+	_weather_permanent.button_pressed = true
+
+	# Terrain dropdown
+	_terrain_option.clear()
+	_terrain_option.add_item("None")
+	for terrain_key: StringName in Registry.TERRAIN_TYPES:
+		_terrain_option.add_item(str(terrain_key).capitalize())
+	_terrain_permanent.button_pressed = true
+
+	# Global effects checkboxes
+	_build_global_effects_list()
+
+
+func _build_global_effects_list() -> void:
+	for child: Node in _global_effects_list.get_children():
+		child.queue_free()
+	for key: StringName in Registry.GLOBAL_EFFECT_TYPES:
+		var row := HBoxContainer.new()
+		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var toggle := CheckBox.new()
+		toggle.text = str(key).replace("_", " ").capitalize()
+		toggle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(toggle)
+		var perm := CheckBox.new()
+		perm.text = "Perm"
+		perm.button_pressed = true
+		row.add_child(perm)
+		_global_effects_list.add_child(row)
+
+
+func _sync_field_effect_selectors() -> void:
+	# Sync weather
+	var weather: Dictionary = _config.preset_field_effects.get("weather", {})
+	if not weather.is_empty():
+		var weather_key: StringName = StringName(weather.get("key", ""))
+		for i: int in Registry.WEATHER_TYPES.size():
+			if Registry.WEATHER_TYPES[i] == weather_key:
+				_weather_option.selected = i + 1  # +1 for "None"
+				break
+		_weather_permanent.button_pressed = weather.get("permanent", true)
+	else:
+		_weather_option.selected = 0
+		_weather_permanent.button_pressed = true
+
+	# Sync terrain
+	var terrain: Dictionary = _config.preset_field_effects.get("terrain", {})
+	if not terrain.is_empty():
+		var terrain_key: StringName = StringName(terrain.get("key", ""))
+		for i: int in Registry.TERRAIN_TYPES.size():
+			if Registry.TERRAIN_TYPES[i] == terrain_key:
+				_terrain_option.selected = i + 1
+				break
+		_terrain_permanent.button_pressed = terrain.get("permanent", true)
+	else:
+		_terrain_option.selected = 0
+		_terrain_permanent.button_pressed = true
+
+	# Sync global effects
+	var global_effects: Array = _config.preset_field_effects.get(
+		"global_effects", [],
+	)
+	var active_keys: Dictionary = {}
+	for effect: Variant in global_effects:
+		if effect is Dictionary:
+			var d: Dictionary = effect as Dictionary
+			active_keys[StringName(d.get("key", ""))] = d.get(
+				"permanent", true,
+			)
+	for i: int in _global_effects_list.get_child_count():
+		var row: HBoxContainer = _global_effects_list.get_child(i) as HBoxContainer
+		if row == null or row.get_child_count() < 2:
+			continue
+		var key: StringName = Registry.GLOBAL_EFFECT_TYPES[i]
+		var toggle: CheckBox = row.get_child(0) as CheckBox
+		var perm: CheckBox = row.get_child(1) as CheckBox
+		if active_keys.has(key):
+			toggle.button_pressed = true
+			perm.button_pressed = active_keys[key]
+		else:
+			toggle.button_pressed = false
+			perm.button_pressed = true
+
+
+func _apply_field_effects_to_config() -> void:
+	var presets: Dictionary = {}
+
+	# Weather
+	var weather_idx: int = _weather_option.selected
+	if weather_idx > 0 and weather_idx - 1 < Registry.WEATHER_TYPES.size():
+		presets["weather"] = {
+			"key": Registry.WEATHER_TYPES[weather_idx - 1],
+			"permanent": _weather_permanent.button_pressed,
+		}
+
+	# Terrain
+	var terrain_idx: int = _terrain_option.selected
+	if terrain_idx > 0 and terrain_idx - 1 < Registry.TERRAIN_TYPES.size():
+		presets["terrain"] = {
+			"key": Registry.TERRAIN_TYPES[terrain_idx - 1],
+			"permanent": _terrain_permanent.button_pressed,
+		}
+
+	# Global effects
+	var global_effects: Array[Dictionary] = []
+	for i: int in _global_effects_list.get_child_count():
+		var row: HBoxContainer = _global_effects_list.get_child(i) as HBoxContainer
+		if row == null or row.get_child_count() < 2:
+			continue
+		var toggle: CheckBox = row.get_child(0) as CheckBox
+		var perm: CheckBox = row.get_child(1) as CheckBox
+		if toggle.button_pressed:
+			global_effects.append({
+				"key": Registry.GLOBAL_EFFECT_TYPES[i],
+				"permanent": perm.button_pressed,
+			})
+	if not global_effects.is_empty():
+		presets["global_effects"] = global_effects
+
+	_config.preset_field_effects = presets

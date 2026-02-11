@@ -69,24 +69,32 @@ func has_global_effect(key: StringName) -> bool:
 
 
 ## Tick all durations down by 1. Remove expired effects.
+## Duration -1 = permanent (brick), never ticks down.
 func tick_durations() -> Dictionary:
 	var expired: Dictionary = {"weather": false, "terrain": false, "global_effects": []}
 
 	if not weather.is_empty():
-		weather["duration"] = int(weather.get("duration", 0)) - 1
-		if int(weather.get("duration", 0)) <= 0:
-			expired["weather"] = true
-			weather = {}
+		var dur: int = int(weather.get("duration", 0))
+		if dur != -1:
+			weather["duration"] = dur - 1
+			if dur - 1 <= 0:
+				expired["weather"] = true
+				weather = {}
 
 	if not terrain.is_empty():
-		terrain["duration"] = int(terrain.get("duration", 0)) - 1
-		if int(terrain.get("duration", 0)) <= 0:
-			expired["terrain"] = true
-			terrain = {}
+		var dur: int = int(terrain.get("duration", 0))
+		if dur != -1:
+			terrain["duration"] = dur - 1
+			if dur - 1 <= 0:
+				expired["terrain"] = true
+				terrain = {}
 
 	for i: int in range(global_effects.size() - 1, -1, -1):
-		global_effects[i]["duration"] = int(global_effects[i].get("duration", 0)) - 1
-		if int(global_effects[i].get("duration", 0)) <= 0:
+		var dur: int = int(global_effects[i].get("duration", 0))
+		if dur == -1:
+			continue
+		global_effects[i]["duration"] = dur - 1
+		if dur - 1 <= 0:
 			expired["global_effects"].append(global_effects[i].get("key", &""))
 			global_effects.remove_at(i)
 

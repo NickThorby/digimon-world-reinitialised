@@ -2199,6 +2199,12 @@ func _end_of_turn() -> void:
 			battle_message.emit("%s wore off." % str(effect_key))
 			side_effect_removed.emit(side.side_index, effect_key)
 
+	# 3d. Restore permanent preset effects that were overridden/expired
+	_restore_preset_effects()
+
+	# 3e. Tick pending hazard returns
+	_tick_pending_hazard_returns()
+
 	# 3b. Stat protection duration ticks
 	for digimon: BattleDigimonState in _battle.get_active_digimon():
 		_tick_stat_protections(digimon)
@@ -3141,8 +3147,109 @@ func _emit_field_effect_signals(result: Dictionary) -> void:
 			battle_message.emit("Hazard %s was laid!" % str(key))
 		elif action == "remove":
 			battle_message.emit("Hazard %s was cleared." % str(key))
+			# Schedule preset hazard return for all affected sides
+			var removed_sides: Array = result.get("removed_sides", [])
+			for side_idx: Variant in removed_sides:
+				_schedule_hazard_return(key, int(side_idx))
 		elif action == "removeAll":
 			battle_message.emit("All hazards were cleared!")
+			# Schedule preset hazard returns for all cleared sides
+			var cleared_sides: Array = result.get("removed_sides", [])
+			for side_idx: Variant in cleared_sides:
+				_schedule_all_hazard_returns(int(side_idx))
+
+
+## Restore permanent preset effects that were overridden or expired.
+func _restore_preset_effects() -> void:
+	var presets: Dictionary = _battle.preset_effects
+	if presets.is_empty():
+		return
+
+	# Weather: restore if slot is empty and preset is permanent
+	var preset_weather: StringName = presets.get("weather", &"")
+	if preset_weather != &"" and not _battle.field.has_weather():
+		_battle.field.set_weather(preset_weather, -1, -1)
+		battle_message.emit("The %s returned." % str(preset_weather))
+		weather_changed.emit(_battle.field.weather)
+		_fire_ability_trigger(Registry.AbilityTrigger.ON_WEATHER_CHANGE)
+
+	# Terrain: restore if slot is empty and preset is permanent
+	var preset_terrain: StringName = presets.get("terrain", &"")
+	if preset_terrain != &"" and not _battle.field.has_terrain():
+		_battle.field.set_terrain(preset_terrain, -1, -1)
+		battle_message.emit("The %s terrain returned." % str(preset_terrain))
+		terrain_changed.emit(_battle.field.terrain)
+		_fire_ability_trigger(Registry.AbilityTrigger.ON_TERRAIN_CHANGE)
+
+	# Global effects: restore any missing permanent ones
+	for key: StringName in presets.get("global_effects", []):
+		if not _battle.field.has_global_effect(key):
+			_battle.field.add_global_effect(key, -1)
+			battle_message.emit("The %s returned." % str(key))
+
+	# Side effects: restore any missing permanent ones
+	for entry: Dictionary in presets.get("side_effects", []):
+		var key: StringName = StringName(entry.get("key", ""))
+		for side_idx: int in entry.get("sides", []):
+			if side_idx < _battle.sides.size():
+				if not _battle.sides[side_idx].has_side_effect(key):
+					_battle.sides[side_idx].add_side_effect(key, -1)
+					battle_message.emit("The %s returned." % str(key))
+
+
+## Tick pending hazard returns, restoring hazards whose delay has elapsed.
+func _tick_pending_hazard_returns() -> void:
+	for i: int in range(_battle.pending_hazard_returns.size() - 1, -1, -1):
+		var entry: Dictionary = _battle.pending_hazard_returns[i]
+		entry["turns_remaining"] = int(entry.get("turns_remaining", 0)) - 1
+		if int(entry["turns_remaining"]) <= 0:
+			var side_idx: int = int(entry.get("side_index", 0))
+			var key: StringName = StringName(entry.get("key", ""))
+			var layers: int = int(entry.get("layers", 1))
+			var extra: Dictionary = entry.get("extra", {})
+			if side_idx < _battle.sides.size():
+				_battle.sides[side_idx].add_hazard(key, layers, extra)
+				battle_message.emit("The %s hazard returned." % str(key))
+			_battle.pending_hazard_returns.remove_at(i)
+
+
+## Schedule a preset hazard to return after a delay when it's been removed.
+func _schedule_hazard_return(key: StringName, side_idx: int) -> void:
+	var presets: Dictionary = _battle.preset_effects
+	for entry: Dictionary in presets.get("hazards", []):
+		var preset_key: StringName = StringName(entry.get("key", ""))
+		if preset_key != key:
+			continue
+		var sides: Array = entry.get("sides", [])
+		if side_idx not in sides:
+			continue
+		# Already pending?
+		for pending: Dictionary in _battle.pending_hazard_returns:
+			if StringName(pending.get("key", "")) == key \
+					and int(pending.get("side_index", -1)) == side_idx:
+				return
+		var delay: int = _balance.preset_hazard_return_delay if _balance else 2
+		_battle.pending_hazard_returns.append({
+			"key": key,
+			"side_index": side_idx,
+			"layers": int(entry.get("layers", 1)),
+			"extra": entry.get("extra", {}),
+			"turns_remaining": delay,
+		})
+		battle_message.emit("The %s hazard will return in %d turns." % [
+			str(key), delay,
+		])
+		return
+
+
+## Schedule returns for all preset hazards on a given side (after removeAll).
+func _schedule_all_hazard_returns(side_idx: int) -> void:
+	var presets: Dictionary = _battle.preset_effects
+	for entry: Dictionary in presets.get("hazards", []):
+		var key: StringName = StringName(entry.get("key", ""))
+		var sides: Array = entry.get("sides", [])
+		if side_idx in sides:
+			_schedule_hazard_return(key, side_idx)
 
 
 ## Get display name for a BattleDigimonState.

@@ -55,6 +55,7 @@ static func create_battle(config: BattleConfig, seed: int = -1) -> BattleState:
 
 		battle.sides.append(side)
 
+	_apply_preset_effects(battle)
 	return battle
 
 
@@ -116,3 +117,89 @@ static func create_battle_digimon(
 		battle_mon.status_conditions.append(status.duplicate())
 
 	return battle_mon
+
+
+## Apply preset field effects from config to the battle state.
+static func _apply_preset_effects(battle: BattleState) -> void:
+	var config: BattleConfig = battle.config
+	var presets: Dictionary = config.preset_field_effects
+	var stored: Dictionary = {
+		"weather": &"",
+		"terrain": &"",
+		"global_effects": [] as Array[StringName],
+		"side_effects": [] as Array[Dictionary],
+		"hazards": [] as Array[Dictionary],
+	}
+
+	# Weather
+	var weather: Dictionary = presets.get("weather", {})
+	if not weather.is_empty():
+		var key: StringName = StringName(weather.get("key", ""))
+		var permanent: bool = weather.get("permanent", false)
+		var duration: int = -1 if permanent else int(weather.get("duration", 5))
+		battle.field.set_weather(key, duration, -1)
+		if permanent:
+			stored["weather"] = key
+
+	# Terrain
+	var terrain: Dictionary = presets.get("terrain", {})
+	if not terrain.is_empty():
+		var key: StringName = StringName(terrain.get("key", ""))
+		var permanent: bool = terrain.get("permanent", false)
+		var duration: int = -1 if permanent else int(terrain.get("duration", 5))
+		battle.field.set_terrain(key, duration, -1)
+		if permanent:
+			stored["terrain"] = key
+
+	# Global effects
+	for effect: Dictionary in presets.get("global_effects", []):
+		var key: StringName = StringName(effect.get("key", ""))
+		var permanent: bool = effect.get("permanent", false)
+		var duration: int = -1 if permanent else int(effect.get("duration", 5))
+		battle.field.add_global_effect(key, duration)
+		if permanent:
+			stored["global_effects"].append(key)
+
+	# Side effects
+	for entry: Dictionary in config.preset_side_effects:
+		var key: StringName = StringName(entry.get("key", ""))
+		var permanent: bool = entry.get("permanent", false)
+		var duration: int = -1 if permanent else int(entry.get("duration", 5))
+		var sides: Array = entry.get("sides", [])
+		var target_sides: Array[int] = []
+		if sides.is_empty():
+			for i: int in battle.sides.size():
+				target_sides.append(i)
+		else:
+			for s: Variant in sides:
+				target_sides.append(int(s))
+		for side_idx: int in target_sides:
+			if side_idx < battle.sides.size():
+				battle.sides[side_idx].add_side_effect(key, duration)
+		if permanent:
+			stored["side_effects"].append({"key": key, "sides": target_sides})
+
+	# Hazards
+	for entry: Dictionary in config.preset_hazards:
+		var key: StringName = StringName(entry.get("key", ""))
+		var permanent: bool = entry.get("permanent", false)
+		var layers: int = int(entry.get("layers", 1))
+		var extra: Dictionary = entry.get("extra", {})
+		var sides: Array = entry.get("sides", [])
+		var target_sides: Array[int] = []
+		if sides.is_empty():
+			for i: int in battle.sides.size():
+				target_sides.append(i)
+		else:
+			for s: Variant in sides:
+				target_sides.append(int(s))
+		for side_idx: int in target_sides:
+			if side_idx < battle.sides.size():
+				battle.sides[side_idx].add_hazard(key, layers, extra)
+		if permanent:
+			stored["hazards"].append({
+				"key": key, "sides": target_sides,
+				"layers": layers, "extra": extra,
+			})
+
+	battle.preset_effects = stored

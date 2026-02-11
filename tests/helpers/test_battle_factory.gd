@@ -294,6 +294,9 @@ static func _make_digimon(
 		{"key": &"test_fiery_terrain", "requirements": [{"type": "innate"}]},
 		{"key": &"test_blooming_terrain", "requirements": [{"type": "innate"}]},
 		{"key": &"test_flooded_terrain", "requirements": [{"type": "innate"}]},
+		{"key": &"test_clear_weather", "requirements": [{"type": "innate"}]},
+		{"key": &"test_remove_grounding", "requirements": [{"type": "innate"}]},
+		{"key": &"test_remove_physical_barrier", "requirements": [{"type": "innate"}]},
 	]
 	return d
 
@@ -1390,6 +1393,27 @@ static func _inject_techniques() -> void:
 		Registry.Targeting.FIELD, Registry.Priority.NORMAL,
 		[], [{"brick": "fieldEffect", "type": "terrain", "terrain": "flooded"}],
 	)
+	# --- Weather clearing / removal techniques ---
+	Atlas.techniques[&"test_clear_weather"] = _make_technique(
+		&"test_clear_weather", "Test Clear Weather",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.FIELD, Registry.Priority.NORMAL,
+		[], [{"brick": "fieldEffect", "type": "weather", "weather": "sun", "remove": true}],
+	)
+	# --- Global effect removal ---
+	Atlas.techniques[&"test_remove_grounding"] = _make_technique(
+		&"test_remove_grounding", "Test Remove Grounding",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.FIELD, Registry.Priority.NORMAL,
+		[], [{"brick": "fieldEffect", "type": "global", "effect": "grounding_field", "remove": true}],
+	)
+	# --- Side effect removal ---
+	Atlas.techniques[&"test_remove_physical_barrier"] = _make_technique(
+		&"test_remove_physical_barrier", "Test Remove Physical Barrier",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{"brick": "sideEffect", "effect": "physical_barrier", "remove": true, "side": "target"}],
+	)
 
 
 static func _make_technique(
@@ -2006,6 +2030,33 @@ static func simulate_switch_out(
 		side.party.append(outgoing.source_state)
 	side.retired_battle_digimon.append(outgoing)
 	slot.digimon = null
+
+
+## Create a 1v1 battle with preset field effects.
+static func create_preset_battle(
+	preset_field: Dictionary = {},
+	preset_sides: Array[Dictionary] = [],
+	preset_hazards: Array[Dictionary] = [],
+	s0_key: StringName = &"test_agumon",
+	s1_key: StringName = &"test_gabumon",
+	seed: int = DEFAULT_SEED,
+) -> BattleState:
+	var config := BattleConfig.new()
+	config.apply_preset(BattleConfig.FormatPreset.SINGLES_1V1)
+	config.side_configs[0] = {
+		"controller": BattleConfig.ControllerType.PLAYER,
+		"party": [make_digimon_state(s0_key)] as Array[DigimonState],
+		"is_wild": false,
+	}
+	config.side_configs[1] = {
+		"controller": BattleConfig.ControllerType.AI,
+		"party": [make_digimon_state(s1_key)] as Array[DigimonState],
+		"is_wild": false,
+	}
+	config.preset_field_effects = preset_field
+	config.preset_side_effects = preset_sides
+	config.preset_hazards = preset_hazards
+	return BattleFactory.create_battle(config, seed)
 
 
 # --- Engine setup ---

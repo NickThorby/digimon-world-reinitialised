@@ -1394,10 +1394,11 @@ static func _execute_field_effect(
 			if remove:
 				battle.field.clear_weather()
 				return {"handled": true, "weather": key, "action": "remove"}
-			var duration: int = int(brick.get(
+			var w_permanent: bool = brick.get("permanent", false)
+			var w_duration: int = -1 if w_permanent else int(brick.get(
 				"duration", balance.default_weather_duration,
 			))
-			battle.field.set_weather(key, duration, user.side_index)
+			battle.field.set_weather(key, w_duration, user.side_index)
 			return {"handled": true, "weather": key, "action": "set"}
 
 		"terrain":
@@ -1407,10 +1408,11 @@ static func _execute_field_effect(
 			if remove:
 				battle.field.clear_terrain()
 				return {"handled": true, "terrain": key, "action": "remove"}
-			var duration: int = int(brick.get(
+			var t_permanent: bool = brick.get("permanent", false)
+			var t_duration: int = -1 if t_permanent else int(brick.get(
 				"duration", balance.default_terrain_duration,
 			))
-			battle.field.set_terrain(key, duration, user.side_index)
+			battle.field.set_terrain(key, t_duration, user.side_index)
 			return {"handled": true, "terrain": key, "action": "set"}
 
 		"global":
@@ -1420,10 +1422,11 @@ static func _execute_field_effect(
 			if remove:
 				battle.field.remove_global_effect(key)
 				return {"handled": true, "global": key, "action": "remove"}
-			var duration: int = int(brick.get(
+			var g_permanent: bool = brick.get("permanent", false)
+			var g_duration: int = -1 if g_permanent else int(brick.get(
 				"duration", balance.default_global_effect_duration,
 			))
-			battle.field.add_global_effect(key, duration)
+			battle.field.add_global_effect(key, g_duration)
 			return {"handled": true, "global": key, "action": "set"}
 
 		_:
@@ -1446,7 +1449,8 @@ static func _execute_side_effect(
 
 	var remove: bool = brick.get("remove", false)
 	var balance: GameBalance = _get_balance()
-	var duration: int = int(brick.get(
+	var se_permanent: bool = brick.get("permanent", false)
+	var duration: int = -1 if se_permanent else int(brick.get(
 		"duration", balance.default_side_effect_duration,
 	))
 	var side_target: String = brick.get("side", "user")
@@ -1479,16 +1483,26 @@ static func _execute_hazard(
 
 	# Remove all hazards from target sides
 	if brick.get("removeAll", false):
+		var cleared_side_indices: Array = []
 		for side: SideState in sides:
 			side.clear_hazards()
-		return {"handled": true, "hazard": &"all", "action": "removeAll"}
+			cleared_side_indices.append(side.side_index)
+		return {
+			"handled": true, "hazard": &"all", "action": "removeAll",
+			"removed_sides": cleared_side_indices,
+		}
 
 	# Remove a specific hazard
 	var remove_key: StringName = StringName(brick.get("remove", ""))
 	if remove_key != &"":
+		var removed_side_indices: Array = []
 		for side: SideState in sides:
 			side.remove_hazard(remove_key)
-		return {"handled": true, "hazard": remove_key, "action": "remove"}
+			removed_side_indices.append(side.side_index)
+		return {
+			"handled": true, "hazard": remove_key, "action": "remove",
+			"removed_sides": removed_side_indices,
+		}
 
 	# Lay a hazard
 	var hazard_type: StringName = StringName(brick.get("hazardType", ""))

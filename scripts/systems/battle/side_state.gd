@@ -85,11 +85,15 @@ func clear_hazards() -> void:
 
 
 ## Tick side effect durations. Returns array of expired effect keys.
+## Duration -1 = permanent (brick), never ticks down.
 func tick_durations() -> Array[StringName]:
 	var expired: Array[StringName] = []
 	for i: int in range(side_effects.size() - 1, -1, -1):
-		side_effects[i]["duration"] = int(side_effects[i].get("duration", 0)) - 1
-		if int(side_effects[i].get("duration", 0)) <= 0:
+		var dur: int = int(side_effects[i].get("duration", 0))
+		if dur == -1:
+			continue
+		side_effects[i]["duration"] = dur - 1
+		if dur - 1 <= 0:
 			expired.append(side_effects[i].get("key", &"") as StringName)
 			side_effects.remove_at(i)
 	return expired

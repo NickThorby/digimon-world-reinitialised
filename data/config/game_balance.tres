@@ -25,6 +25,7 @@ weather_healing_default = 0.5
 weather_tick_healing_percent = 0.0625
 terrain_tick_damage_percent = 0.0625
 terrain_tick_healing_percent = 0.0625
+preset_hazard_return_delay = 2
 physical_barrier_multiplier = 0.5
 special_barrier_multiplier = 0.5
 dual_barrier_multiplier = 0.67

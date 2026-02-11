@@ -155,6 +155,51 @@ text = "EXP Share:"
 [node name="ExpShareToggle" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/ExpShareRow" unique_name_in_owner=true]
 layout_mode = 2
 
+[node name="FieldEffectsSeparator" type="HSeparator" parent="MarginContainer/VBox/HSplit/RightPanel"]
+layout_mode = 2
+
+[node name="FieldEffectsLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Field Effects"
+
+[node name="WeatherRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel"]
+layout_mode = 2
+
+[node name="WeatherLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/WeatherRow"]
+layout_mode = 2
+text = "Weather:"
+
+[node name="WeatherOption" type="OptionButton" parent="MarginContainer/VBox/HSplit/RightPanel/WeatherRow" unique_name_in_owner=true]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="WeatherPermanent" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/WeatherRow" unique_name_in_owner=true]
+layout_mode = 2
+text = "Perm"
+
+[node name="TerrainRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel"]
+layout_mode = 2
+
+[node name="TerrainLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/TerrainRow"]
+layout_mode = 2
+text = "Terrain:"
+
+[node name="TerrainOption" type="OptionButton" parent="MarginContainer/VBox/HSplit/RightPanel/TerrainRow" unique_name_in_owner=true]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="TerrainPermanent" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/TerrainRow" unique_name_in_owner=true]
+layout_mode = 2
+text = "Perm"
+
+[node name="GlobalEffectsLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel"]
+layout_mode = 2
+text = "Global Effects:"
+
+[node name="GlobalEffectsList" type="VBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel" unique_name_in_owner=true]
+layout_mode = 2
+
 [node name="SettingsSeparator" type="HSeparator" parent="MarginContainer/VBox/HSplit/RightPanel"]
 layout_mode = 2
 

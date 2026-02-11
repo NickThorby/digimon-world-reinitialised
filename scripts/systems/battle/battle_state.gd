@@ -32,6 +32,17 @@ var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 ## Key of the last technique used by any Digimon this turn (for copyTechnique).
 var last_technique_used_key: StringName = &""
 
+## Stored preset effects for auto-restoration.
+## { "weather": StringName, "terrain": StringName,
+##   "global_effects": Array[StringName],
+##   "side_effects": Array[Dictionary],  # [{key, sides}]
+##   "hazards": Array[Dictionary] }      # [{key, sides, layers, extra}]
+var preset_effects: Dictionary = {}
+
+## Pending hazard returns: [{ "key": StringName, "side_index": int,
+## "layers": int, "extra": Dictionary, "turns_remaining": int }]
+var pending_hazard_returns: Array[Dictionary] = []
+
 
 ## Get all active (non-fainted) BattleDigimonState on the field.
 func get_active_digimon() -> Array[BattleDigimonState]:

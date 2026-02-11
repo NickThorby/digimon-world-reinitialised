@@ -43,6 +43,22 @@ var xp_enabled: bool = true
 ## Whether non-participants receive 50% XP (EXP Share).
 var exp_share_enabled: bool = false
 
+## Preset field effects applied at battle start.
+## { "weather": { "key": StringName, "permanent": bool, "duration": int },
+##   "terrain": { "key": StringName, "permanent": bool, "duration": int },
+##   "global_effects": [{ "key": StringName, "permanent": bool, "duration": int }] }
+var preset_field_effects: Dictionary = {}
+
+## Preset side effects. Each entry targets specific sides.
+## [{ "key": StringName, "sides": Array[int], "duration": int, "permanent": bool }]
+## sides = [] means ALL sides. duration is ignored when permanent = true.
+var preset_side_effects: Array[Dictionary] = []
+
+## Preset hazards. Each entry targets specific sides.
+## [{ "key": StringName, "sides": Array[int], "layers": int, "permanent": bool, "extra": {} }]
+## sides = [] means ALL sides.
+var preset_hazards: Array[Dictionary] = []
+
 
 ## Apply a preset format, setting side_count, slots_per_side, and team_assignments.
 func apply_preset(preset: FormatPreset) -> void:
@@ -124,7 +140,7 @@ func to_dict() -> Dictionary:
 			cfg_dict["bag"] = (bag as BagState).to_dict()
 		configs_data.append(cfg_dict)
 
-	return {
+	var result: Dictionary = {
 		"format_preset": format_preset,
 		"side_count": side_count,
 		"slots_per_side": slots_per_side,
@@ -133,6 +149,13 @@ func to_dict() -> Dictionary:
 		"xp_enabled": xp_enabled,
 		"exp_share_enabled": exp_share_enabled,
 	}
+	if not preset_field_effects.is_empty():
+		result["preset_field_effects"] = preset_field_effects
+	if not preset_side_effects.is_empty():
+		result["preset_side_effects"] = Array(preset_side_effects)
+	if not preset_hazards.is_empty():
+		result["preset_hazards"] = Array(preset_hazards)
+	return result
 
 
 ## Deserialise from dictionary.
@@ -160,6 +183,12 @@ static func from_dict(data: Dictionary) -> BattleConfig:
 		if bag_data is Dictionary and not (bag_data as Dictionary).is_empty():
 			side_cfg["bag"] = BagState.from_dict(bag_data as Dictionary)
 		config.side_configs.append(side_cfg)
+
+	config.preset_field_effects = data.get("preset_field_effects", {})
+	for se: Dictionary in data.get("preset_side_effects", []):
+		config.preset_side_effects.append(se)
+	for hz: Dictionary in data.get("preset_hazards", []):
+		config.preset_hazards.append(hz)
 
 	return config
 
