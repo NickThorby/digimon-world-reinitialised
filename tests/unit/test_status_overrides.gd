@@ -311,3 +311,241 @@ func test_can_upgrade_true_explicit_allows_upgrade() -> void:
 		result.get("status", &""), &"badly_poisoned",
 		"Result should report badly_poisoned",
 	)
+
+
+# --- Upgraded status blocks base status application ---
+
+
+func test_poisoned_blocked_when_badly_poisoned_exists() -> void:
+	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
+	target.add_status(&"badly_poisoned", -1, {"escalation_turn": 0})
+
+	var result: Dictionary = BrickExecutor.execute_brick(
+		{"brick": "statusEffect", "status": "poisoned", "chance": 100},
+		_battle.get_digimon_at(0, 0), target, null, _battle,
+	)
+
+	assert_true(
+		target.has_status(&"badly_poisoned"),
+		"Should still have badly_poisoned",
+	)
+	assert_false(
+		target.has_status(&"poisoned"),
+		"Should NOT have base poisoned alongside badly_poisoned",
+	)
+	assert_eq(
+		result.get("status", &""), &"badly_poisoned",
+		"Result should report the existing badly_poisoned",
+	)
+
+
+func test_burned_blocked_when_badly_burned_exists() -> void:
+	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
+	target.add_status(&"badly_burned", -1, {"escalation_turn": 0})
+
+	var result: Dictionary = BrickExecutor.execute_brick(
+		{"brick": "statusEffect", "status": "burned", "chance": 100},
+		_battle.get_digimon_at(0, 0), target, null, _battle,
+	)
+
+	assert_true(
+		target.has_status(&"badly_burned"),
+		"Should still have badly_burned",
+	)
+	assert_false(
+		target.has_status(&"burned"),
+		"Should NOT have base burned alongside badly_burned",
+	)
+	assert_eq(
+		result.get("status", &""), &"badly_burned",
+		"Result should report the existing badly_burned",
+	)
+
+
+func test_frostbitten_blocked_when_frozen_exists() -> void:
+	var battle: BattleState = TestBattleFactory.create_1v1_battle(
+		&"test_agumon", &"test_agumon",
+	)
+	var target: BattleDigimonState = battle.get_digimon_at(1, 0)
+	target.add_status(&"frozen", 3)
+
+	var result: Dictionary = BrickExecutor.execute_brick(
+		{"brick": "statusEffect", "status": "frostbitten", "chance": 100},
+		battle.get_digimon_at(0, 0), target, null, battle,
+	)
+
+	assert_true(
+		target.has_status(&"frozen"),
+		"Should still have frozen",
+	)
+	assert_false(
+		target.has_status(&"frostbitten"),
+		"Should NOT have base frostbitten alongside frozen",
+	)
+	assert_eq(
+		result.get("status", &""), &"frozen",
+		"Result should report the existing frozen",
+	)
+
+
+# --- Direct upgraded status application replaces base ---
+
+
+func test_badly_poisoned_replaces_poisoned() -> void:
+	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
+	target.add_status(&"poisoned")
+
+	var result: Dictionary = BrickExecutor.execute_brick(
+		{"brick": "statusEffect", "status": "badly_poisoned", "chance": 100},
+		_battle.get_digimon_at(0, 0), target, null, _battle,
+	)
+
+	assert_false(
+		target.has_status(&"poisoned"),
+		"Poisoned should be removed when badly_poisoned applied directly",
+	)
+	assert_true(
+		target.has_status(&"badly_poisoned"),
+		"Should have badly_poisoned",
+	)
+	assert_true(result.get("applied", false), "Should report applied")
+
+
+func test_badly_burned_replaces_burned() -> void:
+	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
+	target.add_status(&"burned")
+
+	var result: Dictionary = BrickExecutor.execute_brick(
+		{"brick": "statusEffect", "status": "badly_burned", "chance": 100},
+		_battle.get_digimon_at(0, 0), target, null, _battle,
+	)
+
+	assert_false(
+		target.has_status(&"burned"),
+		"Burned should be removed when badly_burned applied directly",
+	)
+	assert_true(
+		target.has_status(&"badly_burned"),
+		"Should have badly_burned",
+	)
+	assert_true(result.get("applied", false), "Should report applied")
+
+
+func test_frozen_replaces_frostbitten() -> void:
+	var battle: BattleState = TestBattleFactory.create_1v1_battle(
+		&"test_agumon", &"test_agumon",
+	)
+	var target: BattleDigimonState = battle.get_digimon_at(1, 0)
+	target.add_status(&"frostbitten")
+
+	var result: Dictionary = BrickExecutor.execute_brick(
+		{"brick": "statusEffect", "status": "frozen", "chance": 100},
+		battle.get_digimon_at(0, 0), target, null, battle,
+	)
+
+	assert_false(
+		target.has_status(&"frostbitten"),
+		"Frostbitten should be removed when frozen applied directly",
+	)
+	assert_true(
+		target.has_status(&"frozen"),
+		"Should have frozen",
+	)
+	assert_true(result.get("applied", false), "Should report applied")
+
+
+# --- Triple application: base -> upgrade -> base should not stack ---
+
+
+func test_triple_poison_does_not_stack() -> void:
+	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
+	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	var brick: Dictionary = {
+		"brick": "statusEffect", "status": "poisoned", "chance": 100,
+	}
+
+	# First application: adds poisoned
+	BrickExecutor.execute_brick(brick, user, target, null, _battle)
+	assert_true(target.has_status(&"poisoned"), "First apply: should have poisoned")
+
+	# Second application: upgrades to badly_poisoned
+	BrickExecutor.execute_brick(brick, user, target, null, _battle)
+	assert_true(
+		target.has_status(&"badly_poisoned"),
+		"Second apply: should upgrade to badly_poisoned",
+	)
+	assert_false(
+		target.has_status(&"poisoned"),
+		"Second apply: poisoned should be removed",
+	)
+
+	# Third application: should NOT add poisoned alongside badly_poisoned
+	BrickExecutor.execute_brick(brick, user, target, null, _battle)
+	assert_true(
+		target.has_status(&"badly_poisoned"),
+		"Third apply: should still have badly_poisoned",
+	)
+	assert_false(
+		target.has_status(&"poisoned"),
+		"Third apply: should NOT have poisoned alongside badly_poisoned",
+	)
+
+
+func test_triple_burn_does_not_stack() -> void:
+	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
+	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	var brick: Dictionary = {
+		"brick": "statusEffect", "status": "burned", "chance": 100,
+	}
+
+	BrickExecutor.execute_brick(brick, user, target, null, _battle)
+	assert_true(target.has_status(&"burned"), "First apply: should have burned")
+
+	BrickExecutor.execute_brick(brick, user, target, null, _battle)
+	assert_true(
+		target.has_status(&"badly_burned"),
+		"Second apply: should upgrade to badly_burned",
+	)
+
+	BrickExecutor.execute_brick(brick, user, target, null, _battle)
+	assert_true(
+		target.has_status(&"badly_burned"),
+		"Third apply: should still have badly_burned",
+	)
+	assert_false(
+		target.has_status(&"burned"),
+		"Third apply: should NOT have burned alongside badly_burned",
+	)
+
+
+func test_triple_frostbite_does_not_stack() -> void:
+	var battle: BattleState = TestBattleFactory.create_1v1_battle(
+		&"test_agumon", &"test_agumon",
+	)
+	var target: BattleDigimonState = battle.get_digimon_at(1, 0)
+	var user: BattleDigimonState = battle.get_digimon_at(0, 0)
+	var brick: Dictionary = {
+		"brick": "statusEffect", "status": "frostbitten", "chance": 100,
+	}
+
+	BrickExecutor.execute_brick(brick, user, target, null, battle)
+	assert_true(
+		target.has_status(&"frostbitten"),
+		"First apply: should have frostbitten",
+	)
+
+	BrickExecutor.execute_brick(brick, user, target, null, battle)
+	assert_true(
+		target.has_status(&"frozen"),
+		"Second apply: should upgrade to frozen",
+	)
+
+	BrickExecutor.execute_brick(brick, user, target, null, battle)
+	assert_true(
+		target.has_status(&"frozen"),
+		"Third apply: should still have frozen",
+	)
+	assert_false(
+		target.has_status(&"frostbitten"),
+		"Third apply: should NOT have frostbitten alongside frozen",
+	)

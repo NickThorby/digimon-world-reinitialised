@@ -659,7 +659,7 @@ func _execute_against_targets(
 					battle_message.emit(
 						"%s was afflicted with %s!" % [
 							_get_digimon_name(target),
-							str(status_key),
+							_format_status_name(status_key),
 						],
 					)
 					# Fire ON_STATUS_APPLIED for the target
@@ -1739,7 +1739,7 @@ func _process_item_result(
 			)
 			battle_message.emit(
 				"%s was cured of %s!" % [
-					_get_digimon_name(target), str(status_key),
+					_get_digimon_name(target), _format_status_name(status_key),
 				],
 			)
 
@@ -1990,7 +1990,7 @@ func _process_ability_result(
 				target.side_index, target.slot_index, status_key,
 			)
 			battle_message.emit("%s was afflicted with %s!" % [
-				_get_digimon_name(target), str(status_key),
+				_get_digimon_name(target), _format_status_name(status_key),
 			])
 
 	if result.get("damage", 0) > 0:

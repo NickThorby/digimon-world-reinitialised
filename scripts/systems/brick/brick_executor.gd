@@ -1603,6 +1603,9 @@ static func _apply_status_overrides(
 		"burned":
 			target.remove_status(&"frostbitten")
 			target.remove_status(&"frozen")
+			# Already badly burned -> block (already has stronger version)
+			if target.has_status(&"badly_burned"):
+				return &"badly_burned"
 			# Burned on already burned -> upgrade to badly_burned
 			if target.has_status(&"burned"):
 				target.remove_status(&"burned")
@@ -1610,15 +1613,31 @@ static func _apply_status_overrides(
 					&"badly_burned", -1, {"escalation_turn": 0},
 				)
 				return &"badly_burned"
+		"badly_burned":
+			# Remove base burned and ice statuses if present
+			target.remove_status(&"burned")
+			target.remove_status(&"frostbitten")
+			target.remove_status(&"frozen")
 		"frostbitten":
 			target.remove_status(&"burned")
 			target.remove_status(&"badly_burned")
-			# Frostbitten on already Frostbitten -> upgrade to Frozen
+			# Already frozen -> block (already has stronger version)
+			if target.has_status(&"frozen"):
+				return &"frozen"
+			# Frostbitten on already frostbitten -> upgrade to frozen
 			if target.has_status(&"frostbitten"):
 				target.remove_status(&"frostbitten")
 				target.add_status(&"frozen")
 				return &"frozen"
+		"frozen":
+			# Remove base frostbitten and burn statuses if present
+			target.remove_status(&"frostbitten")
+			target.remove_status(&"burned")
+			target.remove_status(&"badly_burned")
 		"poisoned":
+			# Already badly poisoned -> block (already has stronger version)
+			if target.has_status(&"badly_poisoned"):
+				return &"badly_poisoned"
 			# Poisoned on already poisoned -> upgrade to badly_poisoned
 			if target.has_status(&"poisoned"):
 				target.remove_status(&"poisoned")
@@ -1626,6 +1645,9 @@ static func _apply_status_overrides(
 					&"badly_poisoned", -1, {"escalation_turn": 0},
 				)
 				return &"badly_poisoned"
+		"badly_poisoned":
+			# Remove base poisoned if present
+			target.remove_status(&"poisoned")
 		"asleep":
 			# Asleep on exhausted -> remove exhausted, apply asleep
 			if target.has_status(&"exhausted"):
