@@ -60,8 +60,8 @@ func test_end_of_turn_energy_regen() -> void:
 		TestBattleFactory.make_rest_action(1, 0),
 	]
 	_engine.execute_turn(actions)
-	# Rest restores 25% + end-of-turn regen 5%
-	var rest_regen: int = maxi(floori(float(user.max_energy) * 0.25), 1)
+	# Rest restores 15% + end-of-turn regen 5%
+	var rest_regen: int = maxi(floori(float(user.max_energy) * 0.15), 1)
 	var turn_regen: int = maxi(floori(float(user.max_energy) * 0.05), 1)
 	assert_eq(
 		user.current_energy, mini(rest_regen + turn_regen, user.max_energy),
