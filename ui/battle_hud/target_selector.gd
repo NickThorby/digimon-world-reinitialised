@@ -5,6 +5,7 @@ extends Control
 
 
 signal target_chosen(side_index: int, slot_index: int)
+@warning_ignore("unused_signal")
 signal back_pressed
 
 

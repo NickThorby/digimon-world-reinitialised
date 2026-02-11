@@ -4,6 +4,7 @@ extends Node
 ## forced switch prompts, and input queue progression.
 
 
+@warning_ignore("unused_signal")
 signal turn_ready(actions: Array[BattleAction])
 
 var _battle: BattleState = null

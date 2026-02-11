@@ -12,6 +12,7 @@ enum PopupMode { SAVE, LOAD }
 @onready var _save_row: HBoxContainer = $MarginContainer/VBox/SaveRow
 @onready var _name_edit: LineEdit = $MarginContainer/VBox/SaveRow/NameEdit
 @onready var _save_new_button: Button = $MarginContainer/VBox/SaveRow/SaveNewButton
+@warning_ignore("unused_private_class_variable")
 @onready var _header_label: Label = $MarginContainer/VBox/HeaderLabel
 @onready var _scroll: ScrollContainer = $MarginContainer/VBox/ScrollContainer
 @onready var _team_list: VBoxContainer = $MarginContainer/VBox/ScrollContainer/TeamList
@@ -30,6 +31,7 @@ func _ready() -> void:
 
 
 ## Open in the given mode. For SAVE mode, pass the team to save.
+@warning_ignore("shadowed_variable_base_class")
 func setup(mode: PopupMode, team: BuilderTeamState = null) -> void:
 	_mode = mode
 	_team_to_save = team

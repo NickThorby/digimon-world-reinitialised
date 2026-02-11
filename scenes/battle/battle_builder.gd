@@ -252,7 +252,7 @@ func _open_team_popup(mode: TeamSavePopup.PopupMode, team: BuilderTeamState = nu
 	popup.popup_centered()
 
 
-func _on_team_saved(slot_name: String, team_name: String) -> void:
+func _on_team_saved(_slot_name: String, team_name: String) -> void:
 	_show_validation_message("Saved '%s'" % team_name)
 	_free_team_popup()
 

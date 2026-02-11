@@ -22,10 +22,10 @@ func populate(party: Array[DigimonState]) -> void:
 	for i: int in party.size():
 		var state: DigimonState = party[i]
 		var data: DigimonData = Atlas.digimon.get(state.key) as DigimonData
-		var name: String = data.display_name if data else str(state.key)
+		var display_name: String = data.display_name if data else str(state.key)
 
 		var button := Button.new()
-		button.text = "%s  Lv. %d  HP: %d" % [name, state.level, state.current_hp]
+		button.text = "%s  Lv. %d  HP: %d" % [display_name, state.level, state.current_hp]
 
 		# Disable if fainted
 		if state.current_hp <= 0:

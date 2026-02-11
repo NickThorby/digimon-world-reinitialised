@@ -4,6 +4,7 @@ extends Node
 ## and captures digimon snapshots for deferred panel updates.
 
 
+@warning_ignore("unused_signal")
 signal replay_finished()
 
 var _battle: BattleState = null
@@ -81,7 +82,7 @@ func replay_events(
 				await message_box.show_message(event["text"] as String)
 
 			&"technique_animation":
-				var duration: float = await display.play_attack_animation(
+				var duration: float = display.play_attack_animation(
 					int(event["user_side"]),
 					int(event["user_slot"]),
 					event["technique_class"] as Registry.TechniqueClass,
