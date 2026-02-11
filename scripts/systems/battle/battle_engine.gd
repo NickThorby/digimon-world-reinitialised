@@ -2108,6 +2108,13 @@ func _pre_execution_check(user: BattleDigimonState, technique: TechniqueData) ->
 			battle_message.emit("%s is paralysed and can't move!" % _get_digimon_name(user))
 			return false
 
+	# Check flinch
+	if user.has_status(&"flinched"):
+		user.remove_status(&"flinched")
+		status_removed.emit(user.side_index, user.slot_index, &"flinched")
+		battle_message.emit("%s flinched!" % _get_digimon_name(user))
+		return false
+
 	# Taunted: block STATUS-class techniques
 	if user.has_status(&"taunted"):
 		if technique.technique_class == Registry.TechniqueClass.STATUS:

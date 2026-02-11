@@ -367,7 +367,7 @@ var stack_limit_labels: Dictionary = {
 # --- Status ---
 
 enum StatusCondition {
-	# Negative (19)
+	# Negative (20)
 	ASLEEP,
 	BURNED,
 	BADLY_BURNED,
@@ -387,6 +387,7 @@ enum StatusCondition {
 	DISABLED,
 	PERISHING,
 	SEEDED,
+	FLINCHED,
 	# Positive (2)
 	REGENERATING,
 	VITALISED,
@@ -415,6 +416,7 @@ var status_condition_labels: Dictionary = {
 	StatusCondition.DISABLED: tr("status_condition.disabled"),
 	StatusCondition.PERISHING: tr("status_condition.perishing"),
 	StatusCondition.SEEDED: tr("status_condition.seeded"),
+	StatusCondition.FLINCHED: tr("status_condition.flinched"),
 	StatusCondition.REGENERATING: tr("status_condition.regenerating"),
 	StatusCondition.VITALISED: tr("status_condition.vitalised"),
 	StatusCondition.NULLIFIED: tr("status_condition.nullified"),
@@ -835,6 +837,7 @@ const VOLATILE_STATUSES: Array[StatusCondition] = [
 	StatusCondition.DISABLED,
 	StatusCondition.PERISHING,
 	StatusCondition.SEEDED,
+	StatusCondition.FLINCHED,
 	StatusCondition.REGENERATING,
 	StatusCondition.VITALISED,
 	StatusCondition.NULLIFIED,

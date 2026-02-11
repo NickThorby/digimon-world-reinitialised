@@ -328,3 +328,67 @@ func test_bleeding_deals_self_damage() -> void:
 	# User should have taken bleeding self-damage
 	var hp_lost: int = initial_hp - user.current_hp
 	assert_gte(hp_lost, expected_bleed, "Bleeding should deal self-damage when using technique")
+
+
+# --- Flinch ---
+
+
+func test_flinched_prevents_technique() -> void:
+	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	user.add_status(&"flinched", 1)
+	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
+	var initial_hp: int = target.current_hp
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_technique_action(0, 0, &"test_tackle", 1, 0),
+		TestBattleFactory.make_rest_action(1, 0),
+	]
+	_engine.execute_turn(actions)
+	assert_eq(
+		target.current_hp, initial_hp,
+		"Flinched Digimon should not be able to attack",
+	)
+
+
+func test_flinch_removed_after_blocking() -> void:
+	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	user.add_status(&"flinched", 1)
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_technique_action(0, 0, &"test_tackle", 1, 0),
+		TestBattleFactory.make_rest_action(1, 0),
+	]
+	_engine.execute_turn(actions)
+	assert_false(
+		user.has_status(&"flinched"),
+		"Flinch should be removed after blocking the action",
+	)
+
+
+func test_flinch_cleared_at_end_of_turn_if_not_consumed() -> void:
+	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	user.add_status(&"flinched", 1)
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_rest_action(0, 0),
+		TestBattleFactory.make_rest_action(1, 0),
+	]
+	_engine.execute_turn(actions)
+	assert_false(
+		user.has_status(&"flinched"),
+		"Flinch should be cleared at end of turn even if not consumed",
+	)
+
+
+func test_flinch_does_not_block_rest() -> void:
+	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	user.add_status(&"flinched", 1)
+	# Drain energy so rest has something to restore
+	user.spend_energy(user.current_energy)
+	var energy_before: int = user.current_energy
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_rest_action(0, 0),
+		TestBattleFactory.make_rest_action(1, 0),
+	]
+	_engine.execute_turn(actions)
+	assert_gt(
+		user.current_energy, energy_before,
+		"Flinch should not block REST — energy should be restored",
+	)
