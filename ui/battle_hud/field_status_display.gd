@@ -12,6 +12,7 @@ func initialise(battle: BattleState) -> void:
 
 func refresh() -> void:
 	for child: Node in get_children():
+		remove_child(child)
 		child.queue_free()
 	if _battle == null:
 		return
@@ -48,12 +49,13 @@ func refresh() -> void:
 		)
 
 
+
 func _add_tag(label_text: String, colour: Color, duration: int) -> void:
 	var panel := PanelContainer.new()
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(colour, 0.25)
+	style.bg_color = Color(colour, 0.4)
 	style.border_color = colour
-	style.set_border_width_all(1)
+	style.set_border_width_all(2)
 	style.set_corner_radius_all(4)
 	style.set_content_margin_all(4)
 	panel.add_theme_stylebox_override("panel", style)
@@ -63,7 +65,7 @@ func _add_tag(label_text: String, colour: Color, duration: int) -> void:
 		label.text = "%s (%d)" % [label_text, duration]
 	else:
 		label.text = label_text
-	label.add_theme_color_override("font_color", colour)
+	label.add_theme_color_override("font_color", Color.WHITE)
 	label.add_theme_font_size_override("font_size", 14)
 	panel.add_child(label)
 

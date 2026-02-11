@@ -94,6 +94,9 @@ func _ready() -> void:
 	_display.position_battlefield(self)
 	_display.update_all_panels()
 
+	# Wait one frame for layout to resolve
+	await get_tree().process_frame
+
 	# Initial field/side status refresh (for preset effects)
 	_field_display.refresh()
 	_ally_side_display.refresh_from_side(_battle.sides[0])

@@ -2,7 +2,7 @@
 extends VBoxContainer
 ## Dock panel UI and import orchestration for the Dex Importer.
 
-const EXPECTED_VERSION: int = 3
+const EXPECTED_VERSION: int = 5
 
 const TECHNIQUE_FOLDER: String = "res://data/technique"
 const ABILITY_FOLDER: String = "res://data/ability"

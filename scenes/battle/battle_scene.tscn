@@ -56,13 +56,9 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 20
 text = "Turn 0"
 
-[node name="TopBarSpacer" type="Control" parent="BattleHUD/TopBar"]
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(20, 0)
-
 [node name="FieldStatusDisplay" parent="BattleHUD/TopBar" unique_name_in_owner=true instance=ExtResource("14")]
 layout_mode = 2
+size_flags_horizontal = 3
 
 [node name="FoePanels" type="HBoxContainer" parent="BattleHUD" unique_name_in_owner=true]
 anchor_left = 0.4
