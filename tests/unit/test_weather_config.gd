@@ -556,3 +556,70 @@ func test_hail_ice_resistant_immune() -> void:
 		ice_mon.current_hp, hp_before,
 		"Ice-resistant mon should be immune to hail tick damage",
 	)
+
+
+# --- Side effect stat modifiers ---
+
+
+func test_get_side_effect_stat_multiplier_speed_boost() -> void:
+	_battle = TestBattleFactory.create_1v1_battle()
+	var digimon: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	_battle.sides[0].add_side_effect(&"speed_boost", 5)
+	var mult: float = DamageCalculator.get_side_effect_stat_multiplier(
+		_battle, &"speed", digimon,
+	)
+	assert_eq(
+		mult, 1.5,
+		"Speed boost side effect should give 1.5x speed (stage +1)",
+	)
+
+
+func test_get_side_effect_stat_multiplier_no_effect() -> void:
+	_battle = TestBattleFactory.create_1v1_battle()
+	var digimon: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	var mult: float = DamageCalculator.get_side_effect_stat_multiplier(
+		_battle, &"speed", digimon,
+	)
+	assert_eq(
+		mult, 1.0,
+		"No active side effects should return 1.0",
+	)
+
+
+func test_get_side_effect_stat_multiplier_wrong_stat() -> void:
+	_battle = TestBattleFactory.create_1v1_battle()
+	var digimon: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	_battle.sides[0].add_side_effect(&"speed_boost", 5)
+	var mult: float = DamageCalculator.get_side_effect_stat_multiplier(
+		_battle, &"attack", digimon,
+	)
+	assert_eq(
+		mult, 1.0,
+		"Speed boost should not affect attack stat",
+	)
+
+
+func test_get_side_effect_stat_multiplier_null_battle() -> void:
+	_battle = TestBattleFactory.create_1v1_battle()
+	var digimon: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	var mult: float = DamageCalculator.get_side_effect_stat_multiplier(
+		null, &"speed", digimon,
+	)
+	assert_eq(
+		mult, 1.0,
+		"Null battle should return 1.0",
+	)
+
+
+func test_get_side_effect_stat_multiplier_opponent_unaffected() -> void:
+	_battle = TestBattleFactory.create_1v1_battle()
+	_battle.sides[0].add_side_effect(&"speed_boost", 5)
+	# Opponent (side 1) should not get the boost
+	var opponent: BattleDigimonState = _battle.get_digimon_at(1, 0)
+	var mult: float = DamageCalculator.get_side_effect_stat_multiplier(
+		_battle, &"speed", opponent,
+	)
+	assert_eq(
+		mult, 1.0,
+		"Speed boost on side 0 should not affect side 1 Digimon",
+	)

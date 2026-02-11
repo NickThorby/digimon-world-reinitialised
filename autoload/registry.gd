@@ -696,9 +696,11 @@ const WEATHER_CONFIG: Dictionary = {
 	},
 }
 
-## Data-driven side effect config. Used by brick_executor and action_sorter.
+## Data-driven side effect config. Used by brick_executor, action_sorter,
+## and damage_calculator.
 ## Keys: barrier (bool), technique_class (filter), multiplier_key (GameBalance property),
-## blocks_stat_drops, blocks_status, blocks_crits (bool), speed_multiplier_key.
+## blocks_stat_drops, blocks_status, blocks_crits (bool),
+## stat_modifiers (Array[{stat, stages}] — same format as weather config).
 const SIDE_EFFECT_CONFIG: Dictionary = {
 	&"physical_barrier": {
 		"barrier": true,
@@ -716,7 +718,11 @@ const SIDE_EFFECT_CONFIG: Dictionary = {
 	},
 	&"stat_drop_immunity": {"blocks_stat_drops": true},
 	&"status_immunity": {"blocks_status": true},
-	&"speed_boost": {"speed_multiplier_key": "speed_boost_multiplier"},
+	&"speed_boost": {
+		"stat_modifiers": [
+			{"stat": &"speed", "stages": 1},
+		],
+	},
 	&"crit_immunity": {"blocks_crits": true},
 	&"spread_protection": {},
 	&"priority_protection": {},

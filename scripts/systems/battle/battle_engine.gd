@@ -2793,6 +2793,10 @@ func _calculate_accuracy(
 	effective *= DamageCalculator.get_weather_stat_multiplier(
 		_battle, &"accuracy", user,
 	)
+	# Side effect accuracy modifier
+	effective *= DamageCalculator.get_side_effect_stat_multiplier(
+		_battle, &"accuracy", user,
+	)
 	return effective
 
 

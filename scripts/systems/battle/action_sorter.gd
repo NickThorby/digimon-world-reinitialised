@@ -58,23 +58,10 @@ static func calculate_action_speed(action: BattleAction, battle: BattleState) ->
 			action.priority as Registry.Priority
 		)
 
-		# Speed boost side effect
-		if digimon.side_index < battle.sides.size() \
-				and battle.sides[digimon.side_index].has_side_effect(
-					&"speed_boost",
-				):
-			var side_config: Dictionary = Registry.SIDE_EFFECT_CONFIG.get(
-				&"speed_boost", {},
-			)
-			var mult_key: String = side_config.get(
-				"speed_multiplier_key", "",
-			)
-			if mult_key != "":
-				var balance: GameBalance = load(
-					"res://data/config/game_balance.tres",
-				) as GameBalance
-				var mult: float = balance.get(mult_key) if balance else 1.5
-				action.effective_speed *= mult
+		# Side effect stat modifiers (e.g. speed_boost)
+		action.effective_speed *= DamageCalculator.get_side_effect_stat_multiplier(
+			battle, &"speed", digimon,
+		)
 
 		# Speed inversion global effect
 		if battle.field.has_global_effect(&"speed_inversion"):

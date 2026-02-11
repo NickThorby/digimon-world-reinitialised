@@ -113,6 +113,10 @@ static func calculate_damage(
 	atk *= get_weather_stat_multiplier(battle, atk_stat, user)
 	def_val *= get_weather_stat_multiplier(battle, def_stat, target)
 
+	# Side effect stat modifiers (e.g. speed_boost, future atk/def effects)
+	atk *= get_side_effect_stat_multiplier(battle, atk_stat, user)
+	def_val *= get_side_effect_stat_multiplier(battle, def_stat, target)
+
 	# Attribute multiplier
 	var attr_mult: float = calculate_attribute_multiplier(
 		user.data.attribute if user.data else Registry.Attribute.NONE,
@@ -281,3 +285,26 @@ static func get_weather_stat_multiplier(
 			var stages: int = clampi(int(mod.get("stages", 0)), -6, 6)
 			return Registry.STAT_STAGE_MULTIPLIERS.get(stages, 1.0)
 	return 1.0
+
+
+## Get side-effect-based stat multiplier for a given stat and Digimon.
+## Iterates all SIDE_EFFECT_CONFIG entries with stat_modifiers, checks if the
+## Digimon's side has each effect active, and accumulates matching multipliers
+## (multiplicative stacking for multiple active effects).
+static func get_side_effect_stat_multiplier(
+	battle: BattleState, stat: StringName,
+	digimon: BattleDigimonState,
+) -> float:
+	if battle == null:
+		return 1.0
+	var side: SideState = battle.sides[digimon.side_index]
+	var result: float = 1.0
+	for key: StringName in Registry.SIDE_EFFECT_CONFIG:
+		if not side.has_side_effect(key):
+			continue
+		var config: Dictionary = Registry.SIDE_EFFECT_CONFIG[key]
+		for mod: Dictionary in config.get("stat_modifiers", []):
+			if StringName(mod.get("stat", "")) == stat:
+				var stages: int = clampi(int(mod.get("stages", 0)), -6, 6)
+				result *= Registry.STAT_STAGE_MULTIPLIERS.get(stages, 1.0)
+	return result
