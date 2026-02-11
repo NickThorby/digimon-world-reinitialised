@@ -91,7 +91,7 @@ theme_override_constants/separation = 6
 [node name="AllyPanels" type="HBoxContainer" parent="BattleHUD" unique_name_in_owner=true]
 anchor_left = 0.0
 anchor_top = 1.0
-anchor_right = 0.4
+anchor_right = 0.6
 anchor_bottom = 1.0
 offset_left = 10.0
 offset_top = -280.0
@@ -102,7 +102,7 @@ theme = ExtResource("8")
 [node name="AllySideStatus" type="HBoxContainer" parent="BattleHUD" unique_name_in_owner=true]
 anchor_left = 0.0
 anchor_top = 1.0
-anchor_right = 0.4
+anchor_right = 0.6
 anchor_bottom = 1.0
 offset_left = 10.0
 offset_top = -315.0

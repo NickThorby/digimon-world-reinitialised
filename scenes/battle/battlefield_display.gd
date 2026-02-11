@@ -147,14 +147,14 @@ func update_panel(side_index: int, slot_index: int) -> void:
 	var digimon: BattleDigimonState = _battle.get_digimon_at(
 		side_index, slot_index,
 	)
-	panel.visible = (digimon != null)
+	panel.modulate.a = 1.0 if digimon != null else 0.0
 	panel.update_from_battle_digimon(digimon)
 
 
 func set_panel_visible(side_index: int, slot_index: int, is_visible: bool) -> void:
 	var panel: DigimonPanel = get_panel(side_index, slot_index)
 	if panel != null:
-		panel.visible = is_visible
+		panel.modulate.a = 1.0 if is_visible else 0.0
 
 
 func get_panel(side_index: int, slot_index: int) -> DigimonPanel:
