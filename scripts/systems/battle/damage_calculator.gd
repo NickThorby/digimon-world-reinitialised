@@ -63,20 +63,28 @@ static func calculate_damage(
 	# Determine ATK/DEF stats based on technique class
 	var atk: float
 	var def_val: float
+	var atk_stat: StringName
+	var def_stat: StringName
 	if technique.technique_class == Registry.TechniqueClass.PHYSICAL:
 		atk = float(user.get_effective_stat(&"attack"))
 		def_val = float(target.get_effective_stat(&"defence"))
+		atk_stat = &"attack"
+		def_stat = &"defence"
 	else:
 		atk = float(user.get_effective_stat(&"special_attack"))
 		def_val = float(target.get_effective_stat(&"special_defence"))
+		atk_stat = &"special_attack"
+		def_stat = &"special_defence"
 
 	# Defence swap: global effect swaps which defence stat is used
 	if battle != null \
 			and battle.field.has_global_effect(&"defence_swap"):
 		if technique.technique_class == Registry.TechniqueClass.PHYSICAL:
 			def_val = float(target.get_effective_stat(&"special_defence"))
+			def_stat = &"special_defence"
 		else:
 			def_val = float(target.get_effective_stat(&"defence"))
+			def_stat = &"defence"
 
 	# ignoreDefense: treat defence as base (stage 0)
 	if ignore_defence:
@@ -100,6 +108,10 @@ static func calculate_damage(
 	# Prevent division by zero
 	if def_val <= 0.0:
 		def_val = 1.0
+
+	# Weather stat modifiers (stage-based, stacks separately from actual stages)
+	atk *= get_weather_stat_multiplier(battle, atk_stat, user)
+	def_val *= get_weather_stat_multiplier(battle, def_stat, target)
 
 	# Attribute multiplier
 	var attr_mult: float = calculate_attribute_multiplier(
@@ -240,3 +252,32 @@ static func roll_variance(rng: RandomNumberGenerator, balance: GameBalance) -> f
 	var min_var: float = balance.damage_variance_min if balance else 0.85
 	var max_var: float = balance.damage_variance_max if balance else 1.0
 	return rng.randf_range(min_var, max_var)
+
+
+## Get weather-based stat multiplier for a given stat and Digimon.
+## Returns a stage-derived multiplier (e.g. 1.5 for +1 stage) that stacks
+## separately from actual stat stages. Element matching uses element traits.
+static func get_weather_stat_multiplier(
+	battle: BattleState, stat: StringName,
+	digimon: BattleDigimonState,
+) -> float:
+	if battle == null or not battle.field.has_weather():
+		return 1.0
+	var weather_key: StringName = battle.field.weather.get(
+		"key", &"",
+	) as StringName
+	var config: Dictionary = Registry.WEATHER_CONFIG.get(weather_key, {})
+	for mod: Dictionary in config.get("stat_modifiers", []):
+		if StringName(mod.get("stat", "")) != stat:
+			continue
+		var elements: Array = mod.get("elements", [])
+		var matches: bool = elements.is_empty()
+		if not matches and digimon.data != null:
+			for elem: StringName in digimon.get_effective_element_traits():
+				if elem in elements:
+					matches = true
+					break
+		if matches:
+			var stages: int = clampi(int(mod.get("stages", 0)), -6, 6)
+			return Registry.STAT_STAGE_MULTIPLIERS.get(stages, 1.0)
+	return 1.0

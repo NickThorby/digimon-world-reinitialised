@@ -40,7 +40,7 @@ static func execute_brick(
 			return _execute_stat_modifier(brick, user, target, battle)
 		"healing":
 			return _execute_healing(
-				brick, user, target, battle, execution_context,
+				brick, user, target, technique, battle, execution_context,
 			)
 		"fieldEffect":
 			return _execute_field_effect(brick, user, target, battle)
@@ -984,6 +984,7 @@ static func _execute_healing(
 	brick: Dictionary,
 	_user: BattleDigimonState,
 	target: BattleDigimonState,
+	technique: TechniqueData,
 	_battle: BattleState,
 	execution_context: Dictionary = {},
 ) -> Dictionary:
@@ -1045,14 +1046,18 @@ static func _execute_healing(
 				var config: Dictionary = Registry.WEATHER_CONFIG.get(
 					weather_key, {},
 				)
-				var heal_mod: String = config.get("healing_modifier", "")
-				match heal_mod:
-					"boost":
-						heal_percent = balance.weather_healing_boost \
-							if balance else 0.667
-					"nerf":
-						heal_percent = balance.weather_healing_nerf \
-							if balance else 0.25
+				var tech_element: StringName = technique.element_key \
+					if technique != null else &""
+				if tech_element in config.get(
+					"healing_boost_elements", [],
+				):
+					heal_percent = balance.weather_healing_boost \
+						if balance else 0.667
+				elif tech_element in config.get(
+					"healing_nerf_elements", [],
+				):
+					heal_percent = balance.weather_healing_nerf \
+						if balance else 0.25
 			var amount: int = maxi(
 				floori(float(target.max_hp) * heal_percent), 1,
 			)
@@ -1201,16 +1206,14 @@ static func _get_weather_modifier(
 ) -> Dictionary:
 	if not battle.field.has_weather():
 		return {}
-	var balance: GameBalance = _get_balance()
 	var weather_key: StringName = battle.field.weather.get(
 		"key", &"",
 	) as StringName
 	var config: Dictionary = Registry.WEATHER_CONFIG.get(weather_key, {})
 	var element: StringName = technique.element_key
-	if element in config.get("boost_elements", []):
-		return {"multiplier": balance.weather_damage_boost}
-	if element in config.get("nerf_elements", []):
-		return {"multiplier": balance.weather_damage_nerf}
+	var mods: Dictionary = config.get("element_modifiers", {})
+	if element in mods:
+		return {"multiplier": 1.0 + float(mods[element])}
 	return {}
 
 

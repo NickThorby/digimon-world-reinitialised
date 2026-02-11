@@ -176,6 +176,28 @@ static func _inject_digimon() -> void:
 	dual_mon.type_trait = &"dragon"
 	Atlas.digimon[&"test_dual_mon"] = dual_mon
 
+	var water_mon: DigimonData = _make_digimon(
+		&"test_water_mon", "Test Water Mon", Registry.Attribute.DATA,
+		[&"water"], 80, 50, 60, 60, 70, 60, 60,
+		{&"water": 0.5, &"fire": 0.5, &"lightning": 1.5},
+		&"",
+	)
+	water_mon.size_trait = &"medium"
+	water_mon.movement_traits = [&"terrestrial"] as Array[StringName]
+	water_mon.type_trait = &"aquatic"
+	Atlas.digimon[&"test_water_mon"] = water_mon
+
+	var metal_mon: DigimonData = _make_digimon(
+		&"test_metal_mon", "Test Metal Mon", Registry.Attribute.DATA,
+		[&"metal"], 85, 50, 75, 85, 50, 75, 50,
+		{&"metal": 0.5, &"earth": 0.5, &"fire": 1.5},
+		&"",
+	)
+	metal_mon.size_trait = &"large"
+	metal_mon.movement_traits = [&"terrestrial"] as Array[StringName]
+	metal_mon.type_trait = &"machine"
+	Atlas.digimon[&"test_metal_mon"] = metal_mon
+
 
 static func _make_digimon(
 	key: StringName,
@@ -253,6 +275,11 @@ static func _make_digimon(
 		{"key": &"test_ability_nullify", "requirements": [{"type": "innate"}]},
 		{"key": &"test_after_you", "requirements": [{"type": "innate"}]},
 		{"key": &"test_quash", "requirements": [{"type": "innate"}]},
+		{"key": &"test_plant_heal", "requirements": [{"type": "innate"}]},
+		{"key": &"test_water_heal", "requirements": [{"type": "innate"}]},
+		{"key": &"test_fire_heal", "requirements": [{"type": "innate"}]},
+		{"key": &"test_snow_weather", "requirements": [{"type": "innate"}]},
+		{"key": &"test_fog_weather", "requirements": [{"type": "innate"}]},
 	]
 	return d
 
@@ -1281,6 +1308,42 @@ static func _inject_techniques() -> void:
 		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
 		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
 		[], [{"brick": "turnOrder", "type": "makeTargetMoveLast"}],
+	)
+	# --- Session 8: weather config enhancements ---
+	# Plant-element weather heal (for sun per-element boost)
+	Atlas.techniques[&"test_plant_heal"] = _make_technique(
+		&"test_plant_heal", "Test Plant Heal",
+		Registry.TechniqueClass.STATUS, &"plant", 0, 0, 5,
+		Registry.Targeting.SELF, Registry.Priority.NORMAL,
+		[], [{"brick": "healing", "type": "weather", "percent": 50}],
+	)
+	# Water-element weather heal (for rain per-element boost)
+	Atlas.techniques[&"test_water_heal"] = _make_technique(
+		&"test_water_heal", "Test Water Heal",
+		Registry.TechniqueClass.STATUS, &"water", 0, 0, 5,
+		Registry.Targeting.SELF, Registry.Priority.NORMAL,
+		[], [{"brick": "healing", "type": "weather", "percent": 50}],
+	)
+	# Fire-element weather heal (for sandstorm per-element nerf)
+	Atlas.techniques[&"test_fire_heal"] = _make_technique(
+		&"test_fire_heal", "Test Fire Heal",
+		Registry.TechniqueClass.STATUS, &"fire", 0, 0, 5,
+		Registry.Targeting.SELF, Registry.Priority.NORMAL,
+		[], [{"brick": "healing", "type": "weather", "percent": 50}],
+	)
+	# Snow weather technique
+	Atlas.techniques[&"test_snow_weather"] = _make_technique(
+		&"test_snow_weather", "Test Snow Weather",
+		Registry.TechniqueClass.STATUS, &"ice", 0, 0, 5,
+		Registry.Targeting.FIELD, Registry.Priority.NORMAL,
+		[], [{"brick": "fieldEffect", "type": "weather", "weather": "snow"}],
+	)
+	# Fog weather technique
+	Atlas.techniques[&"test_fog_weather"] = _make_technique(
+		&"test_fog_weather", "Test Fog Weather",
+		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
+		Registry.Targeting.FIELD, Registry.Priority.NORMAL,
+		[], [{"brick": "fieldEffect", "type": "weather", "weather": "fog"}],
 	)
 
 

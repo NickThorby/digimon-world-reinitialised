@@ -2789,6 +2789,10 @@ func _calculate_accuracy(
 	var effective: float = float(base_accuracy) * acc_mult / eva_mult
 	if user.has_status(&"blinded"):
 		effective *= 0.5
+	# Weather accuracy modifier (e.g. fog reduces accuracy)
+	effective *= DamageCalculator.get_weather_stat_multiplier(
+		_battle, &"accuracy", user,
+	)
 	return effective
 
 
@@ -2812,11 +2816,11 @@ func _tick_weather_damage() -> void:
 		if digimon.is_fainted:
 			continue
 
-		# Check element trait immunity
+		# Check resistance-based immunity (resistance ≤ 0.5 = immune)
 		var is_immune: bool = false
 		if digimon.data != null:
-			for elem: StringName in digimon.get_effective_element_traits():
-				if elem in immune_elements:
+			for elem: StringName in immune_elements:
+				if digimon.get_effective_resistance(elem) <= 0.5:
 					is_immune = true
 					break
 		if is_immune:

@@ -169,8 +169,13 @@ func test_rain_boosts_water_damage() -> void:
 
 
 func test_sandstorm_deals_tick_damage() -> void:
-	# test_agumon has fire element, test_gabumon has ice element
-	# Neither has earth or metal, so both should take sandstorm damage
+	# test_agumon has fire element (no earth/metal resistance ≤ 0.5)
+	# test_plant_mon has plant element (no earth/metal resistance ≤ 0.5)
+	# Both should take sandstorm damage
+	_battle = TestBattleFactory.create_1v1_battle(
+		&"test_agumon", &"test_plant_mon",
+	)
+	_engine = TestBattleFactory.create_engine(_battle)
 	_battle.field.set_weather(&"sandstorm", 5, 0)
 	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
 	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)

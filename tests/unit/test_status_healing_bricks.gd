@@ -146,20 +146,20 @@ func test_weather_healing_more_in_sun() -> void:
 	user.apply_damage(user.max_hp - 1)
 	var hp_before: int = user.current_hp
 
-	# Set sun weather
+	# Set sun weather — plant-element heal is boosted in sun
 	_battle.field.set_weather(&"sun", 5, 0)
 
-	var tech: TechniqueData = Atlas.techniques[&"test_weather_heal"]
+	var tech: TechniqueData = Atlas.techniques[&"test_plant_heal"]
 	BrickExecutor.execute_bricks(
 		tech.bricks, user, user, tech, _battle,
 	)
 
 	var healed: int = user.current_hp - hp_before
-	# In sun: heal_percent = 0.667, so heal ~66.7% of max HP
+	# In sun with plant element: heal_percent = 0.667, so heal ~66.7% of max HP
 	var expected_min: int = floori(float(user.max_hp) * 0.6)
 	assert_gt(
 		healed, expected_min,
-		"Weather healing in sun should heal at least 60%% of max HP (healed %d)" % healed,
+		"Plant-element weather healing in sun should heal at least 60%% of max HP (healed %d)" % healed,
 	)
 
 
@@ -171,20 +171,20 @@ func test_weather_healing_less_in_sandstorm() -> void:
 	user.apply_damage(user.max_hp - 1)
 	var hp_before: int = user.current_hp
 
-	# Set sandstorm weather
+	# Set sandstorm weather — fire-element heal is nerfed in sandstorm
 	_battle.field.set_weather(&"sandstorm", 5, 0)
 
-	var tech: TechniqueData = Atlas.techniques[&"test_weather_heal"]
+	var tech: TechniqueData = Atlas.techniques[&"test_fire_heal"]
 	BrickExecutor.execute_bricks(
 		tech.bricks, user, user, tech, _battle,
 	)
 
 	var healed: int = user.current_hp - hp_before
-	# In sandstorm: heal_percent = 0.25, so heal 25% of max HP
+	# In sandstorm with fire element: heal_percent = 0.25, so heal 25% of max HP
 	var expected_max: int = ceili(float(user.max_hp) * 0.3)
 	assert_lt(
 		healed, expected_max,
-		"Weather healing in sandstorm should heal at most 30%% of max HP (healed %d)" % healed,
+		"Fire-element weather healing in sandstorm should heal at most 30%% of max HP (healed %d)" % healed,
 	)
 
 

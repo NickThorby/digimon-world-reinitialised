@@ -644,34 +644,56 @@ const SIDE_EFFECT_TYPES: Array[StringName] = [
 	&"first_turn_protection",
 ]
 
-## Data-driven weather config. Used by brick_executor and battle_engine.
-## Keys: boost_elements, nerf_elements (damage modifiers), healing_modifier (boost|nerf),
-## tick_damage (bool), immune_elements (tick damage immunity).
+## Data-driven weather config. Used by brick_executor, battle_engine, damage_calculator.
+## Keys:
+##   element_modifiers: Dictionary — signed % per element (multiplier = 1.0 + value)
+##   stat_modifiers: Array — [{stat, stages, elements?}] stage-based multipliers
+##   healing_boost_elements: Array — technique elements that get boosted healing
+##   healing_nerf_elements: Array — technique elements that get nerfed healing
+##   tick_damage: bool — deals end-of-turn chip damage
+##   immune_elements: Array — elements whose resistance ≤ 0.5 grants tick immunity
 const WEATHER_CONFIG: Dictionary = {
 	&"sun": {
-		"boost_elements": [&"fire"],
-		"nerf_elements": [&"water"],
-		"healing_modifier": "boost",
+		"element_modifiers": {&"fire": 0.5, &"water": -0.5},
+		"healing_boost_elements": [&"plant"],
 	},
 	&"rain": {
-		"boost_elements": [&"water"],
-		"nerf_elements": [&"fire"],
-		"healing_modifier": "boost",
+		"element_modifiers": {&"water": 0.5, &"fire": -0.5},
+		"healing_boost_elements": [&"water"],
 	},
 	&"sandstorm": {
 		"tick_damage": true,
 		"immune_elements": [&"earth", &"metal"],
-		"healing_modifier": "nerf",
+		"healing_nerf_elements": [
+			&"fire", &"water", &"air", &"earth", &"ice",
+			&"lightning", &"plant", &"metal", &"dark", &"light",
+		],
+		"stat_modifiers": [
+			{"stat": &"special_defence", "stages": 1, "elements": [&"earth"]},
+		],
 	},
 	&"hail": {
 		"tick_damage": true,
 		"immune_elements": [&"ice"],
-		"healing_modifier": "nerf",
+		"healing_nerf_elements": [
+			&"fire", &"water", &"air", &"earth", &"ice",
+			&"lightning", &"plant", &"metal", &"dark", &"light",
+		],
 	},
 	&"snow": {
-		"healing_modifier": "nerf",
+		"healing_nerf_elements": [
+			&"fire", &"water", &"air", &"earth", &"ice",
+			&"lightning", &"plant", &"metal", &"dark", &"light",
+		],
+		"stat_modifiers": [
+			{"stat": &"defence", "stages": 1, "elements": [&"ice"]},
+		],
 	},
-	&"fog": {},
+	&"fog": {
+		"stat_modifiers": [
+			{"stat": &"accuracy", "stages": -1},
+		],
+	},
 }
 
 ## Data-driven side effect config. Used by brick_executor and action_sorter.
