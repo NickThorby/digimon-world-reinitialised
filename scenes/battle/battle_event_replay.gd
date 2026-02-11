@@ -294,8 +294,16 @@ func replay_events(
 				# Populate party_digimon for post-battle display
 				if result.winning_team >= 0:
 					var seen: Array[DigimonState] = []
+					var has_owned: bool = false
+					for side: SideState in _battle.sides:
+						if side.team_index == result.winning_team \
+								and side.is_owned:
+							has_owned = true
+							break
 					for side: SideState in _battle.sides:
 						if side.team_index != result.winning_team:
+							continue
+						if has_owned and not side.is_owned:
 							continue
 						for slot: SlotState in side.slots:
 							if slot.digimon != null \

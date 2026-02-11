@@ -15,6 +15,9 @@ var picker_context: Dictionary = {}
 ## Result from digimon picker (set by picker on confirm, null on cancel).
 var picker_result: Variant = null
 
+## Context for restoring battle builder state after a battle.
+var builder_context: Dictionary = {}
+
 
 ## Start a new game with fresh state.
 func new_game() -> void:

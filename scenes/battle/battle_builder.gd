@@ -21,6 +21,7 @@ const TEAM_SAVE_POPUP_SCENE := preload("res://ui/components/team_save_popup.tscn
 @onready var _side_label: Label = $MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings/SideLabel
 @onready var _controller_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings/ControllerRow/ControllerOption
 @onready var _wild_toggle: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings/WildRow/WildToggle
+@onready var _owned_toggle: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings/OwnedRow/OwnedToggle
 # Field Effects tab
 @onready var _weather_option: OptionButton = $"MarginContainer/VBox/HSplit/RightPanel/RightTabs/Field Effects/FieldContent/WeatherRow/WeatherOption"
 @onready var _weather_permanent: CheckBox = $"MarginContainer/VBox/HSplit/RightPanel/RightTabs/Field Effects/FieldContent/WeatherRow/WeatherPermanent"
@@ -37,7 +38,6 @@ const TEAM_SAVE_POPUP_SCENE := preload("res://ui/components/team_save_popup.tscn
 var _config: BattleConfig = BattleConfig.new()
 var _current_side: int = 0
 var _editing_index: int = -1
-var _builder_bag: BagState = BagState.new()
 var _bag_category_filter: int = -1  ## -1 = All
 
 ## Per-side preset state. Key = side_index, value = { side_effects: {key: {enabled, permanent}},
@@ -48,25 +48,89 @@ var _side_presets: Dictionary = {}
 func _ready() -> void:
 	MusicManager.play("res://assets/audio/music/07. Save Screen.mp3")
 
+	var returning_from_battle: bool = Game.builder_context.size() > 0
 	var returning_from_picker: bool = Game.picker_context.size() > 0
-	if returning_from_picker:
+
+	if returning_from_battle:
+		_restore_from_battle()
+	elif returning_from_picker:
 		_restore_from_picker()
 
 	_setup_format_options()
 	_connect_signals()
 
-	if not returning_from_picker:
+	if not returning_from_battle and not returning_from_picker:
 		_config.apply_preset(BattleConfig.FormatPreset.SINGLES_1V1)
 
-	if returning_from_picker:
+	if returning_from_battle or returning_from_picker:
 		_sync_format_selector()
 
 	_setup_field_effect_options()
-	_init_side_presets()
+	if not returning_from_battle:
+		_init_side_presets()
 	_update_side_selector()
 	_update_team_display()
 	_update_controller_display()
 	_update_side_presets_display()
+
+
+func _restore_from_battle() -> void:
+	var ctx: Dictionary = Game.builder_context
+	Game.builder_context = {}
+	if ctx.has("config"):
+		_config = ctx["config"] as BattleConfig
+	_current_side = int(ctx.get("current_side", 0))
+	if ctx.has("side_presets"):
+		_side_presets = ctx["side_presets"] as Dictionary
+	_restore_party_energy()
+	_reset_non_owned_parties()
+
+
+func _restore_party_energy() -> void:
+	for i: int in _config.side_configs.size():
+		if not _config.side_configs[i].get("is_owned", false):
+			continue
+		for digimon: Variant in _config.side_configs[i].get("party", []):
+			if digimon is not DigimonState:
+				continue
+			var state: DigimonState = digimon as DigimonState
+			var data: DigimonData = Atlas.digimon.get(state.key) as DigimonData
+			if data == null:
+				continue
+			var stats: Dictionary = StatCalculator.calculate_all_stats(data, state)
+			var personality: PersonalityData = Atlas.personalities.get(
+				state.personality_key,
+			) as PersonalityData
+			var max_energy: int = StatCalculator.apply_personality(
+				stats.get(&"energy", 1), &"energy", personality,
+			)
+			state.current_energy = max_energy
+
+
+func _reset_non_owned_parties() -> void:
+	for i: int in _config.side_configs.size():
+		if _config.side_configs[i].get("is_owned", false):
+			continue
+		for digimon: Variant in _config.side_configs[i].get("party", []):
+			if digimon is not DigimonState:
+				continue
+			var state: DigimonState = digimon as DigimonState
+			var data: DigimonData = Atlas.digimon.get(state.key) as DigimonData
+			if data == null:
+				continue
+			var stats: Dictionary = StatCalculator.calculate_all_stats(data, state)
+			var personality: PersonalityData = Atlas.personalities.get(
+				state.personality_key,
+			) as PersonalityData
+			var max_hp: int = StatCalculator.apply_personality(
+				stats.get(&"hp", 1), &"hp", personality,
+			)
+			var max_energy: int = StatCalculator.apply_personality(
+				stats.get(&"energy", 1), &"energy", personality,
+			)
+			state.current_hp = max_hp
+			state.current_energy = max_energy
+			state.status_conditions.clear()
 
 
 func _restore_from_picker() -> void:
@@ -79,8 +143,6 @@ func _restore_from_picker() -> void:
 	if ctx.has("config"):
 		_config = ctx["config"] as BattleConfig
 	_current_side = int(ctx.get("side", 0))
-	if ctx.has("bag"):
-		_builder_bag = ctx["bag"] as BagState
 
 	# If user cancelled (null result), just restore state without adding
 	if result == null or result is not DigimonState:
@@ -136,6 +198,7 @@ func _connect_signals() -> void:
 	_add_digimon_button.pressed.connect(_on_add_digimon)
 	_controller_option.item_selected.connect(_on_controller_selected)
 	_wild_toggle.toggled.connect(_on_wild_toggled)
+	_owned_toggle.toggled.connect(_on_owned_toggled)
 	_xp_toggle.toggled.connect(_on_xp_toggled)
 	_exp_share_toggle.toggled.connect(_on_exp_share_toggled)
 	_launch_button.pressed.connect(_on_launch)
@@ -172,6 +235,7 @@ func _on_side_selected(index: int) -> void:
 	_update_team_display()
 	_update_controller_display()
 	_update_side_presets_display()
+	_update_bag_display()
 
 
 func _on_add_digimon() -> void:
@@ -187,6 +251,11 @@ func _on_controller_selected(index: int) -> void:
 func _on_wild_toggled(pressed: bool) -> void:
 	if _current_side < _config.side_configs.size():
 		_config.side_configs[_current_side]["is_wild"] = pressed
+
+
+func _on_owned_toggled(pressed: bool) -> void:
+	if _current_side < _config.side_configs.size():
+		_config.side_configs[_current_side]["is_owned"] = pressed
 
 
 func _on_xp_toggled(pressed: bool) -> void:
@@ -205,14 +274,12 @@ func _on_launch() -> void:
 		_show_validation_errors(errors)
 		return
 
-	# Inject bag into all player-controlled sides
-	if not _builder_bag.is_empty():
-		for i: int in _config.side_configs.size():
-			var controller: int = int(
-				_config.side_configs[i].get("controller", 0)
-			)
-			if controller == BattleConfig.ControllerType.PLAYER:
-				_config.side_configs[i]["bag"] = _builder_bag
+	_save_side_presets()
+	Game.builder_context = {
+		"config": _config,
+		"current_side": _current_side,
+		"side_presets": _side_presets.duplicate(true),
+	}
 
 	Game.battle_config = _config
 	SceneManager.change_scene(BATTLE_SCENE_PATH)
@@ -282,7 +349,6 @@ func _navigate_to_picker(existing: DigimonState = null) -> void:
 		"editing_index": _editing_index,
 		"existing_state": existing,
 		"config": _config,
-		"bag": _builder_bag,
 	}
 	Game.picker_result = null
 	SceneManager.change_scene(PICKER_SCENE_PATH)
@@ -321,6 +387,7 @@ func _update_team_display() -> void:
 		panel.setup(i, state)
 		panel.edit_pressed.connect(_on_slot_edit)
 		panel.remove_pressed.connect(_on_slot_remove)
+		panel.reorder_requested.connect(_on_reorder_requested)
 
 
 func _add_empty_placeholder() -> void:
@@ -344,6 +411,9 @@ func _update_controller_display() -> void:
 	var is_wild: bool = _config.side_configs[_current_side].get("is_wild", false)
 	_wild_toggle.button_pressed = is_wild
 
+	var is_owned: bool = _config.side_configs[_current_side].get("is_owned", false)
+	_owned_toggle.button_pressed = is_owned
+
 	# Update side label
 	_side_label.text = "Side %d Settings" % (_current_side + 1)
 
@@ -363,6 +433,19 @@ func _on_slot_remove(index: int) -> void:
 		party.remove_at(index)
 		_config.side_configs[_current_side]["party"] = party
 		_update_team_display()
+
+
+func _on_reorder_requested(from_index: int, to_index: int) -> void:
+	if _current_side >= _config.side_configs.size():
+		return
+	var party: Array = _config.side_configs[_current_side].get("party", [])
+	if from_index < 0 or from_index >= party.size() \
+			or to_index < 0 or to_index >= party.size():
+		return
+	var temp: Variant = party[from_index]
+	party[from_index] = party[to_index]
+	party[to_index] = temp
+	_update_team_display()
 
 
 func _show_validation_errors(errors: Array[String]) -> void:
@@ -403,6 +486,15 @@ func _get_bag_filter_category() -> int:
 		3: return Registry.ItemCategory.GENERAL
 		4: return Registry.ItemCategory.PERFORMANCE
 		_: return -1
+
+
+func _get_current_bag() -> BagState:
+	if _current_side >= _config.side_configs.size():
+		return BagState.new()
+	var cfg: Dictionary = _config.side_configs[_current_side]
+	if not cfg.has("bag") or cfg["bag"] is not BagState:
+		cfg["bag"] = BagState.new()
+	return cfg["bag"] as BagState
 
 
 func _update_bag_display() -> void:
@@ -447,7 +539,7 @@ func _create_bag_item_row(item: ItemData) -> HBoxContainer:
 	name_label.clip_text = true
 	row.add_child(name_label)
 
-	var quantity: int = _builder_bag.get_quantity(item.key)
+	var quantity: int = _get_current_bag().get_quantity(item.key)
 
 	var minus_button := Button.new()
 	minus_button.text = "-"
@@ -468,11 +560,11 @@ func _create_bag_item_row(item: ItemData) -> HBoxContainer:
 
 	var item_key: StringName = item.key
 	minus_button.pressed.connect(func() -> void:
-		_builder_bag.remove_item(item_key)
+		_get_current_bag().remove_item(item_key)
 		_update_bag_display()
 	)
 	plus_button.pressed.connect(func() -> void:
-		_builder_bag.add_item(item_key)
+		_get_current_bag().add_item(item_key)
 		_update_bag_display()
 	)
 

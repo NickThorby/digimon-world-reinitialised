@@ -23,6 +23,7 @@ static func create_battle(config: BattleConfig, rng_seed: int = -1) -> BattleSta
 		side.team_index = config.team_assignments[i] if i < config.team_assignments.size() else i
 		side.controller = side_cfg.get("controller", BattleConfig.ControllerType.PLAYER) as BattleConfig.ControllerType
 		side.is_wild = side_cfg.get("is_wild", false)
+		side.is_owned = side_cfg.get("is_owned", false)
 
 		# Copy bag if provided
 		var bag: Variant = side_cfg.get("bag")

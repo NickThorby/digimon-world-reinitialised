@@ -34,7 +34,8 @@ var slots_per_side: int = 1
 var team_assignments: Array[int] = [0, 1]
 
 ## Per-side configuration. Each element is a Dictionary:
-##   { "controller": ControllerType, "party": Array[DigimonState], "is_wild": bool }
+##   { "controller": ControllerType, "party": Array[DigimonState], "is_wild": bool,
+##     "is_owned": bool }
 var side_configs: Array[Dictionary] = []
 
 ## Whether XP is awarded after battle.
@@ -134,6 +135,7 @@ func to_dict() -> Dictionary:
 			"controller": cfg.get("controller", ControllerType.PLAYER),
 			"party": party_data,
 			"is_wild": cfg.get("is_wild", false),
+			"is_owned": cfg.get("is_owned", false),
 		}
 		var bag: Variant = cfg.get("bag")
 		if bag is BagState:
@@ -178,6 +180,7 @@ static func from_dict(data: Dictionary) -> BattleConfig:
 			"controller": cfg_data.get("controller", ControllerType.PLAYER) as ControllerType,
 			"party": party,
 			"is_wild": cfg_data.get("is_wild", false),
+			"is_owned": cfg_data.get("is_owned", false),
 		}
 		var bag_data: Variant = cfg_data.get("bag")
 		if bag_data is Dictionary and not (bag_data as Dictionary).is_empty():
@@ -200,6 +203,7 @@ func _ensure_side_configs() -> void:
 			"controller": ControllerType.PLAYER if side_configs.size() == 0 else ControllerType.AI,
 			"party": [] as Array[DigimonState],
 			"is_wild": false,
+			"is_owned": side_configs.size() == 0,
 		})
 	while side_configs.size() > side_count:
 		side_configs.pop_back()

@@ -190,6 +190,16 @@ text = "Wild Battle:"
 [node name="WildToggle" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings/WildRow" unique_name_in_owner=true]
 layout_mode = 2
 
+[node name="OwnedRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings"]
+layout_mode = 2
+
+[node name="OwnedLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings/OwnedRow"]
+layout_mode = 2
+text = "Owned:"
+
+[node name="OwnedToggle" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings/OwnedRow" unique_name_in_owner=true]
+layout_mode = 2
+
 [node name="Field Effects" type="ScrollContainer" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs"]
 layout_mode = 2
 horizontal_scroll_mode = 0

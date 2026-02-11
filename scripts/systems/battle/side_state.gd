@@ -15,6 +15,9 @@ var controller: BattleConfig.ControllerType = BattleConfig.ControllerType.PLAYER
 ## Whether this side represents wild Digimon.
 var is_wild: bool = false
 
+## Whether this side belongs to the player (shown on post-battle summary).
+var is_owned: bool = false
+
 ## Active slots on the field.
 var slots: Array[SlotState] = []
 
