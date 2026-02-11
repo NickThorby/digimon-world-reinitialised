@@ -623,10 +623,11 @@ const CRIT_DAMAGE_MULTIPLIER: float = 1.5
 ## Battle field constant arrays.
 const WEATHER_TYPES: Array[StringName] = [
 	&"sun", &"rain", &"sandstorm", &"hail", &"snow", &"fog",
+	&"extremely_harsh_sunlight", &"heavy_rain", &"strong_winds",
 ]
 
 const TERRAIN_TYPES: Array[StringName] = [
-	&"flooded", &"blooming",
+	&"fiery", &"flooded", &"blooming",
 ]
 
 const HAZARD_TYPES: Array[StringName] = [
@@ -652,7 +653,12 @@ const SIDE_EFFECT_TYPES: Array[StringName] = [
 ##   healing_nerf_elements: Array — technique elements that get nerfed healing
 ##   tick_damage: bool — deals end-of-turn chip damage
 ##   immune_elements: Array — elements whose resistance ≤ 0.5 grants tick immunity
-const WEATHER_CONFIG: Dictionary = {
+##   tick_healing: bool — heals at end of turn
+##   healing_elements: Array — element traits that receive tick healing
+##   negate_elements: Array — technique elements that are completely negated
+##   negate_resistance: Array — elements whose resistances (< 1.0) are set to 1.0
+##   increase_resistance: Array — elements whose weaknesses (> 1.0) are set to 1.0
+var WEATHER_CONFIG: Dictionary = {
 	&"sun": {
 		"element_modifiers": {&"fire": 0.5, &"water": -0.5},
 		"healing_boost_elements": [&"plant"],
@@ -693,6 +699,43 @@ const WEATHER_CONFIG: Dictionary = {
 		"stat_modifiers": [
 			{"stat": &"accuracy", "stages": -1},
 		],
+	},
+	&"extremely_harsh_sunlight": {
+		"element_modifiers": {&"fire": 0.5, &"water": -0.5},
+		"healing_boost_elements": [&"plant"],
+		"negate_elements": [&"water"],
+	},
+	&"heavy_rain": {
+		"element_modifiers": {&"water": 0.5, &"fire": -0.5},
+		"healing_boost_elements": [&"water"],
+		"negate_elements": [&"fire"],
+	},
+	&"strong_winds": {
+		"increase_resistance": [&"lightning"],
+	},
+}
+
+## Data-driven terrain config. Used by brick_executor, battle_engine, damage_calculator.
+## Keys:
+##   element_modifiers: Dictionary — signed % per element (multiplier = 1.0 + value)
+##   stat_modifiers: Array — [{stat, stages, elements?}] stage-based multipliers
+##   tick_damage: bool — deals end-of-turn chip damage
+##   immune_elements: Array — elements whose resistance ≤ 0.5 grants tick damage immunity
+##   tick_healing: bool — heals at end of turn
+##   healing_elements: Array — element traits that receive tick healing
+## Aerial Digimon are immune to ALL terrain effects (negated by grounding_field).
+var TERRAIN_CONFIG: Dictionary = {
+	&"fiery": {
+		"tick_damage": true,
+		"immune_elements": [&"fire"],
+		"element_modifiers": {&"fire": 0.5},
+	},
+	&"blooming": {
+		"tick_healing": true,
+		"healing_elements": [&"plant"],
+	},
+	&"flooded": {
+		"element_modifiers": {&"water": 0.5},
 	},
 }
 

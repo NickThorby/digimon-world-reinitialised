@@ -236,3 +236,95 @@ func test_stat_hazard_technique_lays_hazard() -> void:
 		_battle.sides[1].get_hazard_layers(&"entry_stat_reduction"), 1,
 		"Stat hazard technique should lay entry_stat_reduction hazard",
 	)
+
+
+# --- Aerial hazard immunity ---
+
+
+func test_aerial_mon_immune_to_aerial_hazard() -> void:
+	# Patamon (aerial) switches into entry_damage hazard with aerial_is_immune
+	_battle.sides[0].add_hazard(&"entry_damage", 1, {
+		"damagePercent": 0.125,
+		"element": &"fire",
+		"maxLayers": 3,
+		"aerial_is_immune": true,
+	})
+
+	# Switch Patamon in on side 0
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_switch_action(0, 0, 0),
+		TestBattleFactory.make_rest_action(1, 0),
+	]
+	_engine.execute_turn(actions)
+
+	var new_mon: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	assert_eq(
+		new_mon.current_hp, new_mon.max_hp,
+		"Aerial Digimon should be immune to aerial-immune hazard",
+	)
+
+
+func test_aerial_mon_not_immune_to_grounded_hazard() -> void:
+	# Patamon (aerial) switches into hazard WITHOUT aerial_is_immune
+	_battle.sides[0].add_hazard(&"entry_damage", 1, {
+		"damagePercent": 0.125,
+		"element": &"fire",
+		"maxLayers": 3,
+	})
+
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_switch_action(0, 0, 0),
+		TestBattleFactory.make_rest_action(1, 0),
+	]
+	_engine.execute_turn(actions)
+
+	var new_mon: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	assert_lt(
+		new_mon.current_hp, new_mon.max_hp,
+		"Aerial Digimon should still take damage from non-aerial-immune hazard",
+	)
+
+
+func test_grounding_field_negates_aerial_immunity() -> void:
+	# Patamon (aerial) + grounding_field active → should take damage
+	_battle.sides[0].add_hazard(&"entry_damage", 1, {
+		"damagePercent": 0.125,
+		"element": &"fire",
+		"maxLayers": 3,
+		"aerial_is_immune": true,
+	})
+	_battle.field.add_global_effect(&"grounding_field", 5)
+
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_switch_action(0, 0, 0),
+		TestBattleFactory.make_rest_action(1, 0),
+	]
+	_engine.execute_turn(actions)
+
+	var new_mon: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	assert_lt(
+		new_mon.current_hp, new_mon.max_hp,
+		"Grounding field should negate aerial immunity to hazards",
+	)
+
+
+func test_non_aerial_mon_takes_aerial_hazard_damage() -> void:
+	# Agumon (terrestrial) switches into aerial-immune hazard → takes damage
+	_battle.sides[1].add_hazard(&"entry_damage", 1, {
+		"damagePercent": 0.125,
+		"element": &"fire",
+		"maxLayers": 3,
+		"aerial_is_immune": true,
+	})
+
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_rest_action(0, 0),
+		TestBattleFactory.make_switch_action(1, 0, 0),
+	]
+	_engine.execute_turn(actions)
+
+	var new_mon: BattleDigimonState = _battle.get_digimon_at(1, 0)
+	assert_lt(
+		new_mon.current_hp, new_mon.max_hp,
+		"Non-aerial Digimon should take damage from aerial-immune hazard",
+	)

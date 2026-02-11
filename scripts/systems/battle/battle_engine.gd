@@ -227,6 +227,15 @@ func _resolve_technique(action: BattleAction) -> Array[Dictionary]:
 	)
 	technique = ctx["technique"] as TechniqueData
 
+	# Weather element negation (e.g. heavy rain negates fire techniques)
+	if _is_weather_element_negated(technique):
+		battle_message.emit(
+			"The weather negated the %s-type attack!"
+				% str(technique.element_key),
+		)
+		_finalise_technique(user, technique, action, econ, [])
+		return []
+
 	# Execute against each target
 	var all_results: Array[Dictionary] = _execute_against_targets(
 		user, technique, action, ctx,
@@ -2156,6 +2165,12 @@ func _end_of_turn() -> void:
 	# 1b. Weather tick damage
 	_tick_weather_damage()
 
+	# 1c. Weather tick healing
+	_tick_weather_healing()
+
+	# 1d. Terrain tick effects (damage + healing, aerial immune)
+	_tick_terrain_effects()
+
 	_clear_fainted_no_reserve()
 
 	# 2. Field duration ticks
@@ -2800,6 +2815,18 @@ func _calculate_accuracy(
 	return effective
 
 
+## Check if the current weather negates the given technique's element.
+func _is_weather_element_negated(technique: TechniqueData) -> bool:
+	if not _battle.field.has_weather():
+		return false
+	var weather_key: StringName = _battle.field.weather.get(
+		"key", &"",
+	) as StringName
+	var config: Dictionary = Registry.WEATHER_CONFIG.get(weather_key, {})
+	var negated: Array = config.get("negate_elements", [])
+	return technique.element_key in negated
+
+
 ## Apply weather tick damage at end of turn.
 func _tick_weather_damage() -> void:
 	if not _battle.field.has_weather():
@@ -2844,21 +2871,156 @@ func _tick_weather_damage() -> void:
 		)
 
 
+## Apply weather tick healing at end of turn.
+## Reads WEATHER_CONFIG tick_healing + healing_elements, checks element traits.
+func _tick_weather_healing() -> void:
+	if not _battle.field.has_weather():
+		return
+
+	var weather_key: StringName = _battle.field.weather.get(
+		"key", &"",
+	) as StringName
+	var config: Dictionary = Registry.WEATHER_CONFIG.get(weather_key, {})
+	if not config.get("tick_healing", false):
+		return
+
+	var percent: float = _balance.weather_tick_healing_percent if _balance \
+		else 0.0625
+	var healing_elements: Array = config.get("healing_elements", [])
+
+	for digimon: BattleDigimonState in _battle.get_active_digimon():
+		if digimon.is_fainted:
+			continue
+
+		# Check element trait match
+		var matches: bool = healing_elements.is_empty()
+		if not matches and digimon.data != null:
+			for elem: StringName in digimon.get_effective_element_traits():
+				if elem in healing_elements:
+					matches = true
+					break
+		if not matches:
+			continue
+
+		var amount: int = maxi(floori(float(digimon.max_hp) * percent), 1)
+		var actual: int = _apply_healing_and_emit(
+			digimon, amount, &"weather",
+		)
+		if actual > 0:
+			battle_message.emit(
+				"%s is healed by the %s! (%d HP)" % [
+					_get_digimon_name(digimon), str(weather_key), actual,
+				],
+			)
+
+
+## Apply terrain tick effects (damage + healing) at end of turn.
+## Aerial Digimon are immune to all terrain effects (negated by grounding_field).
+func _tick_terrain_effects() -> void:
+	if not _battle.field.has_terrain():
+		return
+
+	var terrain_key: StringName = _battle.field.terrain.get(
+		"key", &"",
+	) as StringName
+	var config: Dictionary = Registry.TERRAIN_CONFIG.get(terrain_key, {})
+
+	# --- Tick damage ---
+	if config.get("tick_damage", false):
+		var percent: float = _balance.terrain_tick_damage_percent if _balance \
+			else 0.0625
+		var immune_elements: Array = config.get("immune_elements", [])
+
+		for digimon: BattleDigimonState in _battle.get_active_digimon():
+			if digimon.is_fainted:
+				continue
+
+			# Aerial immune to all terrain effects
+			if DamageCalculator.is_aerial_on_terrain(digimon, _battle):
+				continue
+
+			# Check resistance-based immunity (resistance ≤ 0.5 = immune)
+			var is_immune: bool = false
+			if digimon.data != null:
+				for elem: StringName in immune_elements:
+					if digimon.get_effective_resistance(elem) <= 0.5:
+						is_immune = true
+						break
+			if is_immune:
+				continue
+
+			var damage: int = maxi(
+				floori(float(digimon.max_hp) * percent), 1,
+			)
+			var terrain_result: Dictionary = _apply_damage_and_emit(
+				digimon, damage, &"terrain",
+			)
+			battle_message.emit(
+				"%s is hurt by the %s terrain! (%d damage)" % [
+					_get_digimon_name(digimon), str(terrain_key),
+					int(terrain_result["actual"]),
+				],
+			)
+
+	# --- Tick healing ---
+	if config.get("tick_healing", false):
+		var percent: float = _balance.terrain_tick_healing_percent if _balance \
+			else 0.0625
+		var healing_elements: Array = config.get("healing_elements", [])
+
+		for digimon: BattleDigimonState in _battle.get_active_digimon():
+			if digimon.is_fainted:
+				continue
+
+			# Aerial immune to all terrain effects
+			if DamageCalculator.is_aerial_on_terrain(digimon, _battle):
+				continue
+
+			# Check element trait match
+			var matches: bool = healing_elements.is_empty()
+			if not matches and digimon.data != null:
+				for elem: StringName in digimon.get_effective_element_traits():
+					if elem in healing_elements:
+						matches = true
+						break
+			if not matches:
+				continue
+
+			var amount: int = maxi(
+				floori(float(digimon.max_hp) * percent), 1,
+			)
+			var actual: int = _apply_healing_and_emit(
+				digimon, amount, &"terrain",
+			)
+			if actual > 0:
+				battle_message.emit(
+					"%s is healed by the %s terrain! (%d HP)" % [
+						_get_digimon_name(digimon), str(terrain_key),
+						actual,
+					],
+				)
+
+
 ## Apply entry hazards to a Digimon switching in.
 func _apply_entry_hazards(digimon: BattleDigimonState) -> void:
 	var side: SideState = _battle.sides[digimon.side_index]
+
+	# Check aerial trait once (movement trait, negated by grounding field)
+	var has_aerial: bool = false
+	if digimon.data != null:
+		has_aerial = &"aerial" in digimon.data.movement_traits
+	if has_aerial and _battle.field.has_global_effect(&"grounding_field"):
+		has_aerial = false
+
 	for hazard: Dictionary in side.hazards:
 		if digimon.is_fainted:
 			break
 		var key: StringName = hazard.get("key", &"") as StringName
 		var layers: int = int(hazard.get("layers", 1))
 
-		# Check for grounding field disabling aerial trait
-		var has_aerial: bool = false
-		if digimon.data != null:
-			has_aerial = &"aerial" in digimon.get_effective_element_traits()
-		if has_aerial and _battle.field.has_global_effect(&"grounding_field"):
-			has_aerial = false
+		# Per-hazard aerial immunity
+		if has_aerial and hazard.get("aerial_is_immune", false):
+			continue
 
 		if hazard.has("damagePercent"):
 			# Entry damage hazard

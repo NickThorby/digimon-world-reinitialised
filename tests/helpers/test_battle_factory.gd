@@ -95,7 +95,7 @@ static func _inject_digimon() -> void:
 		&"test_ability_on_ally_faint",
 	)
 	patamon.size_trait = &"small"
-	patamon.movement_traits = [&"flying"] as Array[StringName]
+	patamon.movement_traits = [&"aerial"] as Array[StringName]
 	patamon.type_trait = &"holy"
 	Atlas.digimon[&"test_patamon"] = patamon
 
@@ -186,6 +186,17 @@ static func _inject_digimon() -> void:
 	water_mon.movement_traits = [&"terrestrial"] as Array[StringName]
 	water_mon.type_trait = &"aquatic"
 	Atlas.digimon[&"test_water_mon"] = water_mon
+
+	var aerial_fire_mon: DigimonData = _make_digimon(
+		&"test_aerial_fire_mon", "Test Aerial Fire Mon", Registry.Attribute.DATA,
+		[&"fire"], 80, 50, 60, 60, 60, 60, 60,
+		{&"fire": 0.5, &"ice": 1.5},
+		&"",
+	)
+	aerial_fire_mon.size_trait = &"medium"
+	aerial_fire_mon.movement_traits = [&"aerial"] as Array[StringName]
+	aerial_fire_mon.type_trait = &"dragon"
+	Atlas.digimon[&"test_aerial_fire_mon"] = aerial_fire_mon
 
 	var metal_mon: DigimonData = _make_digimon(
 		&"test_metal_mon", "Test Metal Mon", Registry.Attribute.DATA,
@@ -280,6 +291,9 @@ static func _make_digimon(
 		{"key": &"test_fire_heal", "requirements": [{"type": "innate"}]},
 		{"key": &"test_snow_weather", "requirements": [{"type": "innate"}]},
 		{"key": &"test_fog_weather", "requirements": [{"type": "innate"}]},
+		{"key": &"test_fiery_terrain", "requirements": [{"type": "innate"}]},
+		{"key": &"test_blooming_terrain", "requirements": [{"type": "innate"}]},
+		{"key": &"test_flooded_terrain", "requirements": [{"type": "innate"}]},
 	]
 	return d
 
@@ -404,6 +418,7 @@ static func _inject_techniques() -> void:
 			"brick": "hazard", "hazardType": "entry_damage",
 			"damagePercent": 0.125, "element": "fire",
 			"maxLayers": 3, "side": "target",
+			"aerialIsImmune": true,
 		}],
 	)
 	Atlas.techniques[&"test_stat_hazard"] = _make_technique(
@@ -414,6 +429,17 @@ static func _inject_techniques() -> void:
 			"brick": "hazard", "hazardType": "entry_stat_reduction",
 			"stat": "spe", "stages": -1,
 			"maxLayers": 1, "side": "target",
+			"aerialIsImmune": true,
+		}],
+	)
+	Atlas.techniques[&"test_grounded_hazard"] = _make_technique(
+		&"test_grounded_hazard", "Test Grounded Hazard",
+		Registry.TechniqueClass.STATUS, &"fire", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "hazard", "hazardType": "entry_damage",
+			"damagePercent": 0.125, "element": "fire",
+			"maxLayers": 3, "side": "target",
 		}],
 	)
 	Atlas.techniques[&"test_defog"] = _make_technique(
@@ -1344,6 +1370,25 @@ static func _inject_techniques() -> void:
 		Registry.TechniqueClass.STATUS, &"", 0, 0, 5,
 		Registry.Targeting.FIELD, Registry.Priority.NORMAL,
 		[], [{"brick": "fieldEffect", "type": "weather", "weather": "fog"}],
+	)
+	# --- Terrain techniques ---
+	Atlas.techniques[&"test_fiery_terrain"] = _make_technique(
+		&"test_fiery_terrain", "Test Fiery Terrain",
+		Registry.TechniqueClass.STATUS, &"fire", 0, 0, 5,
+		Registry.Targeting.FIELD, Registry.Priority.NORMAL,
+		[], [{"brick": "fieldEffect", "type": "terrain", "terrain": "fiery"}],
+	)
+	Atlas.techniques[&"test_blooming_terrain"] = _make_technique(
+		&"test_blooming_terrain", "Test Blooming Terrain",
+		Registry.TechniqueClass.STATUS, &"plant", 0, 0, 5,
+		Registry.Targeting.FIELD, Registry.Priority.NORMAL,
+		[], [{"brick": "fieldEffect", "type": "terrain", "terrain": "blooming"}],
+	)
+	Atlas.techniques[&"test_flooded_terrain"] = _make_technique(
+		&"test_flooded_terrain", "Test Flooded Terrain",
+		Registry.TechniqueClass.STATUS, &"water", 0, 0, 5,
+		Registry.Targeting.FIELD, Registry.Priority.NORMAL,
+		[], [{"brick": "fieldEffect", "type": "terrain", "terrain": "flooded"}],
 	)
 
 

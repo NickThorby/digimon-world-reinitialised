@@ -8,10 +8,21 @@ var _battle: BattleState
 
 func before_all() -> void:
 	TestBattleFactory.inject_all_test_data()
+	# Add temporary test weather for negate_resistance tests
+	Registry.WEATHER_CONFIG[&"test_negate_res_weather"] = {
+		"negate_resistance": [&"fire"],
+	}
+	# Add temporary test weather for tick healing tests
+	Registry.WEATHER_CONFIG[&"test_healing_weather"] = {
+		"tick_healing": true,
+		"healing_elements": [&"plant"],
+	}
 
 
 func after_all() -> void:
 	TestBattleFactory.clear_test_data()
+	Registry.WEATHER_CONFIG.erase(&"test_negate_res_weather")
+	Registry.WEATHER_CONFIG.erase(&"test_healing_weather")
 
 
 # --- Element modifiers (damage) ---
@@ -622,4 +633,235 @@ func test_get_side_effect_stat_multiplier_opponent_unaffected() -> void:
 	assert_eq(
 		mult, 1.0,
 		"Speed boost on side 0 should not affect side 1 Digimon",
+	)
+
+
+# --- Negate elements ---
+
+
+func test_heavy_rain_negates_fire_attack() -> void:
+	_battle = TestBattleFactory.create_1v1_battle()
+	_engine = TestBattleFactory.create_engine(_battle)
+	_battle.field.set_weather(&"heavy_rain", 5, 0)
+
+	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
+	var hp_before: int = target.current_hp
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_technique_action(
+			0, 0, &"test_fire_blast", 1, 0,
+		),
+		TestBattleFactory.make_rest_action(1, 0),
+	]
+	_engine.execute_turn(actions)
+
+	assert_eq(
+		target.current_hp, hp_before,
+		"Heavy rain should completely negate fire-type attacks",
+	)
+
+
+func test_extremely_harsh_sunlight_negates_water_attack() -> void:
+	_battle = TestBattleFactory.create_1v1_battle()
+	_engine = TestBattleFactory.create_engine(_battle)
+	_battle.field.set_weather(&"extremely_harsh_sunlight", 5, 0)
+
+	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
+	var hp_before: int = target.current_hp
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_technique_action(
+			0, 0, &"test_water_gun", 1, 0,
+		),
+		TestBattleFactory.make_rest_action(1, 0),
+	]
+	_engine.execute_turn(actions)
+
+	assert_eq(
+		target.current_hp, hp_before,
+		"Extremely harsh sunlight should completely negate water-type attacks",
+	)
+
+
+func test_heavy_rain_does_not_negate_non_fire() -> void:
+	_battle = TestBattleFactory.create_1v1_battle()
+	_engine = TestBattleFactory.create_engine(_battle)
+	_battle.field.set_weather(&"heavy_rain", 5, 0)
+
+	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
+	var hp_before: int = target.current_hp
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_technique_action(
+			0, 0, &"test_tackle", 1, 0,
+		),
+		TestBattleFactory.make_rest_action(1, 0),
+	]
+	_engine.execute_turn(actions)
+
+	assert_lt(
+		target.current_hp, hp_before,
+		"Heavy rain should not negate null-element attacks",
+	)
+
+
+func test_heavy_rain_boosts_water() -> void:
+	# Without weather
+	_battle = TestBattleFactory.create_1v1_battle()
+	_engine = TestBattleFactory.create_engine(_battle)
+	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
+	var hp_before: int = target.current_hp
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_technique_action(
+			0, 0, &"test_water_gun", 1, 0,
+		),
+		TestBattleFactory.make_rest_action(1, 0),
+	]
+	_engine.execute_turn(actions)
+	var neutral_damage: int = hp_before - target.current_hp
+
+	# With heavy rain
+	_battle = TestBattleFactory.create_1v1_battle()
+	_engine = TestBattleFactory.create_engine(_battle)
+	_battle.field.set_weather(&"heavy_rain", 5, 0)
+	target = _battle.get_digimon_at(1, 0)
+	hp_before = target.current_hp
+	actions = [
+		TestBattleFactory.make_technique_action(
+			0, 0, &"test_water_gun", 1, 0,
+		),
+		TestBattleFactory.make_rest_action(1, 0),
+	]
+	_engine.execute_turn(actions)
+	var heavy_rain_damage: int = hp_before - target.current_hp
+
+	assert_gt(
+		heavy_rain_damage, neutral_damage,
+		"Heavy rain should still boost water damage via element_modifiers",
+	)
+
+
+# --- Negate resistance ---
+
+
+func test_negate_resistance_removes_resistance() -> void:
+	# test_agumon has fire resistance 0.5 — negate_resistance should set to 1.0
+	_battle = TestBattleFactory.create_1v1_battle()
+	_battle.field.set_weather(&"test_negate_res_weather", 5, 0)
+	var target: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	var mult: float = DamageCalculator.calculate_element_multiplier(
+		&"fire", target, _battle,
+	)
+	assert_eq(
+		mult, 1.0,
+		"negate_resistance should set fire resistance 0.5 to 1.0",
+	)
+
+
+func test_negate_resistance_does_not_affect_weakness() -> void:
+	# test_agumon has water weakness 1.5 — negate_resistance[fire] should not
+	# affect water or any weakness
+	_battle = TestBattleFactory.create_1v1_battle()
+	_battle.field.set_weather(&"test_negate_res_weather", 5, 0)
+	var target: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	var mult: float = DamageCalculator.calculate_element_multiplier(
+		&"water", target, _battle,
+	)
+	assert_eq(
+		mult, 1.5,
+		"negate_resistance should not affect elements not in the list",
+	)
+
+
+func test_negate_resistance_no_weather_unaffected() -> void:
+	_battle = TestBattleFactory.create_1v1_battle()
+	var target: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	var mult: float = DamageCalculator.calculate_element_multiplier(
+		&"fire", target, _battle,
+	)
+	assert_eq(
+		mult, 0.5,
+		"Without weather, fire resistance should remain 0.5",
+	)
+
+
+# --- Increase resistance (strong winds) ---
+
+
+func test_strong_winds_removes_lightning_weakness() -> void:
+	# test_earth_mon has lightning weakness 1.5 — strong_winds should set to 1.0
+	_battle = TestBattleFactory.create_1v1_battle(
+		&"test_earth_mon", &"test_agumon",
+	)
+	_battle.field.set_weather(&"strong_winds", 5, 0)
+	var target: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	var mult: float = DamageCalculator.calculate_element_multiplier(
+		&"lightning", target, _battle,
+	)
+	assert_eq(
+		mult, 1.0,
+		"strong_winds should clamp lightning weakness 1.5 to 1.0",
+	)
+
+
+func test_strong_winds_does_not_affect_lightning_resistance() -> void:
+	# Give a Digimon lightning resistance via override — should not be affected
+	_battle = TestBattleFactory.create_1v1_battle()
+	_battle.field.set_weather(&"strong_winds", 5, 0)
+	var target: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	target.volatiles["resistance_overrides"] = {&"lightning": 0.5}
+	var mult: float = DamageCalculator.calculate_element_multiplier(
+		&"lightning", target, _battle,
+	)
+	assert_eq(
+		mult, 0.5,
+		"strong_winds should not affect lightning resistance (0.5 stays 0.5)",
+	)
+
+
+# --- Weather tick healing ---
+
+
+func test_weather_tick_healing_matching_element() -> void:
+	# Plant mon should be healed by test_healing_weather
+	_battle = TestBattleFactory.create_1v1_battle(
+		&"test_plant_mon", &"test_agumon",
+	)
+	_engine = TestBattleFactory.create_engine(_battle)
+	_battle.field.set_weather(&"test_healing_weather", 5, 0)
+
+	var plant_mon: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	plant_mon.apply_damage(plant_mon.max_hp / 2)
+	var hp_before: int = plant_mon.current_hp
+
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_rest_action(0, 0),
+		TestBattleFactory.make_rest_action(1, 0),
+	]
+	_engine.execute_turn(actions)
+
+	assert_gt(
+		plant_mon.current_hp, hp_before,
+		"Plant mon should be healed by weather with healing_elements [plant]",
+	)
+
+
+func test_weather_tick_healing_non_matching_element() -> void:
+	# Agumon (fire trait) should NOT be healed by test_healing_weather
+	_battle = TestBattleFactory.create_1v1_battle(
+		&"test_agumon", &"test_gabumon",
+	)
+	_engine = TestBattleFactory.create_engine(_battle)
+	_battle.field.set_weather(&"test_healing_weather", 5, 0)
+
+	var agumon: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	agumon.apply_damage(agumon.max_hp / 2)
+	var hp_before: int = agumon.current_hp
+
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_rest_action(0, 0),
+		TestBattleFactory.make_rest_action(1, 0),
+	]
+	_engine.execute_turn(actions)
+
+	assert_eq(
+		agumon.current_hp, hp_before,
+		"Non-plant Digimon should not be healed by weather with healing_elements [plant]",
 	)

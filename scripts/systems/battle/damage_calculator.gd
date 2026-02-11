@@ -117,6 +117,10 @@ static func calculate_damage(
 	atk *= get_side_effect_stat_multiplier(battle, atk_stat, user)
 	def_val *= get_side_effect_stat_multiplier(battle, def_stat, target)
 
+	# Terrain stat modifiers (stage-based, aerial immune)
+	atk *= get_terrain_stat_multiplier(battle, atk_stat, user)
+	def_val *= get_terrain_stat_multiplier(battle, def_stat, target)
+
 	# Attribute multiplier
 	var attr_mult: float = calculate_attribute_multiplier(
 		user.data.attribute if user.data else Registry.Attribute.NONE,
@@ -131,7 +135,7 @@ static func calculate_damage(
 
 	# Element multiplier (target's resistance to technique element)
 	var elem_mult: float = calculate_element_multiplier(
-		effective_element, target,
+		effective_element, target, battle,
 	)
 	# ignoreTypeImmunity: treat 0x resistance as 1x
 	if ignore_type_immunity and elem_mult <= 0.0:
@@ -222,13 +226,30 @@ static func calculate_attribute_multiplier(
 
 
 ## Calculate element multiplier from target's resistances.
+## Pass battle to apply weather resistance modifiers (negate/increase).
 static func calculate_element_multiplier(
 	element_key: StringName,
 	target: BattleDigimonState,
+	battle: BattleState = null,
 ) -> float:
 	if element_key == &"" or target.data == null:
 		return 1.0
-	return target.get_effective_resistance(element_key)
+	var resistance: float = target.get_effective_resistance(element_key)
+	# Weather resistance modifiers
+	if battle != null and battle.field.has_weather():
+		var weather_key: StringName = battle.field.weather.get(
+			"key", &"",
+		) as StringName
+		var config: Dictionary = Registry.WEATHER_CONFIG.get(
+			weather_key, {},
+		)
+		if element_key in config.get("negate_resistance", []) \
+				and resistance < 1.0:
+			resistance = 1.0
+		if element_key in config.get("increase_resistance", []) \
+				and resistance > 1.0:
+			resistance = 1.0
+	return resistance
 
 
 ## Calculate STAB bonus.
@@ -271,6 +292,51 @@ static func get_weather_stat_multiplier(
 		"key", &"",
 	) as StringName
 	var config: Dictionary = Registry.WEATHER_CONFIG.get(weather_key, {})
+	for mod: Dictionary in config.get("stat_modifiers", []):
+		if StringName(mod.get("stat", "")) != stat:
+			continue
+		var elements: Array = mod.get("elements", [])
+		var matches: bool = elements.is_empty()
+		if not matches and digimon.data != null:
+			for elem: StringName in digimon.get_effective_element_traits():
+				if elem in elements:
+					matches = true
+					break
+		if matches:
+			var stages: int = clampi(int(mod.get("stages", 0)), -6, 6)
+			return Registry.STAT_STAGE_MULTIPLIERS.get(stages, 1.0)
+	return 1.0
+
+
+## Check if a Digimon is aerial and on active terrain (not grounded).
+## Returns true if the Digimon has the aerial movement trait and is not
+## negated by grounding_field.
+static func is_aerial_on_terrain(
+	digimon: BattleDigimonState, battle: BattleState,
+) -> bool:
+	if digimon.data == null:
+		return false
+	var has_aerial: bool = &"aerial" in digimon.data.movement_traits
+	if has_aerial and battle != null \
+			and battle.field.has_global_effect(&"grounding_field"):
+		return false
+	return has_aerial
+
+
+## Get terrain-based stat multiplier for a given stat and Digimon.
+## Same pattern as get_weather_stat_multiplier(). Aerial Digimon are immune.
+static func get_terrain_stat_multiplier(
+	battle: BattleState, stat: StringName,
+	digimon: BattleDigimonState,
+) -> float:
+	if battle == null or not battle.field.has_terrain():
+		return 1.0
+	if is_aerial_on_terrain(digimon, battle):
+		return 1.0
+	var terrain_key: StringName = battle.field.terrain.get(
+		"key", &"",
+	) as StringName
+	var config: Dictionary = Registry.TERRAIN_CONFIG.get(terrain_key, {})
 	for mod: Dictionary in config.get("stat_modifiers", []):
 		if StringName(mod.get("stat", "")) != stat:
 			continue

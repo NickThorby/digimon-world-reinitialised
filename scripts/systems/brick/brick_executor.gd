@@ -403,7 +403,7 @@ static func _execute_damage_scaling(
 	var elem_mult: float = 1.0
 	if effective_element != &"":
 		elem_mult = DamageCalculator.calculate_element_multiplier(
-			effective_element, target,
+			effective_element, target, battle,
 		)
 
 	var balance: GameBalance = _get_balance()
@@ -555,7 +555,7 @@ static func _execute_damage_counter_scaling(
 	var elem_mult: float = 1.0
 	if effective_element != &"":
 		elem_mult = DamageCalculator.calculate_element_multiplier(
-			effective_element, target,
+			effective_element, target, battle,
 		)
 
 	var balance: GameBalance = _get_balance()
@@ -1167,7 +1167,15 @@ static func _collect_damage_modifiers(
 		if not weather_mod.is_empty():
 			modifiers.append(weather_mod)
 
-	# 6. Barrier modifiers (side effects) — skipped if ignoreBarriers
+	# 6. Terrain modifiers (aerial users get no boost)
+	if battle != null and technique != null and user != null:
+		var terrain_mod: Dictionary = _get_terrain_modifier(
+			battle, technique, user,
+		)
+		if not terrain_mod.is_empty():
+			modifiers.append(terrain_mod)
+
+	# 7. Barrier modifiers (side effects) — skipped if ignoreBarriers
 	if not ignore_barriers \
 			and battle != null and target != null and technique != null:
 		var barrier_mod: Dictionary = _get_barrier_modifier(
@@ -1210,6 +1218,27 @@ static func _get_weather_modifier(
 		"key", &"",
 	) as StringName
 	var config: Dictionary = Registry.WEATHER_CONFIG.get(weather_key, {})
+	var element: StringName = technique.element_key
+	var mods: Dictionary = config.get("element_modifiers", {})
+	if element in mods:
+		return {"multiplier": 1.0 + float(mods[element])}
+	return {}
+
+
+## Get terrain damage modifier for the technique's element.
+## Aerial users are immune to terrain element boosts.
+static func _get_terrain_modifier(
+	battle: BattleState, technique: TechniqueData,
+	user: BattleDigimonState,
+) -> Dictionary:
+	if not battle.field.has_terrain():
+		return {}
+	if DamageCalculator.is_aerial_on_terrain(user, battle):
+		return {}
+	var terrain_key: StringName = battle.field.terrain.get(
+		"key", &"",
+	) as StringName
+	var config: Dictionary = Registry.TERRAIN_CONFIG.get(terrain_key, {})
 	var element: StringName = technique.element_key
 	var mods: Dictionary = config.get("element_modifiers", {})
 	if element in mods:
@@ -1476,6 +1505,8 @@ static func _execute_hazard(
 		extra["stat"] = String(brick["stat"])
 	if brick.has("stages"):
 		extra["stages"] = int(brick["stages"])
+	if brick.has("aerialIsImmune"):
+		extra["aerial_is_immune"] = bool(brick["aerialIsImmune"])
 	extra["maxLayers"] = max_layers
 
 	for side: SideState in sides:
