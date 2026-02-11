@@ -206,8 +206,8 @@ func test_add_status() -> void:
 
 func test_add_duplicate_status_fails() -> void:
 	_mon.add_status(&"burned")
-	var duplicate: bool = _mon.add_status(&"burned")
-	assert_false(duplicate, "Should not add duplicate status")
+	var was_duplicate: bool = _mon.add_status(&"burned")
+	assert_false(was_duplicate, "Should not add duplicate status")
 
 
 func test_remove_status() -> void:

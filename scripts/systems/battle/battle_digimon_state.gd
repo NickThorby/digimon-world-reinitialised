@@ -479,7 +479,7 @@ func restore_transform() -> void:
 	volatiles["element_traits_replaced"] = b.get("element_traits_replaced", &"")
 	volatiles["resistance_overrides"] = (b.get("resistance_overrides", {}) as Dictionary).duplicate()
 	# Recalculate HP/energy caps from restored base stats
-	var old_max_hp: int = max_hp
+	var _old_max_hp: int = max_hp
 	max_hp = base_stats.get(&"hp", max_hp)
 	current_hp = mini(current_hp, max_hp)
 	max_energy = base_stats.get(&"energy", max_energy)

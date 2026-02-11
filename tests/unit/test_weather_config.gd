@@ -828,6 +828,7 @@ func test_weather_tick_healing_matching_element() -> void:
 	_battle.field.set_weather(&"test_healing_weather", 5, 0)
 
 	var plant_mon: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	@warning_ignore("integer_division")
 	plant_mon.apply_damage(plant_mon.max_hp / 2)
 	var hp_before: int = plant_mon.current_hp
 
@@ -852,6 +853,7 @@ func test_weather_tick_healing_non_matching_element() -> void:
 	_battle.field.set_weather(&"test_healing_weather", 5, 0)
 
 	var agumon: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	@warning_ignore("integer_division")
 	agumon.apply_damage(agumon.max_hp / 2)
 	var hp_before: int = agumon.current_hp
 

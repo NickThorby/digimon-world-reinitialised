@@ -22,7 +22,7 @@ func test_on_exit_fires_on_switch_out() -> void:
 
 	var outgoing: BattleDigimonState = _battle.get_digimon_at(0, 0)
 	outgoing.ability_key = &"test_ability_on_exit"
-	var initial_def: int = outgoing.stat_stages[&"defence"]
+	var _initial_def: int = outgoing.stat_stages[&"defence"]
 
 	var actions: Array[BattleAction] = [
 		TestBattleFactory.make_switch_action(0, 0, 0),

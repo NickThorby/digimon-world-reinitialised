@@ -27,6 +27,7 @@ func test_requirement_blocks_technique_when_condition_met() -> void:
 
 	# Reduce user HP below 50% to trigger the fail condition
 	user.apply_damage(user.max_hp)
+	@warning_ignore("integer_division")
 	user.restore_hp(user.max_hp / 4)  # 25% HP
 
 	var actions: Array[BattleAction] = [
@@ -157,10 +158,11 @@ func test_conditional_nested_bricks_execute_when_met() -> void:
 
 	# Bring target below 50% HP to trigger condition
 	target.apply_damage(target.max_hp)
+	@warning_ignore("integer_division")
 	target.restore_hp(target.max_hp / 4)  # 25% HP
 
 	var tech: TechniqueData = Atlas.techniques[&"test_conditional_nested"]
-	var results: Array[Dictionary] = BrickExecutor.execute_bricks(
+	var _results: Array[Dictionary] = BrickExecutor.execute_bricks(
 		tech.bricks, user, target, tech, _battle,
 	)
 
@@ -181,7 +183,7 @@ func test_conditional_nested_bricks_skip_when_not_met() -> void:
 
 	# Target at full HP → condition "targetHpBelow:50" is false
 	var tech: TechniqueData = Atlas.techniques[&"test_conditional_nested"]
-	var results: Array[Dictionary] = BrickExecutor.execute_bricks(
+	var _results: Array[Dictionary] = BrickExecutor.execute_bricks(
 		tech.bricks, user, target, tech, _battle,
 	)
 
@@ -202,6 +204,7 @@ func test_priority_override_changes_action_order() -> void:
 
 	# Make target low HP to trigger priorityOverride
 	target.apply_damage(target.max_hp)
+	@warning_ignore("integer_division")
 	target.restore_hp(target.max_hp / 4)  # 25% HP
 
 	# Side 0 (faster) uses priority override technique
@@ -263,6 +266,7 @@ func test_check_requirements_returns_failed() -> void:
 
 	# Reduce HP below 50%
 	user.apply_damage(user.max_hp)
+	@warning_ignore("integer_division")
 	user.restore_hp(user.max_hp / 4)
 
 	var result_fail: Dictionary = BrickExecutor.check_requirements(
@@ -318,6 +322,7 @@ func test_evaluate_priority_override() -> void:
 
 	# Bring target below 50%
 	target.apply_damage(target.max_hp)
+	@warning_ignore("integer_division")
 	target.restore_hp(target.max_hp / 4)
 
 	var result_yes: int = BrickExecutor.evaluate_priority_override(

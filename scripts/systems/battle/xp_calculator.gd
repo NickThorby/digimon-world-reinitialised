@@ -97,6 +97,7 @@ static func calculate_xp_awards(
 					foe_data.base_xp_yield, int(foe["level"]),
 					state.level, 1,
 				)
+				@warning_ignore("integer_division")
 				total_xp += maxi(base_xp / 2, 1)
 
 		if total_xp <= 0:

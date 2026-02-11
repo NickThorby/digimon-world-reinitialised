@@ -768,31 +768,31 @@ static func _execute_stat_modifier(
 
 	# --- swapWithTarget: swap all stat stages between user and target ---
 	if brick.get("swapWithTarget", false):
-		var stat_changes: Array[Dictionary] = []
+		var swap_changes: Array[Dictionary] = []
 		for key: StringName in user.stat_stages:
 			var user_stage: int = user.stat_stages[key]
 			var target_stage: int = actual_target.stat_stages[key]
 			user.stat_stages[key] = target_stage
 			actual_target.stat_stages[key] = user_stage
-			stat_changes.append({
+			swap_changes.append({
 				"target": user, "stat_key": key,
 				"stages": target_stage - user_stage,
 				"actual": target_stage - user_stage,
 			})
-			stat_changes.append({
+			swap_changes.append({
 				"target": actual_target, "stat_key": key,
 				"stages": user_stage - target_stage,
 				"actual": user_stage - target_stage,
 			})
-		return {"handled": true, "stat_changes": stat_changes}
+		return {"handled": true, "stat_changes": swap_changes}
 
 	var modifier_type: String = brick.get("modifierType", "stage")
 
 	# --- percent / fixed: volatile non-stage modifiers ---
 	if modifier_type == "percent" or modifier_type == "fixed":
-		var raw_stats: Variant = brick.get("stats", [])
-		var stat_keys: Array = _normalise_stat_keys(raw_stats)
-		if stat_keys.is_empty():
+		var pf_raw_stats: Variant = brick.get("stats", [])
+		var pf_stat_keys: Array = _normalise_stat_keys(pf_raw_stats)
+		if pf_stat_keys.is_empty():
 			return {"handled": false, "reason": "invalid_stats"}
 
 		var mod_value: Variant
@@ -801,8 +801,8 @@ static func _execute_stat_modifier(
 		else:
 			mod_value = int(brick.get("value", 0))
 
-		var stat_changes: Array[Dictionary] = []
-		for abbr: Variant in stat_keys:
+		var pf_stat_changes: Array[Dictionary] = []
+		for abbr: Variant in pf_stat_keys:
 			var resolved: Dictionary = _resolve_stat_key(str(abbr))
 			if resolved.is_empty():
 				continue
@@ -812,21 +812,21 @@ static func _execute_stat_modifier(
 			(actual_target.volatile_stat_modifiers[stat_key] as Array).append({
 				"type": modifier_type, "value": mod_value,
 			})
-			stat_changes.append({
+			pf_stat_changes.append({
 				"target": actual_target, "stat_key": stat_key,
 				"type": modifier_type,
 			})
-		return {"handled": true, "stat_changes": stat_changes}
+		return {"handled": true, "stat_changes": pf_stat_changes}
 
 	# --- stage-based modifiers (default) ---
 	var stages: int = int(brick.get("stages", 0))
 
 	# --- setToMax: set all listed stats to +6 ---
 	if brick.get("setToMax", false):
-		var raw_stats: Variant = brick.get("stats", [])
-		var stat_keys: Array = _normalise_stat_keys(raw_stats)
-		var stat_changes: Array[Dictionary] = []
-		for abbr: Variant in stat_keys:
+		var max_raw_stats: Variant = brick.get("stats", [])
+		var max_stat_keys: Array = _normalise_stat_keys(max_raw_stats)
+		var max_stat_changes: Array[Dictionary] = []
+		for abbr: Variant in max_stat_keys:
 			var resolved: Dictionary = _resolve_stat_key(str(abbr))
 			if resolved.is_empty():
 				continue
@@ -834,11 +834,11 @@ static func _execute_stat_modifier(
 			var current: int = actual_target.stat_stages.get(stat_key, 0)
 			var needed: int = 6 - current
 			var actual: int = actual_target.modify_stat_stage(stat_key, needed)
-			stat_changes.append({
+			max_stat_changes.append({
 				"target": actual_target, "stat_key": stat_key,
 				"stages": needed, "actual": actual,
 			})
-		return {"handled": true, "stat_changes": stat_changes}
+		return {"handled": true, "stat_changes": max_stat_changes}
 
 	# --- scalesWithCounter: stages derived from counter ---
 	if brick.has("scalesWithCounter"):
@@ -2078,7 +2078,7 @@ static func _position_force_switch(
 
 ## switchOut: user switches out after attacking.
 static func _position_switch_out(
-	brick: Dictionary,
+	_brick: Dictionary,
 	user: BattleDigimonState,
 	battle: BattleState,
 ) -> Dictionary:

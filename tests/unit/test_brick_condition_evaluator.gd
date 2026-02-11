@@ -541,7 +541,7 @@ func test_ally_has_trait_true_in_doubles() -> void:
 	# Create a 2v2 battle so side 0 has test_agumon + test_patamon
 	var battle_2v2: BattleState = TestBattleFactory.create_2v2_battle()
 	var user: BattleDigimonState = battle_2v2.get_digimon_at(0, 0)  # test_agumon
-	var ally: BattleDigimonState = battle_2v2.get_digimon_at(0, 1)  # test_patamon
+	var _ally: BattleDigimonState = battle_2v2.get_digimon_at(0, 1)  # test_patamon
 	# test_patamon has element_traits [&"light"]
 	var ctx: Dictionary = {"user": user, "battle": battle_2v2}
 	assert_true(BrickConditionEvaluator.evaluate("allyHasTrait:element:light", ctx))

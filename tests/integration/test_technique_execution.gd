@@ -47,6 +47,7 @@ func test_status_technique_no_damage() -> void:
 	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
 	var initial_hp: int = target.current_hp
 	# Burn DoT ticks at end of turn (max_hp / 16), so account for it.
+	@warning_ignore("integer_division")
 	var expected_dot: int = maxi(target.max_hp / 16, 1)
 	var actions: Array[BattleAction] = [
 		TestBattleFactory.make_technique_action(0, 0, &"test_status_burn", 1, 0),

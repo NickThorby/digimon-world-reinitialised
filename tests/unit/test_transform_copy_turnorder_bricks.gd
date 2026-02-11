@@ -17,9 +17,9 @@ func after_all() -> void:
 func _create_battle(
 	s0_key: StringName = &"test_agumon",
 	s1_key: StringName = &"test_gabumon",
-	seed: int = TestBattleFactory.DEFAULT_SEED,
+	rng_seed: int = TestBattleFactory.DEFAULT_SEED,
 ) -> BattleState:
-	return TestBattleFactory.create_1v1_battle(s0_key, s1_key, seed)
+	return TestBattleFactory.create_1v1_battle(s0_key, s1_key, rng_seed)
 
 
 func _get_user(battle: BattleState) -> BattleDigimonState:

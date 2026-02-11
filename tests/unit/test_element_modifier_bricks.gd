@@ -17,9 +17,9 @@ func after_all() -> void:
 func _create_battle(
 	s0_key: StringName = &"test_agumon",
 	s1_key: StringName = &"test_gabumon",
-	seed: int = TestBattleFactory.DEFAULT_SEED,
+	rng_seed: int = TestBattleFactory.DEFAULT_SEED,
 ) -> BattleState:
-	return TestBattleFactory.create_1v1_battle(s0_key, s1_key, seed)
+	return TestBattleFactory.create_1v1_battle(s0_key, s1_key, rng_seed)
 
 
 func _get_user(battle: BattleState) -> BattleDigimonState:
@@ -59,12 +59,12 @@ func test_change_technique_element_overrides_damage() -> void:
 
 	# Baseline: fire damage against gabumon (fire 1.5x = super effective)
 	var baseline_tech: TechniqueData = Atlas.techniques[&"test_fire_blast"]
-	var baseline: DamageResult = DamageCalculator.calculate_damage(
+	var _baseline: DamageResult = DamageCalculator.calculate_damage(
 		user, target, baseline_tech, battle,
 	)
 
 	# With override: should use ice element (gabumon ice resist = 0.5)
-	var ctx: Dictionary = {"damage_dealt": 0, "technique_missed": false}
+	var _ctx: Dictionary = {"damage_dealt": 0, "technique_missed": false}
 	var results: Array[Dictionary] = BrickExecutor.execute_bricks(
 		technique.bricks, user, target, technique, battle,
 	)

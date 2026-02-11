@@ -177,7 +177,7 @@ func test_return_damage_reflects_last_hit() -> void:
 
 	# Simulate target having taken 30 damage previously
 	target.volatiles["last_hit"] = 30
-	var hp_before: int = target.current_hp
+	var _hp_before: int = target.current_hp
 
 	var result: Dictionary = BrickExecutor.execute_brick(
 		{
@@ -278,7 +278,7 @@ func test_counter_scaling_capped_at_scaling_cap() -> void:
 
 	# Target has been hit 100 times (should cap at scalingCap)
 	target.counters["times_hit"] = 100
-	var hp_before: int = target.current_hp
+	var _hp_before: int = target.current_hp
 
 	# Cap is 40, so bonus is 40 even with 100 * 20 = 2000
 	var result: Dictionary = BrickExecutor.execute_brick(

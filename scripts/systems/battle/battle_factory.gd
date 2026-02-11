@@ -4,14 +4,14 @@ extends RefCounted
 
 
 ## Create a fully initialised BattleState from a config.
-static func create_battle(config: BattleConfig, seed: int = -1) -> BattleState:
+static func create_battle(config: BattleConfig, rng_seed: int = -1) -> BattleState:
 	var battle := BattleState.new()
 	battle.config = config
 	battle.field = FieldState.new()
 
 	# Seed PRNG
-	if seed >= 0:
-		battle.rng.seed = seed
+	if rng_seed >= 0:
+		battle.rng.seed = rng_seed
 	else:
 		battle.rng.randomize()
 

@@ -116,6 +116,7 @@ func _apply_window_scale() -> void:
 	)
 	DisplayServer.window_set_size(new_size)
 	var screen_size := DisplayServer.screen_get_size()
+	@warning_ignore("integer_division")
 	var position := Vector2i(
 		maxi((screen_size.x - new_size.x) / 2, 0),
 		maxi((screen_size.y - new_size.y) / 2, 0)

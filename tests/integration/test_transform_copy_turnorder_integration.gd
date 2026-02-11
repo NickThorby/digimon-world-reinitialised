@@ -278,7 +278,7 @@ func test_metronome_executes_redirected_technique() -> void:
 	# Metronome picks a random technique from user's known list (except itself).
 	# We just verify the turn completes without error and the turn number advances.
 	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
-	var target_hp_before: int = target.current_hp
+	var _target_hp_before: int = target.current_hp
 
 	var actions: Array[BattleAction] = [
 		TestBattleFactory.make_technique_action(0, 0, &"test_metronome", 1, 0),

@@ -1765,7 +1765,7 @@ static func make_digimon_state(
 static func create_1v1_battle(
 	s0_key: StringName = &"test_agumon",
 	s1_key: StringName = &"test_gabumon",
-	seed: int = DEFAULT_SEED,
+	rng_seed: int = DEFAULT_SEED,
 ) -> BattleState:
 	var config := BattleConfig.new()
 	config.apply_preset(BattleConfig.FormatPreset.SINGLES_1V1)
@@ -1779,14 +1779,14 @@ static func create_1v1_battle(
 		"party": [make_digimon_state(s1_key)] as Array[DigimonState],
 		"is_wild": false,
 	}
-	return BattleFactory.create_battle(config, seed)
+	return BattleFactory.create_battle(config, rng_seed)
 
 
 ## Create a 2v2 doubles battle.
 static func create_2v2_battle(
 	s0_keys: Array[StringName] = [&"test_agumon", &"test_patamon"],
 	s1_keys: Array[StringName] = [&"test_gabumon", &"test_tank"],
-	seed: int = DEFAULT_SEED,
+	rng_seed: int = DEFAULT_SEED,
 ) -> BattleState:
 	var config := BattleConfig.new()
 	config.apply_preset(BattleConfig.FormatPreset.DOUBLES_2V2)
@@ -1806,14 +1806,14 @@ static func create_2v2_battle(
 		"party": party_1,
 		"is_wild": false,
 	}
-	return BattleFactory.create_battle(config, seed)
+	return BattleFactory.create_battle(config, rng_seed)
 
 
 ## Create a 1v1 battle where each side has reserves in the party.
 static func create_1v1_with_reserves(
 	s0_keys: Array[StringName] = [&"test_agumon", &"test_patamon"],
 	s1_keys: Array[StringName] = [&"test_gabumon", &"test_tank"],
-	seed: int = DEFAULT_SEED,
+	rng_seed: int = DEFAULT_SEED,
 ) -> BattleState:
 	var config := BattleConfig.new()
 	config.apply_preset(BattleConfig.FormatPreset.SINGLES_1V1)
@@ -1833,14 +1833,14 @@ static func create_1v1_with_reserves(
 		"party": party_1,
 		"is_wild": false,
 	}
-	return BattleFactory.create_battle(config, seed)
+	return BattleFactory.create_battle(config, rng_seed)
 
 
 ## Create a 1v1 wild battle (can flee).
 static func create_wild_battle(
 	s0_key: StringName = &"test_agumon",
 	s1_key: StringName = &"test_gabumon",
-	seed: int = DEFAULT_SEED,
+	rng_seed: int = DEFAULT_SEED,
 ) -> BattleState:
 	var config := BattleConfig.new()
 	config.apply_preset(BattleConfig.FormatPreset.SINGLES_1V1)
@@ -1854,7 +1854,7 @@ static func create_wild_battle(
 		"party": [make_digimon_state(s1_key)] as Array[DigimonState],
 		"is_wild": true,
 	}
-	return BattleFactory.create_battle(config, seed)
+	return BattleFactory.create_battle(config, rng_seed)
 
 
 # --- Action helpers ---
@@ -1932,7 +1932,7 @@ static func create_1v1_battle_with_bag(
 	s0_key: StringName = &"test_agumon",
 	s1_key: StringName = &"test_gabumon",
 	bag_items: Dictionary = {},  ## {StringName: int} — item_key -> quantity
-	seed: int = DEFAULT_SEED,
+	rng_seed: int = DEFAULT_SEED,
 ) -> BattleState:
 	var config := BattleConfig.new()
 	config.apply_preset(BattleConfig.FormatPreset.SINGLES_1V1)
@@ -1950,7 +1950,7 @@ static func create_1v1_battle_with_bag(
 		"party": [make_digimon_state(s1_key)] as Array[DigimonState],
 		"is_wild": false,
 	}
-	return BattleFactory.create_battle(config, seed)
+	return BattleFactory.create_battle(config, rng_seed)
 
 
 ## Create a 1v1 battle with reserves and a bag for side 0.
@@ -1958,7 +1958,7 @@ static func create_1v1_with_reserves_and_bag(
 	s0_keys: Array[StringName] = [&"test_agumon", &"test_patamon"],
 	s1_keys: Array[StringName] = [&"test_gabumon", &"test_tank"],
 	bag_items: Dictionary = {},
-	seed: int = DEFAULT_SEED,
+	rng_seed: int = DEFAULT_SEED,
 ) -> BattleState:
 	var config := BattleConfig.new()
 	config.apply_preset(BattleConfig.FormatPreset.SINGLES_1V1)
@@ -1982,7 +1982,7 @@ static func create_1v1_with_reserves_and_bag(
 		"party": party_1,
 		"is_wild": false,
 	}
-	return BattleFactory.create_battle(config, seed)
+	return BattleFactory.create_battle(config, rng_seed)
 
 
 ## Create a 3-way FFA battle (3 sides, each on own team).
@@ -1990,7 +1990,7 @@ static func create_3_way_ffa_battle(
 	s0_key: StringName = &"test_agumon",
 	s1_key: StringName = &"test_gabumon",
 	s2_key: StringName = &"test_patamon",
-	seed: int = DEFAULT_SEED,
+	rng_seed: int = DEFAULT_SEED,
 ) -> BattleState:
 	var config := BattleConfig.new()
 	config.apply_preset(BattleConfig.FormatPreset.FFA_3)
@@ -2009,7 +2009,7 @@ static func create_3_way_ffa_battle(
 		"party": [make_digimon_state(s2_key)] as Array[DigimonState],
 		"is_wild": false,
 	}
-	return BattleFactory.create_battle(config, seed)
+	return BattleFactory.create_battle(config, rng_seed)
 
 
 ## Simulate switching out the active Digimon in a slot to reserves, without
@@ -2039,7 +2039,7 @@ static func create_preset_battle(
 	preset_hazards: Array[Dictionary] = [],
 	s0_key: StringName = &"test_agumon",
 	s1_key: StringName = &"test_gabumon",
-	seed: int = DEFAULT_SEED,
+	rng_seed: int = DEFAULT_SEED,
 ) -> BattleState:
 	var config := BattleConfig.new()
 	config.apply_preset(BattleConfig.FormatPreset.SINGLES_1V1)
@@ -2056,7 +2056,7 @@ static func create_preset_battle(
 	config.preset_field_effects = preset_field
 	config.preset_side_effects = preset_sides
 	config.preset_hazards = preset_hazards
-	return BattleFactory.create_battle(config, seed)
+	return BattleFactory.create_battle(config, rng_seed)
 
 
 # --- Engine setup ---

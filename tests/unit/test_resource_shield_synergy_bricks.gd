@@ -16,9 +16,9 @@ func after_all() -> void:
 func _create_battle(
 	s0_key: StringName = &"test_agumon",
 	s1_key: StringName = &"test_gabumon",
-	seed: int = TestBattleFactory.DEFAULT_SEED,
+	rng_seed: int = TestBattleFactory.DEFAULT_SEED,
 ) -> BattleState:
-	return TestBattleFactory.create_1v1_battle(s0_key, s1_key, seed)
+	return TestBattleFactory.create_1v1_battle(s0_key, s1_key, rng_seed)
 
 
 func _get_user(battle: BattleState) -> BattleDigimonState:
@@ -237,7 +237,7 @@ func test_hp_decoy_blocks_status() -> void:
 
 func test_intact_form_guard_blocks_first_hit() -> void:
 	var battle: BattleState = _create_battle()
-	var user: BattleDigimonState = _get_user(battle)
+	var _user: BattleDigimonState = _get_user(battle)
 	var target: BattleDigimonState = _get_target(battle)
 
 	# Set up intactFormGuard on target (Disguise)
@@ -277,7 +277,7 @@ func test_intact_form_guard_blocks_first_hit() -> void:
 
 func test_negate_move_class_blocks_physical() -> void:
 	var battle: BattleState = _create_battle()
-	var user: BattleDigimonState = _get_user(battle)
+	var _user: BattleDigimonState = _get_user(battle)
 	var target: BattleDigimonState = _get_target(battle)
 
 	# Set up negateOneMoveClass (physical) on target
@@ -303,7 +303,7 @@ func test_negate_move_class_blocks_physical() -> void:
 	)
 
 	# Special hit: should not be blocked (shield already consumed)
-	var hp_before: int = target.current_hp
+	var _hp_before: int = target.current_hp
 	var result2: Dictionary = BrickExecutor._apply_shielded_damage(
 		target, 50, special_tech,
 	)

@@ -153,7 +153,7 @@ func test_ignore_type_immunity_deals_damage() -> void:
 	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
 	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
 	# test_patamon has dark: 0.0 (immune)
-	var hp_before: int = target.current_hp
+	var _hp_before: int = target.current_hp
 
 	var technique: TechniqueData = Atlas.techniques[
 		&"test_ignore_type_immunity"

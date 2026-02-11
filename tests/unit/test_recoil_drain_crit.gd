@@ -74,7 +74,7 @@ func test_recoil_hp_percent() -> void:
 	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
 	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
 	var expected: int = maxi(roundi(float(user.max_hp) * 33.0 / 100.0), 1)
-	var user_hp_before: int = user.current_hp
+	var _user_hp_before: int = user.current_hp
 
 	var context: Dictionary = {"damage_dealt": 50, "technique_missed": false}
 	var result: Dictionary = BrickExecutor.execute_brick(
@@ -110,7 +110,7 @@ func test_crash_recoil_only_on_miss() -> void:
 	)
 
 	# When technique misses, crash recoil SHOULD apply
-	var user_hp_before: int = user.current_hp
+	var _user_hp_before: int = user.current_hp
 	var expected: int = maxi(roundi(float(user.max_hp) * 50.0 / 100.0), 1)
 	var context_miss: Dictionary = {
 		"damage_dealt": 0, "technique_missed": true,

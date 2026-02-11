@@ -238,7 +238,7 @@ func test_stat_protection_blocks_raising() -> void:
 func test_stat_protection_allows_opposite_direction() -> void:
 	_battle = TestBattleFactory.create_1v1_battle()
 
-	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	var _user: BattleDigimonState = _battle.get_digimon_at(0, 0)
 	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
 
 	# Apply preventLowering on target

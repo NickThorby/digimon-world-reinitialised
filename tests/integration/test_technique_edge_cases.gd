@@ -97,7 +97,7 @@ func test_zero_power_standard_damage_deals_minimum() -> void:
 	_battle = TestBattleFactory.create_1v1_battle()
 	_engine = TestBattleFactory.create_engine(_battle)
 
-	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	var _user: BattleDigimonState = _battle.get_digimon_at(0, 0)
 	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
 	var hp_before: int = target.current_hp
 

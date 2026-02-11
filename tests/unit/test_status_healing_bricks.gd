@@ -2,7 +2,6 @@ extends GutTest
 ## Unit tests for statusInteraction bricks (cure, transfer, bonusDamage,
 ## condition_failed) and healing bricks (weather, status).
 
-var _engine: BattleEngine
 var _battle: BattleState
 
 

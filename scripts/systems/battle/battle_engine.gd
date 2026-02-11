@@ -22,7 +22,9 @@ signal technique_animation_requested(
 	element_key: StringName, target_side: int, target_slot: int
 )
 signal hazard_applied(side_index: int, hazard_key: StringName)
+@warning_ignore("unused_signal")
 signal hazard_removed(side_index: int, hazard_key: StringName)
+@warning_ignore("unused_signal")
 signal side_effect_applied(side_index: int, effect_key: StringName)
 signal side_effect_removed(side_index: int, effect_key: StringName)
 signal global_effect_applied(effect_key: StringName)
@@ -255,6 +257,7 @@ func _apply_technique_costs(
 ) -> Dictionary:
 	# Bleeding deals self-damage when using a technique
 	if user.has_status(&"bleeding"):
+		@warning_ignore("integer_division")
 		var bleed_dmg: int = maxi(user.max_hp / 8, 1)
 		battle_message.emit("%s is bleeding!" % _get_digimon_name(user))
 		var bleed_result: Dictionary = _apply_damage_and_emit(
@@ -498,7 +501,7 @@ func _setup_technique_context(
 ## accuracy, protection, multi-hit, and result signal emission.
 func _execute_against_targets(
 	user: BattleDigimonState, technique: TechniqueData,
-	action: BattleAction, ctx: Dictionary,
+	_action: BattleAction, ctx: Dictionary,
 ) -> Array[Dictionary]:
 	var targets: Array[BattleDigimonState] = []
 	var raw_targets: Variant = ctx.get("targets", [])
@@ -1219,7 +1222,7 @@ func _finalise_technique(
 
 ## Process positionControl results from brick execution.
 func _process_position_control(
-	all_results: Array[Dictionary], action: BattleAction,
+	all_results: Array[Dictionary], _action: BattleAction,
 ) -> void:
 	for result: Dictionary in all_results:
 		if result.get("force_switch", false):
@@ -2896,7 +2899,7 @@ func _apply_damage_and_emit(
 func _apply_healing_and_emit(
 	target: BattleDigimonState,
 	amount: int,
-	source_label: StringName,
+	_source_label: StringName,
 ) -> int:
 	var actual: int = target.restore_hp(amount)
 	if actual > 0:

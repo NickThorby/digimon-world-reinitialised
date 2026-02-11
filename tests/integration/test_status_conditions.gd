@@ -175,6 +175,7 @@ func test_burned_dot() -> void:
 	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
 	user.add_status(&"burned")
 	var initial_hp: int = user.current_hp
+	@warning_ignore("integer_division")
 	var expected_dot: int = maxi(user.max_hp / 16, 1)
 	var actions: Array[BattleAction] = [
 		TestBattleFactory.make_rest_action(0, 0),
@@ -192,6 +193,7 @@ func test_poisoned_dot() -> void:
 	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
 	user.add_status(&"poisoned")
 	var initial_hp: int = user.current_hp
+	@warning_ignore("integer_division")
 	var expected_dot: int = maxi(user.max_hp / 8, 1)
 	var actions: Array[BattleAction] = [
 		TestBattleFactory.make_rest_action(0, 0),
@@ -206,6 +208,7 @@ func test_frostbitten_dot() -> void:
 	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
 	user.add_status(&"frostbitten")
 	var initial_hp: int = user.current_hp
+	@warning_ignore("integer_division")
 	var expected_dot: int = maxi(user.max_hp / 16, 1)
 	var actions: Array[BattleAction] = [
 		TestBattleFactory.make_rest_action(0, 0),
@@ -228,6 +231,7 @@ func test_seeded_drains_hp_heals_seeder() -> void:
 		"seeder_side": 0, "seeder_slot": 0,
 	})
 	var target_hp_before: int = target.current_hp
+	@warning_ignore("integer_division")
 	var expected_drain: int = maxi(target.max_hp / 8, 1)
 
 	var actions: Array[BattleAction] = [
@@ -287,7 +291,7 @@ func test_paralysed_halves_speed_in_combat() -> void:
 func test_exhausted_increases_energy_cost() -> void:
 	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
 	user.add_status(&"exhausted")
-	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
+	var _target: BattleDigimonState = _battle.get_digimon_at(1, 0)
 	var initial_energy: int = user.current_energy
 
 	var actions: Array[BattleAction] = [
@@ -299,7 +303,7 @@ func test_exhausted_increases_energy_cost() -> void:
 	# test_tackle costs 5 energy, exhausted = ceil(5*1.5) = 8
 	# But end-of-turn regen adds some back
 	# Just check energy was spent (more than 5 base cost)
-	var energy_before_regen: int = initial_energy - user.current_energy
+	var _energy_before_regen: int = initial_energy - user.current_energy
 	# With regen this is tricky, just verify the turn completed
 	assert_eq(_battle.turn_number, 1, "Turn should complete with exhausted status")
 
@@ -319,6 +323,7 @@ func test_bleeding_deals_self_damage() -> void:
 	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
 	user.add_status(&"bleeding")
 	var initial_hp: int = user.current_hp
+	@warning_ignore("integer_division")
 	var expected_bleed: int = maxi(user.max_hp / 8, 1)
 	var actions: Array[BattleAction] = [
 		TestBattleFactory.make_technique_action(0, 0, &"test_tackle", 1, 0),

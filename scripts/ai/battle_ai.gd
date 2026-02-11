@@ -32,7 +32,7 @@ func generate_actions(side_index: int) -> Array[BattleAction]:
 
 
 ## Pick a single action for a Digimon.
-func _pick_action(digimon: BattleDigimonState, side: SideState) -> BattleAction:
+func _pick_action(digimon: BattleDigimonState, _side: SideState) -> BattleAction:
 	# Try to use a random technique
 	var usable_techniques: Array[StringName] = _get_usable_techniques(digimon)
 
@@ -42,24 +42,24 @@ func _pick_action(digimon: BattleDigimonState, side: SideState) -> BattleAction:
 		]
 		var tech: TechniqueData = Atlas.techniques.get(tech_key) as TechniqueData
 		if tech:
-			var action := BattleAction.new()
-			action.action_type = BattleAction.ActionType.TECHNIQUE
-			action.user_side = digimon.side_index
-			action.user_slot = digimon.slot_index
-			action.technique_key = tech_key
+			var tech_action := BattleAction.new()
+			tech_action.action_type = BattleAction.ActionType.TECHNIQUE
+			tech_action.user_side = digimon.side_index
+			tech_action.user_slot = digimon.slot_index
+			tech_action.technique_key = tech_key
 
 			# Pick a valid target
 			var target: Dictionary = _pick_target(digimon, tech)
-			action.target_side = int(target.get("side", 0))
-			action.target_slot = int(target.get("slot", 0))
-			return action
+			tech_action.target_side = int(target.get("side", 0))
+			tech_action.target_slot = int(target.get("slot", 0))
+			return tech_action
 
 	# Fallback to rest
-	var action := BattleAction.new()
-	action.action_type = BattleAction.ActionType.REST
-	action.user_side = digimon.side_index
-	action.user_slot = digimon.slot_index
-	return action
+	var rest_action := BattleAction.new()
+	rest_action.action_type = BattleAction.ActionType.REST
+	rest_action.user_side = digimon.side_index
+	rest_action.user_slot = digimon.slot_index
+	return rest_action
 
 
 ## Get techniques that can be used (equipped and not disabled/encored).

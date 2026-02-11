@@ -40,7 +40,7 @@ func test_switch_replaces_active_digimon() -> void:
 
 func test_switch_old_goes_to_reserve() -> void:
 	var old_key: StringName = _battle.get_digimon_at(0, 0).source_state.key
-	var initial_reserve_size: int = _battle.sides[0].party.size()
+	var _initial_reserve_size: int = _battle.sides[0].party.size()
 
 	var actions: Array[BattleAction] = [
 		TestBattleFactory.make_switch_action(0, 0, 0),
@@ -144,7 +144,7 @@ func test_invalid_party_index_handled() -> void:
 func test_switch_has_maximum_priority() -> void:
 	# Switch should execute before a NORMAL priority technique
 	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
-	var initial_hp: int = target.current_hp
+	var _initial_hp: int = target.current_hp
 
 	var actions: Array[BattleAction] = [
 		TestBattleFactory.make_switch_action(0, 0, 0),

@@ -5,6 +5,7 @@ extends RefCounted
 
 ## Core stat formula: FLOOR((((2 * BASE + IV + (TV / 5)) * LEVEL) / 100)) + LEVEL + 10
 static func calculate_stat(base: int, iv: int, tv: int, level: int) -> int:
+	@warning_ignore("integer_division")
 	return floori((((2 * base + iv + (tv / 5)) * level) / 100.0)) + level + 10
 
 

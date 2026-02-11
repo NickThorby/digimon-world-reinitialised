@@ -251,8 +251,8 @@ func test_variance_within_range() -> void:
 
 func test_effectiveness_super_effective() -> void:
 	# Vaccine vs Virus (1.5x attr) + neutral element (1.0x) = 1.5x total
-	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)  # Vaccine
-	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)  # Data
+	var _user: BattleDigimonState = _battle.get_digimon_at(0, 0)  # Vaccine
+	var _target: BattleDigimonState = _battle.get_digimon_at(1, 0)  # Data
 	# We need Vaccine vs Virus for super effective
 	var battle: BattleState = TestBattleFactory.create_1v1_battle(
 		&"test_agumon", &"test_tank",  # Vaccine vs Virus

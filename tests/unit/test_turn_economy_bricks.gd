@@ -159,7 +159,7 @@ func test_delayed_attack_hits_after_delay() -> void:
 	)
 
 	# Note initial damage from the immediate bricks
-	var hp_after_t1: int = target.current_hp
+	var _hp_after_t1: int = target.current_hp
 
 	# Turn 2: rest (delayed effect not yet resolved)
 	var actions_t2: Array[BattleAction] = [
@@ -196,6 +196,7 @@ func test_delayed_healing_heals_after_delay() -> void:
 
 	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
 	# Damage the user first
+	@warning_ignore("integer_division")
 	user.apply_damage(user.max_hp / 2)
 	var hp_before: int = user.current_hp
 
@@ -396,7 +397,7 @@ func test_outrage_locks_user_in() -> void:
 	]
 	_engine.execute_turn(actions_t1)
 
-	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	var _user: BattleDigimonState = _battle.get_digimon_at(0, 0)
 	var hp_after_t1: int = target.current_hp
 	assert_lt(hp_after_t1, target.max_hp, "Should deal damage on first turn")
 
@@ -428,8 +429,8 @@ func test_multi_turn_ends_and_unlocks() -> void:
 
 	# Execute additional turns until lock clears (max 3 turns total)
 	for _i: int in range(3):
-		var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
-		var lock: Variant = user.volatiles.get("multi_turn_lock")
+		var loop_user: BattleDigimonState = _battle.get_digimon_at(0, 0)
+		var lock: Variant = loop_user.volatiles.get("multi_turn_lock")
 		if lock is Dictionary and (lock as Dictionary).is_empty():
 			break
 		var actions: Array[BattleAction] = [

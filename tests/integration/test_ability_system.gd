@@ -113,7 +113,7 @@ func test_on_foe_faint_fires() -> void:
 	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
 	target.current_hp = 1
 
-	var user: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	var _user: BattleDigimonState = _battle.get_digimon_at(0, 0)
 	# The user has test_ability_on_entry which won't fire again here,
 	# but foe faint triggers are checked separately
 	var actions: Array[BattleAction] = [

@@ -38,6 +38,7 @@ func test_xp_split_among_participants() -> void:
 	var xp_split: int = XPCalculator.calculate_xp_gain(50, 50, 50, 2)
 	assert_lt(xp_split, xp_solo, "XP should be split among participants")
 	# With 2 participants, each gets roughly half
+	@warning_ignore("integer_division")
 	assert_between(
 		xp_split, xp_solo / 3, xp_solo,
 		"Split XP should be roughly half of solo XP",
@@ -122,7 +123,7 @@ func test_apply_xp_multi_level_up() -> void:
 func test_apply_xp_max_level_cap() -> void:
 	var state: DigimonState = TestBattleFactory.make_digimon_state(&"test_agumon", 99)
 	state.experience = XPCalculator.total_xp_for_level(99, Registry.GrowthRate.MEDIUM_FAST)
-	var result: Dictionary = XPCalculator.apply_xp(state, 99999999)
+	var _result: Dictionary = XPCalculator.apply_xp(state, 99999999)
 	assert_lte(state.level, 100, "Level should not exceed max level (100)")
 
 

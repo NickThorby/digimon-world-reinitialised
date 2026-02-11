@@ -207,6 +207,7 @@ func test_blooming_terrain_plant_healed() -> void:
 	_battle.field.set_terrain(&"blooming", 5, 0)
 
 	var plant_mon: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	@warning_ignore("integer_division")
 	plant_mon.apply_damage(plant_mon.max_hp / 2)
 	var hp_before: int = plant_mon.current_hp
 
@@ -231,6 +232,7 @@ func test_blooming_terrain_non_plant_not_healed() -> void:
 	_battle.field.set_terrain(&"blooming", 5, 0)
 
 	var agumon: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	@warning_ignore("integer_division")
 	agumon.apply_damage(agumon.max_hp / 2)
 	var hp_before: int = agumon.current_hp
 
@@ -257,6 +259,7 @@ func test_blooming_terrain_aerial_plant_not_healed() -> void:
 	var patamon: BattleDigimonState = _battle.get_digimon_at(0, 0)
 	# Add plant element trait via volatiles override
 	patamon.volatiles["element_trait_overrides"] = [&"light", &"plant"]
+	@warning_ignore("integer_division")
 	patamon.apply_damage(patamon.max_hp / 2)
 	var hp_before: int = patamon.current_hp
 
