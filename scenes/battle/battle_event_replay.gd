@@ -99,7 +99,14 @@ func replay_events(
 			&"damage_dealt":
 				var dmg_side: int = int(event["side_index"])
 				var dmg_slot: int = int(event["slot_index"])
-				var hit_dur: float = display.anim_hit(dmg_side, dmg_slot)
+				var src_label: StringName = event.get(
+					"source_label", &"",
+				) as StringName
+				var hit_dur: float = display.anim_status_hurt(
+					dmg_side, dmg_slot, src_label,
+				)
+				if hit_dur <= 0.0:
+					hit_dur = display.anim_hit(dmg_side, dmg_slot)
 				display.update_panel_from_snapshot(
 					dmg_side, dmg_slot,
 					event.get("snapshot", {}) as Dictionary,
@@ -190,7 +197,23 @@ func replay_events(
 				if in_dur > 0.0:
 					await scene.get_tree().create_timer(in_dur).timeout
 
-			&"status_applied", &"status_removed":
+			&"status_applied":
+				var sa_side: int = int(event["side_index"])
+				var sa_slot: int = int(event["slot_index"])
+				var sa_key: StringName = event.get(
+					"status_key", &"",
+				) as StringName
+				var sa_dur: float = display.anim_status_afflicted(
+					sa_side, sa_slot, sa_key,
+				)
+				if sa_dur > 0.0:
+					await scene.get_tree().create_timer(sa_dur).timeout
+				display.update_panel_from_snapshot(
+					sa_side, sa_slot,
+					event.get("snapshot", {}) as Dictionary,
+				)
+
+			&"status_removed":
 				display.update_panel_from_snapshot(
 					int(event["side_index"]), int(event["slot_index"]),
 					event.get("snapshot", {}) as Dictionary,
@@ -337,12 +360,13 @@ func _on_damage_dealt(
 	side_index: int,
 	slot_index: int,
 	_amount: int,
-	_effectiveness: StringName,
+	source_label: StringName,
 ) -> void:
 	_event_queue.append({
 		"type": &"damage_dealt",
 		"side_index": side_index,
 		"slot_index": slot_index,
+		"source_label": source_label,
 		"snapshot": _snapshot_digimon(side_index, slot_index),
 	})
 
@@ -419,12 +443,13 @@ func _on_digimon_switched(
 
 
 func _on_status_applied(
-	side_index: int, slot_index: int, _status_key: StringName
+	side_index: int, slot_index: int, status_key: StringName
 ) -> void:
 	_event_queue.append({
 		"type": &"status_applied",
 		"side_index": side_index,
 		"slot_index": slot_index,
+		"status_key": status_key,
 		"snapshot": _snapshot_digimon(side_index, slot_index),
 	})
 

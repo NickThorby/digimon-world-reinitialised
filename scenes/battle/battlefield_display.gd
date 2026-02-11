@@ -6,6 +6,45 @@ extends Node
 
 const DIGIMON_PANEL_SCENE := preload("res://ui/battle_hud/digimon_panel.tscn")
 
+## Animation config for when a status is first applied (afflicted).
+## Each entry has a colour (modulate tint) and movement type.
+const STATUS_AFFLICTED_ANIMS: Dictionary = {
+	&"poisoned": {"colour": Color(0.7, 0.3, 1.2), "movement": &"none"},
+	&"badly_poisoned": {"colour": Color(0.7, 0.3, 1.2), "movement": &"none"},
+	&"burned": {"colour": Color(1.4, 0.6, 0.2), "movement": &"none"},
+	&"badly_burned": {"colour": Color(1.4, 0.6, 0.2), "movement": &"none"},
+	&"frostbitten": {"colour": Color(0.5, 0.85, 1.4), "movement": &"none"},
+	&"frozen": {"colour": Color(0.5, 0.85, 1.4), "movement": &"none"},
+	&"paralysed": {"colour": Color(1.3, 1.2, 0.3), "movement": &"shake"},
+	&"asleep": {"colour": Color(0.6, 0.6, 1.0), "movement": &"droop"},
+	&"confused": {"colour": Color(1.0, 0.6, 0.9), "movement": &"shake"},
+	&"flinched": {"colour": Color(1.3, 1.1, 0.3), "movement": &"shake"},
+	&"bleeding": {"colour": Color(1.2, 0.15, 0.15), "movement": &"shake"},
+	&"perishing": {"colour": Color(0.2, 0.2, 0.2), "movement": &"pulse"},
+	&"exhausted": {"colour": Color(0.6, 0.5, 0.4), "movement": &"droop"},
+	&"seeded": {"colour": Color(0.4, 1.0, 0.3), "movement": &"none"},
+	&"dazed": {"colour": Color(1.0, 1.0, 0.5), "movement": &"none"},
+	&"blinded": {"colour": Color(0.3, 0.3, 0.3), "movement": &"none"},
+	&"trapped": {"colour": Color(0.8, 0.5, 0.2), "movement": &"none"},
+	&"taunted": {"colour": Color(1.3, 0.4, 0.4), "movement": &"none"},
+	&"disabled": {"colour": Color(0.5, 0.5, 0.5), "movement": &"none"},
+	&"encored": {"colour": Color(1.0, 0.7, 1.2), "movement": &"none"},
+	&"nullified": {"colour": Color(0.4, 0.4, 0.4), "movement": &"flicker"},
+	&"reversed": {"colour": Color(0.9, 0.3, 1.2), "movement": &"none"},
+	&"regenerating": {"colour": Color(0.4, 1.2, 0.5), "movement": &"none"},
+	&"vitalised": {"colour": Color(0.5, 1.0, 1.3), "movement": &"none"},
+}
+
+## Animation config for DOT tick damage. Keyed by source_label from damage_dealt.
+const STATUS_HURT_ANIMS: Dictionary = {
+	&"burn": Color(1.4, 0.6, 0.2),
+	&"frostbite": Color(0.5, 0.85, 1.4),
+	&"poison": Color(0.7, 0.3, 1.2),
+	&"seeded": Color(0.4, 1.0, 0.3),
+	&"bleeding": Color(1.2, 0.15, 0.15),
+	&"perishing": Color(0.2, 0.2, 0.2),
+}
+
 var _vfx: BattleVFX = BattleVFX.new()
 var _battle: BattleState = null
 var _near_side: HBoxContainer = null
@@ -415,6 +454,95 @@ func anim_hit(side_index: int, slot_index: int) -> float:
 
 	var tween: Tween = get_tree().create_tween()
 	tween.tween_property(ctrl, "modulate", Color(1.4, 0.3, 0.3), 0.05)
+	tween.tween_property(ctrl, "position", origin + Vector2(6, 0), 0.04)
+	tween.tween_property(ctrl, "position", origin + Vector2(-6, 0), 0.04)
+	tween.tween_property(ctrl, "position", origin + Vector2(4, 0), 0.04)
+	tween.tween_property(ctrl, "position", origin + Vector2(-4, 0), 0.04)
+	tween.tween_property(ctrl, "position", origin, 0.04)
+	tween.tween_property(ctrl, "modulate", Color.WHITE, 0.1)
+	return 0.3
+
+
+func anim_status_afflicted(
+	side_index: int, slot_index: int, status_key: StringName,
+) -> float:
+	if not STATUS_AFFLICTED_ANIMS.has(status_key):
+		return 0.0
+	var config: Dictionary = STATUS_AFFLICTED_ANIMS[status_key] as Dictionary
+	var colour: Color = config["colour"] as Color
+	var movement: StringName = config["movement"] as StringName
+
+	var placeholder: Node = get_battlefield_placeholder(side_index, slot_index)
+	if placeholder is not Control:
+		return 0.0
+	var ctrl: Control = placeholder as Control
+	var origin: Vector2 = ctrl.position
+
+	var tween: Tween = get_tree().create_tween()
+
+	match movement:
+		&"shake":
+			tween.tween_property(ctrl, "modulate", colour, 0.05)
+			tween.tween_property(
+				ctrl, "position", origin + Vector2(3, 0), 0.04,
+			)
+			tween.tween_property(
+				ctrl, "position", origin + Vector2(-3, 0), 0.04,
+			)
+			tween.tween_property(
+				ctrl, "position", origin + Vector2(3, 0), 0.04,
+			)
+			tween.tween_property(ctrl, "position", origin, 0.04)
+			tween.tween_property(ctrl, "modulate", Color.WHITE, 0.14)
+			return 0.35
+
+		&"droop":
+			tween.tween_property(ctrl, "modulate", colour, 0.08)
+			tween.tween_property(
+				ctrl, "position", origin + Vector2(0, 4), 0.15,
+			)
+			tween.tween_property(ctrl, "position", origin, 0.1)
+			tween.tween_property(ctrl, "modulate", Color.WHITE, 0.07)
+			return 0.4
+
+		&"pulse":
+			ctrl.pivot_offset = ctrl.size / 2.0
+			tween.tween_property(ctrl, "modulate", colour, 0.08)
+			tween.tween_property(ctrl, "scale", Vector2(1.08, 1.08), 0.12)
+			tween.tween_property(ctrl, "scale", Vector2.ONE, 0.12)
+			tween.tween_property(ctrl, "modulate", Color.WHITE, 0.08)
+			return 0.4
+
+		&"flicker":
+			tween.tween_property(ctrl, "modulate", colour, 0.04)
+			tween.tween_property(ctrl, "modulate", Color.WHITE, 0.04)
+			tween.tween_property(ctrl, "modulate", colour, 0.04)
+			tween.tween_property(ctrl, "modulate", Color.WHITE, 0.04)
+			tween.tween_property(ctrl, "modulate", colour, 0.04)
+			tween.tween_property(ctrl, "modulate", Color.WHITE, 0.15)
+			return 0.35
+
+		_:  # "none" — colour flash only
+			tween.tween_property(ctrl, "modulate", colour, 0.08)
+			tween.tween_property(ctrl, "modulate", Color.WHITE, 0.27)
+			return 0.35
+
+
+func anim_status_hurt(
+	side_index: int, slot_index: int, source_key: StringName,
+) -> float:
+	if not STATUS_HURT_ANIMS.has(source_key):
+		return 0.0
+	var colour: Color = STATUS_HURT_ANIMS[source_key] as Color
+
+	var placeholder: Node = get_battlefield_placeholder(side_index, slot_index)
+	if placeholder is not Control:
+		return 0.0
+	var ctrl: Control = placeholder as Control
+	var origin: Vector2 = ctrl.position
+
+	var tween: Tween = get_tree().create_tween()
+	tween.tween_property(ctrl, "modulate", colour, 0.05)
 	tween.tween_property(ctrl, "position", origin + Vector2(6, 0), 0.04)
 	tween.tween_property(ctrl, "position", origin + Vector2(-6, 0), 0.04)
 	tween.tween_property(ctrl, "position", origin + Vector2(4, 0), 0.04)
