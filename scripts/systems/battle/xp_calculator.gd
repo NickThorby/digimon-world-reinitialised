@@ -30,8 +30,7 @@ static func calculate_xp_awards(
 					"data": slot.digimon.data,
 					"level": slot.digimon.source_state.level \
 						if slot.digimon.source_state else 1,
-					"key": slot.digimon.source_state.key \
-						if slot.digimon.source_state else &"",
+					"source": slot.digimon.source_state,
 				})
 		for retired: BattleDigimonState in side.retired_battle_digimon:
 			if retired.is_fainted:
@@ -39,8 +38,7 @@ static func calculate_xp_awards(
 					"data": retired.data,
 					"level": retired.source_state.level \
 						if retired.source_state else 1,
-					"key": retired.source_state.key \
-						if retired.source_state else &"",
+					"source": retired.source_state,
 				})
 
 	if defeated_foes.is_empty():
@@ -79,13 +77,13 @@ static func calculate_xp_awards(
 			if foe_data == null:
 				continue
 
-			var foe_key: StringName = foe["key"] as StringName
-			var participated: bool = foe_key in battle_mon.participated_against
+			var foe_source: DigimonState = foe["source"] as DigimonState
+			var participated: bool = foe_source in battle_mon.participated_against
 
 			if participated:
 				did_participate = true
 				var participants: int = _count_participants(
-					battle, foe_key, winning_team,
+					battle, foe_source, winning_team,
 				)
 				total_xp += calculate_xp_gain(
 					foe_data.base_xp_yield, int(foe["level"]),
@@ -123,7 +121,7 @@ static func calculate_xp_awards(
 ## Count how many winning-side Digimon participated against a specific foe.
 ## Includes both active and retired Digimon.
 static func _count_participants(
-	battle: BattleState, foe_key: StringName, winning_team: int,
+	battle: BattleState, foe_source: DigimonState, winning_team: int,
 ) -> int:
 	var count: int = 0
 	for side: SideState in battle.sides:
@@ -131,10 +129,10 @@ static func _count_participants(
 			continue
 		for slot: SlotState in side.slots:
 			if slot.digimon != null \
-					and foe_key in slot.digimon.participated_against:
+					and foe_source in slot.digimon.participated_against:
 				count += 1
 		for retired: BattleDigimonState in side.retired_battle_digimon:
-			if foe_key in retired.participated_against:
+			if foe_source in retired.participated_against:
 				count += 1
 	return maxi(count, 1)
 

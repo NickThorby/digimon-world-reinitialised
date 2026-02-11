@@ -175,7 +175,8 @@ func _make_won_battle_with_switch() -> BattleState:
 	)
 	# Agumon participates against gabumon
 	var agumon: BattleDigimonState = battle.sides[0].slots[0].digimon
-	agumon.participated_against.append(&"test_gabumon")
+	var gabumon_source: DigimonState = battle.sides[1].slots[0].digimon.source_state
+	agumon.participated_against.append(gabumon_source)
 	# Simulate switching agumon out for patamon
 	TestBattleFactory.simulate_switch_out(battle, 0, 0)
 	# Put patamon in the slot from party
@@ -252,8 +253,8 @@ func test_multi_side_uses_winning_team() -> void:
 	var battle: BattleState = TestBattleFactory.create_3_way_ffa_battle()
 	# Side 1 defeats sides 0 and 2
 	var side1_mon: BattleDigimonState = battle.sides[1].slots[0].digimon
-	side1_mon.participated_against.append(&"test_agumon")
-	side1_mon.participated_against.append(&"test_patamon")
+	side1_mon.participated_against.append(battle.sides[0].slots[0].digimon.source_state)
+	side1_mon.participated_against.append(battle.sides[2].slots[0].digimon.source_state)
 	# Faint side 0 and side 2
 	battle.sides[0].slots[0].digimon.current_hp = 0
 	battle.sides[0].slots[0].digimon.is_fainted = true
@@ -279,8 +280,10 @@ func test_multi_side_uses_winning_team() -> void:
 func test_count_participants_includes_retired() -> void:
 	var battle: BattleState = _make_won_battle_with_switch()
 	# Both agumon (retired) and patamon (active) participated against gabumon
+	var gabumon_source: DigimonState = \
+		battle.sides[1].slots[0].digimon.source_state
 	battle.sides[0].slots[0].digimon.participated_against.append(
-		&"test_gabumon",
+		gabumon_source,
 	)
 	# Use the internal method via calculate_xp_awards result:
 	# If retired counts, participant count = 2, so each gets ~half XP
@@ -290,7 +293,7 @@ func test_count_participants_includes_retired() -> void:
 	# Agumon solo from fresh battle
 	var fresh: BattleState = TestBattleFactory.create_1v1_battle()
 	fresh.sides[0].slots[0].digimon.participated_against.append(
-		&"test_gabumon",
+		fresh.sides[1].slots[0].digimon.source_state,
 	)
 	fresh.sides[1].slots[0].digimon.current_hp = 0
 	fresh.sides[1].slots[0].digimon.is_fainted = true
@@ -313,7 +316,7 @@ func test_count_participants_includes_retired() -> void:
 func test_awards_include_old_level_and_stats() -> void:
 	var battle: BattleState = TestBattleFactory.create_1v1_battle()
 	var mon: BattleDigimonState = battle.sides[0].slots[0].digimon
-	mon.participated_against.append(&"test_gabumon")
+	mon.participated_against.append(battle.sides[1].slots[0].digimon.source_state)
 	battle.sides[1].slots[0].digimon.current_hp = 0
 	battle.sides[1].slots[0].digimon.is_fainted = true
 	battle.is_battle_over = true
@@ -338,7 +341,9 @@ func test_fainted_ally_gets_no_xp() -> void:
 	)
 	# Agumon participated and is fainted
 	var agumon: BattleDigimonState = battle.sides[0].slots[0].digimon
-	agumon.participated_against.append(&"test_gabumon")
+	var gabumon_source: DigimonState = \
+		battle.sides[1].slots[0].digimon.source_state
+	agumon.participated_against.append(gabumon_source)
 	agumon.current_hp = 0
 	agumon.is_fainted = true
 	# Patamon from reserve takes over (simulate switch-in)
@@ -348,7 +353,7 @@ func test_fainted_ally_gets_no_xp() -> void:
 	var patamon: BattleDigimonState = BattleFactory.create_battle_digimon(
 		patamon_state, 0, 0,
 	)
-	patamon.participated_against.append(&"test_gabumon")
+	patamon.participated_against.append(gabumon_source)
 	battle.sides[0].slots[0].digimon = patamon
 	# Gabumon faints
 	battle.sides[1].slots[0].digimon.current_hp = 0
@@ -367,3 +372,47 @@ func test_fainted_ally_gets_no_xp() -> void:
 		if state != null:
 			assert_ne(state.key, &"test_agumon",
 				"Fainted ally should not receive XP")
+
+
+# --- 2v2 XP after fainted cleared ---
+
+
+func test_2v2_xp_awarded_after_fainted_cleared() -> void:
+	## In 2v2 battles, fainted foes with no reserves are cleared from slots.
+	## XP must still be awarded via retired_battle_digimon.
+	var battle: BattleState = TestBattleFactory.create_2v2_battle(
+		[&"test_agumon", &"test_patamon"],
+		[&"test_gabumon", &"test_tank"],
+	)
+	var agumon: BattleDigimonState = battle.sides[0].slots[0].digimon
+	var patamon: BattleDigimonState = battle.sides[0].slots[1].digimon
+	var gabumon: BattleDigimonState = battle.sides[1].slots[0].digimon
+	var tank: BattleDigimonState = battle.sides[1].slots[1].digimon
+	# Both allies participate against both foes
+	agumon.participated_against.append(gabumon.source_state)
+	agumon.participated_against.append(tank.source_state)
+	patamon.participated_against.append(gabumon.source_state)
+	patamon.participated_against.append(tank.source_state)
+	# Faint both foes
+	gabumon.current_hp = 0
+	gabumon.is_fainted = true
+	tank.current_hp = 0
+	tank.is_fainted = true
+	# Simulate _clear_fainted_no_reserve: retire then null (multi-slot, no reserves)
+	var foe_side: SideState = battle.sides[1]
+	for slot: SlotState in foe_side.slots:
+		if slot.digimon != null and slot.digimon.is_fainted:
+			foe_side.retired_battle_digimon.append(slot.digimon)
+			slot.digimon = null
+	# End battle
+	battle.is_battle_over = true
+	battle.result = BattleResult.new()
+	battle.result.outcome = BattleResult.Outcome.WIN
+	battle.result.winning_team = 0
+	battle.result.turn_count = 3
+	var awards: Array[Dictionary] = XPCalculator.calculate_xp_awards(battle)
+	# Both allies should receive XP
+	assert_eq(awards.size(), 2, "Both allies should receive XP in 2v2")
+	for award: Dictionary in awards:
+		assert_gt(int(award.get("xp", 0)), 0,
+			"Each ally should receive positive XP")

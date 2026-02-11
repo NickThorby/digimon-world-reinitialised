@@ -41,6 +41,9 @@ var _balance: GameBalance = null
 func initialise(battle: BattleState) -> void:
 	_battle = battle
 	_balance = load("res://data/config/game_balance.tres") as GameBalance
+	# Mark initial field participation — all active Digimon vs their foes
+	for digimon: BattleDigimonState in _battle.get_active_digimon():
+		_mark_field_participation(digimon)
 
 
 ## Execute a full turn with the given actions.
@@ -624,13 +627,6 @@ func _execute_against_targets(
 					target.side_index, target.slot_index, dmg, eff,
 				)
 				dealt_damage = true
-
-				# Track participation
-				if user.source_state != null \
-						and target.source_state != null:
-					var foe_key: StringName = target.source_state.key
-					if foe_key not in user.participated_against:
-						user.participated_against.append(foe_key)
 
 				if brick_result.get("was_critical", false):
 					battle_message.emit("A critical hit!")
@@ -1446,9 +1442,9 @@ func _resolve_switch(action: BattleAction) -> Array[Dictionary]:
 	# Carry forward participation data from previous stints
 	for retired: BattleDigimonState in side.retired_battle_digimon:
 		if retired.source_state == new_state:
-			for foe_key: StringName in retired.participated_against:
-				if foe_key not in new_battle_mon.participated_against:
-					new_battle_mon.participated_against.append(foe_key)
+			for foe_source: DigimonState in retired.participated_against:
+				if foe_source not in new_battle_mon.participated_against:
+					new_battle_mon.participated_against.append(foe_source)
 			break
 
 	slot.digimon = new_battle_mon
@@ -1457,6 +1453,9 @@ func _resolve_switch(action: BattleAction) -> Array[Dictionary]:
 	var name_in: String = _get_digimon_name(new_battle_mon)
 	battle_message.emit("%s switched out for %s!" % [name_out, name_in])
 	digimon_switched.emit(action.user_side, action.user_slot, new_battle_mon)
+
+	# Mark field participation — being on the field counts
+	_mark_field_participation(new_battle_mon)
 
 	# Apply entry hazards before abilities/gear
 	_apply_entry_hazards(new_battle_mon)
@@ -1806,6 +1805,8 @@ func _get_reserve_name(state: DigimonState) -> String:
 
 ## Fire ON_ENTRY abilities and gear for all starting Digimon.
 func start_battle() -> void:
+	for digimon: BattleDigimonState in _battle.get_active_digimon():
+		_mark_field_participation(digimon)
 	for digimon: BattleDigimonState in _battle.get_active_digimon():
 		_fire_ability_trigger(Registry.AbilityTrigger.ON_ENTRY, {"subject": digimon})
 		_fire_gear_trigger(Registry.AbilityTrigger.ON_ENTRY, {"subject": digimon})
@@ -2759,14 +2760,6 @@ func _handle_faint(
 			digimon.counters["allies_fainted"] = \
 				int(digimon.counters.get("allies_fainted", 0)) + 1
 
-	# Track killer's foe faint for XP (also handled by counter above)
-	if killer != null and _battle.are_foes(killer.side_index, fainted.side_index):
-		# Track participation
-		if killer.source_state != null and fainted.source_state != null:
-			var foe_key: StringName = fainted.source_state.key
-			if foe_key not in killer.participated_against:
-				killer.participated_against.append(foe_key)
-
 	# Fire faint ability triggers
 	_fire_ability_trigger(
 		Registry.AbilityTrigger.ON_FAINT, {"subject": fainted},
@@ -2981,7 +2974,24 @@ func _clear_fainted_no_reserve() -> void:
 			continue
 		for slot: SlotState in side.slots:
 			if slot.digimon != null and slot.digimon.is_fainted:
+				side.retired_battle_digimon.append(slot.digimon)
 				slot.digimon = null
+
+
+## Mark a Digimon as participating against all active foes (and vice versa).
+## Being on the field at the same time as a foe counts as participation for XP.
+func _mark_field_participation(battle_mon: BattleDigimonState) -> void:
+	if battle_mon.source_state == null:
+		return
+	for active: BattleDigimonState in _battle.get_active_digimon():
+		if active == battle_mon or active.source_state == null:
+			continue
+		if not _battle.are_foes(battle_mon.side_index, active.side_index):
+			continue
+		if active.source_state not in battle_mon.participated_against:
+			battle_mon.participated_against.append(active.source_state)
+		if battle_mon.source_state not in active.participated_against:
+			active.participated_against.append(battle_mon.source_state)
 
 
 ## Calculate effective accuracy factoring user accuracy stage, target evasion stage,

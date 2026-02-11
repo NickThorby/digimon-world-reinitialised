@@ -110,7 +110,7 @@ var is_fainted: bool = false
 var xp_earned: int = 0
 
 ## Which Digimon this one has participated in defeating (for XP splitting).
-var participated_against: Array[StringName] = []
+var participated_against: Array[DigimonState] = []
 
 
 ## Get a stat value with stages, status modifiers, and volatile modifiers applied.
