@@ -897,6 +897,170 @@ func _execute_against_targets(
 								% _get_digimon_name(target),
 						)
 
+			# Shield
+			if brick_result.get("shield_applied", false):
+				var shield_type: String = brick_result.get(
+					"shield_type", "",
+				)
+				battle_message.emit(
+					"%s set up a %s!" % [
+						_get_digimon_name(user),
+						shield_type.replace("_", " "),
+					],
+				)
+			elif brick_result.get("shield_failed", false):
+				var reason: String = brick_result.get("reason", "")
+				if reason == "once_per_battle_used":
+					battle_message.emit(
+						"%s can't use that shield again!" \
+							% _get_digimon_name(user),
+					)
+				elif reason == "not_enough_hp":
+					battle_message.emit(
+						"%s doesn't have enough HP!" \
+							% _get_digimon_name(user),
+					)
+
+			# Resource / gear manipulation
+			var resource_action: String = brick_result.get(
+				"resource_action", "",
+			)
+			if resource_action != "":
+				var user_name: String = _get_digimon_name(user)
+				var target_name: String = _get_digimon_name(
+					target,
+				)
+				match resource_action:
+					"consumeItem":
+						battle_message.emit(
+							"%s's %s was consumed!" % [
+								target_name,
+								brick_result.get(
+									"consumed", "item",
+								),
+							],
+						)
+					"stealItem":
+						battle_message.emit(
+							"%s stole %s's %s!" % [
+								user_name, target_name,
+								brick_result.get(
+									"stolen", "item",
+								),
+							],
+						)
+					"swapItems":
+						battle_message.emit(
+							"%s and %s swapped items!" \
+								% [user_name, target_name],
+						)
+					"removeItem":
+						battle_message.emit(
+							"%s's %s was knocked off!" % [
+								target_name,
+								brick_result.get(
+									"removed", "item",
+								),
+							],
+						)
+					"giveItem":
+						battle_message.emit(
+							"%s gave %s to %s!" % [
+								user_name,
+								brick_result.get(
+									"given", "item",
+								),
+								target_name,
+							],
+						)
+			elif brick_result.get("resource_failed", false):
+				battle_message.emit("But it failed!")
+
+			# Element modifier
+			if brick_result.has("element_added"):
+				battle_message.emit(
+					"%s gained the %s element!" % [
+						_get_digimon_name(target),
+						str(brick_result["element_added"]) \
+							.capitalize(),
+					],
+				)
+			if brick_result.has("element_removed"):
+				battle_message.emit(
+					"%s lost the %s element!" % [
+						_get_digimon_name(target),
+						str(brick_result["element_removed"]) \
+							.capitalize(),
+					],
+				)
+			if brick_result.has("elements_replaced"):
+				battle_message.emit(
+					"%s's element changed to %s!" % [
+						_get_digimon_name(target),
+						str(brick_result["elements_replaced"]) \
+							.capitalize(),
+					],
+				)
+			if brick_result.has("user_resistance_changed"):
+				battle_message.emit(
+					"%s's %s resistance changed!" % [
+						_get_digimon_name(user),
+						str(
+							brick_result[
+								"user_resistance_changed"
+							],
+						).capitalize(),
+					],
+				)
+			if brick_result.has("target_resistance_changed"):
+				battle_message.emit(
+					"%s's %s resistance changed!" % [
+						_get_digimon_name(target),
+						str(
+							brick_result[
+								"target_resistance_changed"
+							],
+						).capitalize(),
+					],
+				)
+
+			# Status interaction
+			if brick_result.get("interaction_applied", false):
+				if brick_result.has("cured"):
+					var cured_key: StringName = StringName(
+						brick_result["cured"],
+					)
+					battle_message.emit(
+						"%s was cured of %s!" % [
+							_get_digimon_name(target),
+							str(cured_key),
+						],
+					)
+					status_removed.emit(
+						int(brick_result.get(
+							"cured_side", 0,
+						)),
+						int(brick_result.get(
+							"cured_slot", 0,
+						)),
+						cured_key,
+					)
+				if brick_result.has("transferred"):
+					var transferred_key: StringName = \
+						StringName(
+							brick_result["transferred"],
+						)
+					battle_message.emit(
+						"%s's %s was transferred!" % [
+							_get_digimon_name(user),
+							str(transferred_key),
+						],
+					)
+
+			# Synergy
+			if brick_result.get("synergy_met", false):
+				battle_message.emit("Combo activated!")
+
 		all_results.append_array(brick_results)
 
 		# Fire ON_AFTER_HIT abilities and gear for the target

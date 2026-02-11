@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://scenes/battle/battle_scene.gd" id="1"]
 [ext_resource type="PackedScene" path="res://ui/battle_hud/action_menu.tscn" id="2"]
@@ -13,6 +13,9 @@
 [ext_resource type="Script" path="res://scenes/battle/battle_input_manager.gd" id="11"]
 [ext_resource type="PackedScene" path="res://ui/battle_hud/item_menu.tscn" id="12"]
 [ext_resource type="PackedScene" path="res://ui/battle_hud/item_target_menu.tscn" id="13"]
+[ext_resource type="PackedScene" path="res://ui/battle_hud/field_status_display.tscn" id="14"]
+[ext_resource type="PackedScene" path="res://ui/battle_hud/side_status_display.tscn" id="15"]
+[ext_resource type="Script" path="res://ui/battle_hud/side_status_display.gd" id="16"]
 
 [node name="BattleScene" type="Node2D"]
 script = ExtResource("1")
@@ -40,7 +43,7 @@ alignment = 1
 anchors_preset = 0
 anchor_left = 0.0
 anchor_top = 0.0
-anchor_right = 0.3
+anchor_right = 0.7
 anchor_bottom = 0.0
 offset_left = 10.0
 offset_top = 10.0
@@ -52,6 +55,14 @@ theme = ExtResource("8")
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
 text = "Turn 0"
+
+[node name="TopBarSpacer" type="Control" parent="BattleHUD/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(20, 0)
+
+[node name="FieldStatusDisplay" parent="BattleHUD/TopBar" unique_name_in_owner=true instance=ExtResource("14")]
+layout_mode = 2
 
 [node name="FoePanels" type="HBoxContainer" parent="BattleHUD" unique_name_in_owner=true]
 anchor_left = 0.4
@@ -65,6 +76,20 @@ offset_bottom = 150.0
 alignment = 2
 theme = ExtResource("8")
 
+[node name="FoeSideStatus" type="HBoxContainer" parent="BattleHUD" unique_name_in_owner=true]
+anchor_left = 0.4
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.0
+offset_left = 0.0
+offset_top = 155.0
+offset_right = -10.0
+offset_bottom = 185.0
+alignment = 2
+theme = ExtResource("8")
+script = ExtResource("16")
+theme_override_constants/separation = 6
+
 [node name="AllyPanels" type="HBoxContainer" parent="BattleHUD" unique_name_in_owner=true]
 anchor_left = 0.0
 anchor_top = 1.0
@@ -75,6 +100,19 @@ offset_top = -280.0
 offset_right = 0.0
 offset_bottom = -140.0
 theme = ExtResource("8")
+
+[node name="AllySideStatus" type="HBoxContainer" parent="BattleHUD" unique_name_in_owner=true]
+anchor_left = 0.0
+anchor_top = 1.0
+anchor_right = 0.4
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = -135.0
+offset_right = 0.0
+offset_bottom = -105.0
+theme = ExtResource("8")
+script = ExtResource("16")
+theme_override_constants/separation = 6
 
 [node name="BattleMessageBox" parent="BattleHUD" unique_name_in_owner=true instance=ExtResource("6")]
 anchor_left = 0.0

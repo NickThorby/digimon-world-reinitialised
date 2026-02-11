@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/battle_hud/field_status_display.gd" id="1"]
+
+[node name="FieldStatusDisplay" type="HBoxContainer"]
+script = ExtResource("1")
+theme_override_constants/separation = 6

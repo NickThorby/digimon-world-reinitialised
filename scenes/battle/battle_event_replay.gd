@@ -33,6 +33,8 @@ func connect_engine_signals(engine: BattleEngine) -> void:
 	engine.side_effect_removed.connect(_on_side_effect_removed)
 	engine.global_effect_applied.connect(_on_global_effect_applied)
 	engine.global_effect_removed.connect(_on_global_effect_removed)
+	engine.weather_changed.connect(_on_weather_changed)
+	engine.terrain_changed.connect(_on_terrain_changed)
 	engine.turn_started.connect(_on_turn_started)
 	engine.turn_ended.connect(_on_turn_ended)
 	engine.battle_ended.connect(_on_battle_ended)
@@ -65,6 +67,9 @@ func replay_events(
 	display: BattlefieldDisplay,
 	turn_label: Label,
 	post_battle_screen: PostBattleScreen,
+	field_display: FieldStatusDisplay = null,
+	ally_side_display: SideStatusDisplay = null,
+	foe_side_display: SideStatusDisplay = null,
 ) -> void:
 	for event: Dictionary in _event_queue:
 		if not scene.is_inside_tree():
@@ -189,6 +194,37 @@ func replay_events(
 
 			&"turn_ended":
 				display.update_all_panels()
+				if field_display != null:
+					field_display.refresh()
+				if ally_side_display != null:
+					ally_side_display.refresh_from_side(
+						_battle.sides[0],
+					)
+				if foe_side_display != null \
+						and _battle.sides.size() > 1:
+					foe_side_display.refresh_from_side(
+						_battle.sides[1],
+					)
+
+			&"weather_changed", &"terrain_changed":
+				if field_display != null:
+					field_display.refresh()
+
+			&"global_effect_applied", &"global_effect_removed":
+				if field_display != null:
+					field_display.refresh()
+
+			&"side_effect_applied", &"side_effect_removed", \
+			&"hazard_applied", &"hazard_removed":
+				if ally_side_display != null:
+					ally_side_display.refresh_from_side(
+						_battle.sides[0],
+					)
+				if foe_side_display != null \
+						and _battle.sides.size() > 1:
+					foe_side_display.refresh_from_side(
+						_battle.sides[1],
+					)
 
 			&"battle_ended":
 				var result: BattleResult = event.get("result") as BattleResult
@@ -397,44 +433,64 @@ func _on_status_removed(
 	})
 
 
-func _on_hazard_applied(side_index: int, _hazard_key: StringName) -> void:
+func _on_weather_changed(new_weather: Dictionary) -> void:
 	_event_queue.append({
-		"type": &"hazard_applied",
-		"side_index": side_index,
+		"type": &"weather_changed", "weather": new_weather,
 	})
 
 
-func _on_hazard_removed(side_index: int, _hazard_key: StringName) -> void:
+func _on_terrain_changed(new_terrain: Dictionary) -> void:
+	_event_queue.append({
+		"type": &"terrain_changed", "terrain": new_terrain,
+	})
+
+
+func _on_hazard_applied(side_index: int, hazard_key: StringName) -> void:
+	_event_queue.append({
+		"type": &"hazard_applied",
+		"side_index": side_index,
+		"key": hazard_key,
+	})
+
+
+func _on_hazard_removed(side_index: int, hazard_key: StringName) -> void:
 	_event_queue.append({
 		"type": &"hazard_removed",
 		"side_index": side_index,
+		"key": hazard_key,
 	})
 
 
 func _on_side_effect_applied(
-	side_index: int, _effect_key: StringName,
+	side_index: int, effect_key: StringName,
 ) -> void:
 	_event_queue.append({
 		"type": &"side_effect_applied",
 		"side_index": side_index,
+		"key": effect_key,
 	})
 
 
 func _on_side_effect_removed(
-	side_index: int, _effect_key: StringName,
+	side_index: int, effect_key: StringName,
 ) -> void:
 	_event_queue.append({
 		"type": &"side_effect_removed",
 		"side_index": side_index,
+		"key": effect_key,
 	})
 
 
-func _on_global_effect_applied(_effect_key: StringName) -> void:
-	_event_queue.append({"type": &"global_effect_applied"})
+func _on_global_effect_applied(effect_key: StringName) -> void:
+	_event_queue.append({
+		"type": &"global_effect_applied", "key": effect_key,
+	})
 
 
-func _on_global_effect_removed(_effect_key: StringName) -> void:
-	_event_queue.append({"type": &"global_effect_removed"})
+func _on_global_effect_removed(effect_key: StringName) -> void:
+	_event_queue.append({
+		"type": &"global_effect_removed", "key": effect_key,
+	})
 
 
 func _on_turn_started(turn_number: int) -> void:

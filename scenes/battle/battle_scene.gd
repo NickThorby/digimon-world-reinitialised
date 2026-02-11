@@ -23,6 +23,9 @@ enum BattlePhase {
 @onready var _message_box: BattleMessageBox = $BattleHUD/BattleMessageBox
 @onready var _post_battle_screen: PostBattleScreen = $BattleHUD/PostBattleScreen
 @onready var _turn_label: Label = $BattleHUD/TopBar/TurnLabel
+@onready var _field_display: FieldStatusDisplay = $BattleHUD/TopBar/FieldStatusDisplay
+@onready var _ally_side_display: SideStatusDisplay = $BattleHUD/AllySideStatus
+@onready var _foe_side_display: SideStatusDisplay = $BattleHUD/FoeSideStatus
 @onready var _near_side: HBoxContainer = $BattleField/NearSide
 @onready var _far_side: HBoxContainer = $BattleField/FarSide
 @onready var _target_back_button: Button = $BattleHUD/TargetBackButton
@@ -76,6 +79,7 @@ func _ready() -> void:
 		_item_menu, _item_target_menu,
 		_target_selector,
 		_message_box, _target_back_button, _turn_label, _post_battle_screen,
+		_field_display, _ally_side_display, _foe_side_display,
 	)
 	_input_manager.connect_ui_signals()
 
@@ -84,10 +88,17 @@ func _ready() -> void:
 
 	# Setup UI
 	_hide_all_menus()
+	_field_display.initialise(_battle)
 	_display.setup_digimon_panels()
 	_display.setup_battlefield_placeholders()
 	_display.position_battlefield(self)
 	_display.update_all_panels()
+
+	# Initial field/side status refresh (for preset effects)
+	_field_display.refresh()
+	_ally_side_display.refresh_from_side(_battle.sides[0])
+	if _battle.sides.size() > 1:
+		_foe_side_display.refresh_from_side(_battle.sides[1])
 
 	# Check if this is a wild battle (for run button and music)
 	var is_wild: bool = false
@@ -111,6 +122,7 @@ func _ready() -> void:
 	if not _event_replay.is_queue_empty():
 		await _event_replay.replay_events(
 			self, _message_box, _display, _turn_label, _post_battle_screen,
+			_field_display, _ally_side_display, _foe_side_display,
 		)
 
 	_input_manager.start_input_phase()

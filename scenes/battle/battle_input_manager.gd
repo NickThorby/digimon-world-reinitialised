@@ -23,6 +23,9 @@ var _message_box: BattleMessageBox = null
 var _target_back_button: Button = null
 var _turn_label: Label = null
 var _post_battle_screen: PostBattleScreen = null
+var _field_display: FieldStatusDisplay = null
+var _ally_side_display: SideStatusDisplay = null
+var _foe_side_display: SideStatusDisplay = null
 
 # Input state
 var _pending_actions: Array[BattleAction] = []
@@ -71,6 +74,9 @@ func set_hud_refs(
 	target_back_button: Button,
 	turn_label: Label,
 	post_battle_screen: PostBattleScreen,
+	field_display: FieldStatusDisplay = null,
+	ally_side_display: SideStatusDisplay = null,
+	foe_side_display: SideStatusDisplay = null,
 ) -> void:
 	_action_menu = action_menu
 	_technique_menu = technique_menu
@@ -82,6 +88,9 @@ func set_hud_refs(
 	_target_back_button = target_back_button
 	_turn_label = turn_label
 	_post_battle_screen = post_battle_screen
+	_field_display = field_display
+	_ally_side_display = ally_side_display
+	_foe_side_display = foe_side_display
 
 
 func connect_ui_signals() -> void:
@@ -172,6 +181,7 @@ func _execute_turn() -> void:
 
 	await _event_replay.replay_events(
 		self, _message_box, _display, _turn_label, _post_battle_screen,
+		_field_display, _ally_side_display, _foe_side_display,
 	)
 
 	if _battle.is_battle_over:
@@ -260,6 +270,8 @@ func _prompt_forced_switch() -> void:
 					await _event_replay.replay_events(
 						self, _message_box, _display,
 						_turn_label, _post_battle_screen,
+						_field_display, _ally_side_display,
+						_foe_side_display,
 					)
 
 	if not _battle.is_battle_over:
@@ -433,6 +445,8 @@ func _on_switch_chosen(party_index: int) -> void:
 			await _event_replay.replay_events(
 				self, _message_box, _display,
 				_turn_label, _post_battle_screen,
+				_field_display, _ally_side_display,
+				_foe_side_display,
 			)
 
 		if _needs_forced_switch():
