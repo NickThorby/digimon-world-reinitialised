@@ -302,3 +302,91 @@ func test_hazard_stores_extra_data() -> void:
 		hazard.get("element", &"") as StringName, &"fire",
 		"element should be stored",
 	)
+
+
+# --- Weather: same-weather detection ---
+
+
+func test_field_effect_same_permanent_weather_returns_no_change() -> void:
+	_battle.field.set_weather(&"rain", -1, 0)
+	var brick: Dictionary = {
+		"brick": "fieldEffect", "type": "weather", "weather": "rain",
+	}
+	var result: Dictionary = BrickExecutor.execute_brick(
+		brick, _user, _target, null, _battle,
+	)
+	assert_true(result.get("handled", false))
+	assert_eq(result.get("action", ""), "no_change")
+	assert_true(
+		_battle.field.has_weather(&"rain"),
+		"Weather should still be rain",
+	)
+
+
+func test_field_effect_same_weather_different_duration_returns_refreshed() -> void:
+	_battle.field.set_weather(&"rain", 5, 0)
+	var brick: Dictionary = {
+		"brick": "fieldEffect", "type": "weather",
+		"weather": "rain", "duration": 3,
+	}
+	var result: Dictionary = BrickExecutor.execute_brick(
+		brick, _user, _target, null, _battle,
+	)
+	assert_true(result.get("handled", false))
+	assert_eq(result.get("action", ""), "refreshed")
+	var new_dur: int = int(_battle.field.weather.get("duration", 0))
+	assert_eq(new_dur, 3, "Duration should be updated to 3")
+
+
+func test_field_effect_different_weather_still_sets() -> void:
+	_battle.field.set_weather(&"rain", 5, 0)
+	var brick: Dictionary = {
+		"brick": "fieldEffect", "type": "weather", "weather": "sun",
+	}
+	var result: Dictionary = BrickExecutor.execute_brick(
+		brick, _user, _target, null, _battle,
+	)
+	assert_eq(result.get("action", ""), "set")
+	assert_true(
+		_battle.field.has_weather(&"sun"),
+		"Weather should change to sun",
+	)
+
+
+# --- Terrain: same-terrain detection ---
+
+
+func test_field_effect_same_permanent_terrain_returns_no_change() -> void:
+	_battle.field.set_terrain(&"flooded", -1, 0)
+	var brick: Dictionary = {
+		"brick": "fieldEffect", "type": "terrain", "terrain": "flooded",
+	}
+	var result: Dictionary = BrickExecutor.execute_brick(
+		brick, _user, _target, null, _battle,
+	)
+	assert_true(result.get("handled", false))
+	assert_eq(result.get("action", ""), "no_change")
+	assert_true(
+		_battle.field.has_terrain(&"flooded"),
+		"Terrain should still be flooded",
+	)
+
+
+# --- Hazard: source_name from context ---
+
+
+func test_hazard_stores_source_name_in_extra() -> void:
+	var brick: Dictionary = {
+		"brick": "hazard", "hazardType": "entry_damage",
+		"damagePercent": 0.125, "maxLayers": 3, "side": "target",
+	}
+	var context: Dictionary = {"source_name": "Spike Trap"}
+	var result: Dictionary = BrickExecutor.execute_brick(
+		brick, _user, _target, null, _battle, context,
+	)
+	assert_true(result.get("handled", false))
+	var hazard: Dictionary = _battle.sides[_target.side_index].hazards[0]
+	assert_eq(
+		hazard.get("source_name", "") as String, "Spike Trap",
+		"source_name should be stored in hazard extra",
+	)

@@ -687,6 +687,23 @@ func _execute_against_targets(
 								"status_key": status_key,
 							},
 						)
+			elif brick_result.get("action", "") == "apply" \
+					and not brick_result.get("missed", false) \
+					and not brick_result.get("blocked", false) \
+					and not brick_result.get(
+						"condition_failed", false,
+					):
+				# Status already present and not upgradeable
+				var already_key: StringName = brick_result.get(
+					"status", &"",
+				) as StringName
+				if already_key != &"":
+					battle_message.emit(
+						"%s is already %s!" % [
+							_get_digimon_name(target),
+							_format_status_name(already_key),
+						],
+					)
 
 			# Stat modifier results from technique bricks
 			var tech_stat_changes: Variant = brick_result.get(
@@ -3272,6 +3289,13 @@ func _emit_field_effect_signals(result: Dictionary) -> void:
 			battle_message.emit("The weather changed to %s!" % str(key))
 			weather_changed.emit(_battle.field.weather)
 			_fire_ability_trigger(Registry.AbilityTrigger.ON_WEATHER_CHANGE)
+		elif action == "no_change":
+			battle_message.emit("But nothing happened!")
+		elif action == "refreshed":
+			battle_message.emit(
+				"The %s was refreshed!" % _format_status_name(key),
+			)
+			weather_changed.emit(_battle.field.weather)
 		else:
 			battle_message.emit("The weather cleared.")
 			weather_changed.emit({})
@@ -3285,6 +3309,13 @@ func _emit_field_effect_signals(result: Dictionary) -> void:
 			battle_message.emit("The terrain changed to %s!" % str(key))
 			terrain_changed.emit(_battle.field.terrain)
 			_fire_ability_trigger(Registry.AbilityTrigger.ON_TERRAIN_CHANGE)
+		elif action == "no_change":
+			battle_message.emit("But nothing happened!")
+		elif action == "refreshed":
+			battle_message.emit(
+				"The %s was refreshed!" % _format_status_name(key),
+			)
+			terrain_changed.emit(_battle.field.terrain)
 		else:
 			battle_message.emit("The terrain cleared.")
 			terrain_changed.emit({})
@@ -3432,3 +3463,8 @@ func _get_digimon_name(digimon: BattleDigimonState) -> String:
 	if digimon.data != null:
 		return digimon.data.display_name
 	return "???"
+
+
+## Format a status key for display (e.g. &"badly_burned" → "Badly Burned").
+func _format_status_name(status_key: StringName) -> String:
+	return str(status_key).replace("_", " ").capitalize()

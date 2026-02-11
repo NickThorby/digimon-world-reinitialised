@@ -656,10 +656,12 @@ func _save_side_presets() -> void:
 		var toggle: CheckBox = header.get_child(0) as CheckBox
 		var perm: CheckBox = header.get_child(1) as CheckBox
 		var layers_spin: SpinBox = header.get_child(2) as SpinBox
+		var name_edit: LineEdit = header.get_child(3) as LineEdit
 		var entry: Dictionary = {
 			"enabled": toggle.button_pressed,
 			"permanent": perm.button_pressed,
 			"layers": int(layers_spin.value),
+			"source_name": name_edit.text if name_edit != null else "",
 		}
 		var extras: HBoxContainer = container.get_child(1) as HBoxContainer
 		if key == &"entry_damage":
@@ -755,6 +757,13 @@ func _build_hazards_list() -> void:
 		if saved.has(key):
 			layers.value = saved[key].get("layers", 1)
 		header.add_child(layers)
+		var name_edit := LineEdit.new()
+		name_edit.placeholder_text = "Display name"
+		name_edit.custom_minimum_size = Vector2(100, 0)
+		name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		if saved.has(key):
+			name_edit.text = saved[key].get("source_name", "")
+		header.add_child(name_edit)
 		container.add_child(header)
 
 		# Extras row: type-specific controls
@@ -858,6 +867,9 @@ func _apply_side_presets_to_config() -> void:
 				extra["stat"] = entry.get("stat", "spe")
 				extra["stages"] = entry.get("stages", -1)
 				extra["aerial_is_immune"] = true
+			var hz_source_name: String = entry.get("source_name", "")
+			if hz_source_name != "":
+				extra["source_name"] = hz_source_name
 			hazards.append({
 				"key": key,
 				"sides": [side_idx],
@@ -903,4 +915,7 @@ func _sync_side_presets_from_config() -> void:
 				elif key == &"entry_stat_reduction":
 					hz_data["stat"] = extra.get("stat", "spe")
 					hz_data["stages"] = extra.get("stages", -1)
+				var sync_source_name: String = extra.get("source_name", "")
+				if sync_source_name != "":
+					hz_data["source_name"] = sync_source_name
 				_side_presets[idx]["hazards"][key] = hz_data

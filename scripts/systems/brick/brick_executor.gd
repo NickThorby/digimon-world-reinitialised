@@ -47,7 +47,9 @@ static func execute_brick(
 		"sideEffect":
 			return _execute_side_effect(brick, user, target, battle)
 		"hazard":
-			return _execute_hazard(brick, user, target, battle)
+			return _execute_hazard(
+				brick, user, target, battle, execution_context,
+			)
 		"protection":
 			return _execute_protection(brick, user, target, battle)
 		"statProtection":
@@ -130,6 +132,7 @@ static func execute_bricks(
 	var context: Dictionary = {
 		"damage_dealt": 0,
 		"technique_missed": false,
+		"source_name": technique.display_name if technique != null else "",
 	}
 	for brick: Dictionary in bricks:
 		var result: Dictionary = execute_brick(
@@ -705,12 +708,16 @@ static func _execute_status_effect(
 			return {"handled": true, "blocked": true, "reason": "resistance_immunity"}
 
 	# Status override rules (may fully handle the status, e.g. frostbitten upgrade)
-	var override_status: StringName = _apply_status_overrides(actual_target, status_key)
-	if override_status != &"":
-		return {
-			"handled": true, "action": "apply", "applied": true,
-			"status": override_status,
-		}
+	var can_upgrade: bool = brick.get("canUpgrade", true)
+	if can_upgrade:
+		var override_status: StringName = _apply_status_overrides(
+			actual_target, status_key,
+		)
+		if override_status != &"":
+			return {
+				"handled": true, "action": "apply", "applied": true,
+				"status": override_status,
+			}
 
 	var duration: int = brick.get("duration", -1)
 	var extra: Dictionary = {}
@@ -1398,6 +1405,17 @@ static func _execute_field_effect(
 			var w_duration: int = -1 if w_permanent else int(brick.get(
 				"duration", balance.default_weather_duration,
 			))
+			# Check if same weather is already active
+			if battle.field.has_weather(key):
+				var current_dur: int = int(
+					battle.field.weather.get("duration", 0),
+				)
+				if current_dur == -1 and w_duration != -1:
+					return {"handled": true, "weather": key, "action": "no_change"}
+				if current_dur == w_duration:
+					return {"handled": true, "weather": key, "action": "no_change"}
+				battle.field.set_weather(key, w_duration, user.side_index)
+				return {"handled": true, "weather": key, "action": "refreshed"}
 			battle.field.set_weather(key, w_duration, user.side_index)
 			return {"handled": true, "weather": key, "action": "set"}
 
@@ -1412,6 +1430,17 @@ static func _execute_field_effect(
 			var t_duration: int = -1 if t_permanent else int(brick.get(
 				"duration", balance.default_terrain_duration,
 			))
+			# Check if same terrain is already active
+			if battle.field.has_terrain(key):
+				var current_dur: int = int(
+					battle.field.terrain.get("duration", 0),
+				)
+				if current_dur == -1 and t_duration != -1:
+					return {"handled": true, "terrain": key, "action": "no_change"}
+				if current_dur == t_duration:
+					return {"handled": true, "terrain": key, "action": "no_change"}
+				battle.field.set_terrain(key, t_duration, user.side_index)
+				return {"handled": true, "terrain": key, "action": "refreshed"}
 			battle.field.set_terrain(key, t_duration, user.side_index)
 			return {"handled": true, "terrain": key, "action": "set"}
 
@@ -1475,6 +1504,7 @@ static func _execute_hazard(
 	user: BattleDigimonState,
 	target: BattleDigimonState,
 	battle: BattleState,
+	execution_context: Dictionary = {},
 ) -> Dictionary:
 	var side_target: String = brick.get("side", "target")
 	var sides: Array[SideState] = _resolve_side_targets(
@@ -1521,6 +1551,9 @@ static func _execute_hazard(
 		extra["stages"] = int(brick["stages"])
 	if brick.has("aerialIsImmune"):
 		extra["aerial_is_immune"] = bool(brick["aerialIsImmune"])
+	var ctx_source_name: String = execution_context.get("source_name", "")
+	if ctx_source_name != "":
+		extra["source_name"] = ctx_source_name
 	extra["maxLayers"] = max_layers
 
 	for side: SideState in sides:

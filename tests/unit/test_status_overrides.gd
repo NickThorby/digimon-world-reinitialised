@@ -195,3 +195,119 @@ func test_frostbitten_removes_badly_burned() -> void:
 		"Frostbitten should remove badly_burned",
 	)
 	assert_true(target.has_status(&"frostbitten"), "Frostbitten should be applied")
+
+
+# --- canUpgrade flag ---
+
+
+func test_can_upgrade_false_prevents_burned_upgrade() -> void:
+	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
+	target.add_status(&"burned")
+
+	var result: Dictionary = BrickExecutor.execute_brick(
+		{
+			"brick": "statusEffect", "status": "burned",
+			"chance": 100, "canUpgrade": false,
+		},
+		_battle.get_digimon_at(0, 0), target, null, _battle,
+	)
+
+	assert_true(
+		target.has_status(&"burned"),
+		"Should still have burned (not upgraded)",
+	)
+	assert_false(
+		target.has_status(&"badly_burned"),
+		"Should NOT upgrade to badly_burned",
+	)
+	assert_false(result.get("applied", true), "Should report not applied")
+
+
+func test_can_upgrade_false_prevents_poisoned_upgrade() -> void:
+	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
+	target.add_status(&"poisoned")
+
+	var result: Dictionary = BrickExecutor.execute_brick(
+		{
+			"brick": "statusEffect", "status": "poisoned",
+			"chance": 100, "canUpgrade": false,
+		},
+		_battle.get_digimon_at(0, 0), target, null, _battle,
+	)
+
+	assert_true(
+		target.has_status(&"poisoned"),
+		"Should still have poisoned (not upgraded)",
+	)
+	assert_false(
+		target.has_status(&"badly_poisoned"),
+		"Should NOT upgrade to badly_poisoned",
+	)
+	assert_false(result.get("applied", true), "Should report not applied")
+
+
+func test_can_upgrade_false_prevents_frostbitten_upgrade() -> void:
+	var battle: BattleState = TestBattleFactory.create_1v1_battle(
+		&"test_agumon", &"test_agumon",
+	)
+	var target: BattleDigimonState = battle.get_digimon_at(1, 0)
+	target.add_status(&"frostbitten")
+
+	var result: Dictionary = BrickExecutor.execute_brick(
+		{
+			"brick": "statusEffect", "status": "frostbitten",
+			"chance": 100, "canUpgrade": false,
+		},
+		battle.get_digimon_at(0, 0), target, null, battle,
+	)
+
+	assert_true(
+		target.has_status(&"frostbitten"),
+		"Should still have frostbitten (not upgraded)",
+	)
+	assert_false(
+		target.has_status(&"frozen"),
+		"Should NOT upgrade to frozen",
+	)
+	assert_false(result.get("applied", true), "Should report not applied")
+
+
+func test_can_upgrade_true_allows_upgrade_default() -> void:
+	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
+	target.add_status(&"burned")
+
+	var result: Dictionary = BrickExecutor.execute_brick(
+		{"brick": "statusEffect", "status": "burned", "chance": 100},
+		_battle.get_digimon_at(0, 0), target, null, _battle,
+	)
+
+	assert_true(
+		target.has_status(&"badly_burned"),
+		"Default canUpgrade=true should allow upgrade",
+	)
+	assert_eq(
+		result.get("status", &""), &"badly_burned",
+		"Result should report badly_burned",
+	)
+
+
+func test_can_upgrade_true_explicit_allows_upgrade() -> void:
+	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
+	target.add_status(&"poisoned")
+
+	var result: Dictionary = BrickExecutor.execute_brick(
+		{
+			"brick": "statusEffect", "status": "poisoned",
+			"chance": 100, "canUpgrade": true,
+		},
+		_battle.get_digimon_at(0, 0), target, null, _battle,
+	)
+
+	assert_true(
+		target.has_status(&"badly_poisoned"),
+		"Explicit canUpgrade=true should allow upgrade",
+	)
+	assert_eq(
+		result.get("status", &""), &"badly_poisoned",
+		"Result should report badly_poisoned",
+	)

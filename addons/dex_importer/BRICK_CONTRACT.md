@@ -165,6 +165,7 @@
 | `duration` | `int` | No | Duration in turns |
 | `remove` | `bool` | No | Remove instead of inflict |
 | `removeAll` | `bool` | No | Remove all statuses |
+| `canUpgrade` | `bool` | No | If false, prevents status upgrade (e.g. poisoned to badly_poisoned). Default true |
 
 ### 7. `statusInteraction`
 
@@ -229,6 +230,7 @@
 | `stages` | `int` | No | Stat stages to drop on switch-in (entryStatReduction, default -1) |
 | `remove` | `bool` | No | Remove this hazard type |
 | `removeAll` | `bool` | No | Remove all hazards |
+| `aerialIsImmune` | `bool` | No | If true, Digimon with aerial movement trait are immune to this hazard on switch-in (default false) |
 
 ### 12. `positionControl`
 

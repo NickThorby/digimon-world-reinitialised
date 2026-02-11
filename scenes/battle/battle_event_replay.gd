@@ -166,6 +166,7 @@ func replay_events(
 				)
 				if faint_out_dur > 0.0:
 					await scene.get_tree().create_timer(faint_out_dur).timeout
+				display.set_panel_visible(faint_side, faint_slot, false)
 
 			&"digimon_switched":
 				var side_idx: int = int(event["side_index"])

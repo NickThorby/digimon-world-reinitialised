@@ -158,6 +158,22 @@ func setup_battlefield_placeholders() -> void:
 			vbox.custom_minimum_size = Vector2(min_w, 80)
 			vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
+			# Size trait → scale multiplier
+			var size_scale: float = 0.85  # Default to medium
+			if slot.digimon != null and slot.digimon.data != null:
+				match slot.digimon.data.size_trait:
+					&"tiny": size_scale = 0.55
+					&"small": size_scale = 0.7
+					&"medium": size_scale = 0.85
+					&"large": size_scale = 1.0
+					&"huge": size_scale = 1.15
+					&"gargantuan": size_scale = 1.3
+
+			var base_size: float = 64.0
+			var scaled_size: Vector2 = Vector2(
+				base_size, base_size,
+			) * size_scale
+
 			var sprite_added: bool = false
 			if slot.digimon != null and slot.digimon.data != null:
 				var sprite_tex: Texture2D = null
@@ -166,7 +182,7 @@ func setup_battlefield_placeholders() -> void:
 				if sprite_tex != null:
 					var tex_rect := TextureRect.new()
 					tex_rect.texture = sprite_tex
-					tex_rect.custom_minimum_size = Vector2(64, 64)
+					tex_rect.custom_minimum_size = scaled_size
 					tex_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
 					tex_rect.expand_mode = \
 						TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
@@ -179,7 +195,7 @@ func setup_battlefield_placeholders() -> void:
 
 			if not sprite_added:
 				var rect := ColorRect.new()
-				rect.custom_minimum_size = Vector2(64, 64)
+				rect.custom_minimum_size = scaled_size
 				rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
 				rect.color = Color(0.3, 0.7, 0.3) if is_ally \
 					else Color(0.7, 0.3, 0.3)

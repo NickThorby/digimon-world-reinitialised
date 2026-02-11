@@ -446,3 +446,23 @@ func test_critical_hit_brick_returns_handled() -> void:
 		brick, _user, _target, null, _battle,
 	)
 	assert_true(result.get("handled", false), "criticalHit brick should return handled=true")
+
+
+# --- statusEffect: already present ---
+
+
+func test_status_effect_already_present_returns_not_applied() -> void:
+	_target.add_status(&"asleep", 3)
+	var brick: Dictionary = {
+		"brick": "statusEffect", "status": "asleep",
+		"chance": 100, "duration": 3,
+	}
+	var result: Dictionary = BrickExecutor.execute_brick(
+		brick, _user, _target, null, _battle,
+	)
+	assert_true(result.get("handled", false), "Should be handled")
+	assert_eq(result.get("action", ""), "apply", "Action should be apply")
+	assert_false(
+		result.get("applied", true),
+		"Should not be applied (already has status)",
+	)
