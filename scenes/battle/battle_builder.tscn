@@ -118,104 +118,61 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 custom_minimum_size = Vector2(350, 0)
 
-[node name="GlobalLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel"]
+[node name="RightTabs" type="TabContainer" parent="MarginContainer/VBox/HSplit/RightPanel" unique_name_in_owner=true]
 layout_mode = 2
-theme_override_font_sizes/font_size = 18
-text = "Battle Settings"
+size_flags_vertical = 3
 
-[node name="FormatRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel"]
+[node name="Settings" type="VBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs"]
 layout_mode = 2
 
-[node name="FormatLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/FormatRow"]
+[node name="FormatRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings"]
+layout_mode = 2
+
+[node name="FormatLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings/FormatRow"]
 layout_mode = 2
 text = "Format:"
 
-[node name="FormatOption" type="OptionButton" parent="MarginContainer/VBox/HSplit/RightPanel/FormatRow" unique_name_in_owner=true]
+[node name="FormatOption" type="OptionButton" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings/FormatRow" unique_name_in_owner=true]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="XPRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel"]
+[node name="XPRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings"]
 layout_mode = 2
 
-[node name="XPLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/XPRow"]
+[node name="XPLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings/XPRow"]
 layout_mode = 2
 text = "XP Enabled:"
 
-[node name="XPToggle" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/XPRow" unique_name_in_owner=true]
+[node name="XPToggle" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings/XPRow" unique_name_in_owner=true]
 layout_mode = 2
 button_pressed = true
 
-[node name="ExpShareRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel"]
+[node name="ExpShareRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings"]
 layout_mode = 2
 
-[node name="ExpShareLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/ExpShareRow"]
+[node name="ExpShareLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings/ExpShareRow"]
 layout_mode = 2
 text = "EXP Share:"
 
-[node name="ExpShareToggle" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/ExpShareRow" unique_name_in_owner=true]
+[node name="ExpShareToggle" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings/ExpShareRow" unique_name_in_owner=true]
 layout_mode = 2
 
-[node name="FieldEffectsSeparator" type="HSeparator" parent="MarginContainer/VBox/HSplit/RightPanel"]
+[node name="SideSeparator" type="HSeparator" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings"]
 layout_mode = 2
 
-[node name="FieldEffectsLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 18
-text = "Field Effects"
-
-[node name="WeatherRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel"]
-layout_mode = 2
-
-[node name="WeatherLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/WeatherRow"]
-layout_mode = 2
-text = "Weather:"
-
-[node name="WeatherOption" type="OptionButton" parent="MarginContainer/VBox/HSplit/RightPanel/WeatherRow" unique_name_in_owner=true]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="WeatherPermanent" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/WeatherRow" unique_name_in_owner=true]
-layout_mode = 2
-text = "Perm"
-
-[node name="TerrainRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel"]
-layout_mode = 2
-
-[node name="TerrainLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/TerrainRow"]
-layout_mode = 2
-text = "Terrain:"
-
-[node name="TerrainOption" type="OptionButton" parent="MarginContainer/VBox/HSplit/RightPanel/TerrainRow" unique_name_in_owner=true]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="TerrainPermanent" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/TerrainRow" unique_name_in_owner=true]
-layout_mode = 2
-text = "Perm"
-
-[node name="GlobalEffectsLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel"]
-layout_mode = 2
-text = "Global Effects:"
-
-[node name="GlobalEffectsList" type="VBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel" unique_name_in_owner=true]
-layout_mode = 2
-
-[node name="SettingsSeparator" type="HSeparator" parent="MarginContainer/VBox/HSplit/RightPanel"]
-layout_mode = 2
-
-[node name="SideLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel" unique_name_in_owner=true]
+[node name="SideLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings" unique_name_in_owner=true]
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 text = "Side 1 Settings"
 
-[node name="ControllerRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel"]
+[node name="ControllerRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings"]
 layout_mode = 2
 
-[node name="ControllerLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/ControllerRow"]
+[node name="ControllerLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings/ControllerRow"]
 layout_mode = 2
 text = "Controller:"
 
-[node name="ControllerOption" type="OptionButton" parent="MarginContainer/VBox/HSplit/RightPanel/ControllerRow" unique_name_in_owner=true]
+[node name="ControllerOption" type="OptionButton" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings/ControllerRow" unique_name_in_owner=true]
 layout_mode = 2
 size_flags_horizontal = 3
 item_count = 2
@@ -223,44 +180,108 @@ popup/item_0/text = "Player"
 popup/item_1/text = "AI"
 popup/item_1/id = 1
 
-[node name="WildRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel"]
+[node name="WildRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings"]
 layout_mode = 2
 
-[node name="WildLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/WildRow"]
+[node name="WildLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings/WildRow"]
 layout_mode = 2
 text = "Wild Battle:"
 
-[node name="WildToggle" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/WildRow" unique_name_in_owner=true]
+[node name="WildToggle" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings/WildRow" unique_name_in_owner=true]
 layout_mode = 2
 
-[node name="BagSeparator" type="HSeparator" parent="MarginContainer/VBox/HSplit/RightPanel"]
+[node name="Field Effects" type="ScrollContainer" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs"]
 layout_mode = 2
+horizontal_scroll_mode = 0
 
-[node name="BagSection" type="VBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel"]
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="BagLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/BagSection"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 18
-text = "Battle Bag"
-
-[node name="BagCategoryRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/BagSection"]
-layout_mode = 2
-
-[node name="BagCategoryLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/BagSection/BagCategoryRow"]
-layout_mode = 2
-text = "Category:"
-
-[node name="BagCategoryOption" type="OptionButton" parent="MarginContainer/VBox/HSplit/RightPanel/BagSection/BagCategoryRow" unique_name_in_owner=true]
+[node name="FieldContent" type="VBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Field Effects"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="BagScroll" type="ScrollContainer" parent="MarginContainer/VBox/HSplit/RightPanel/BagSection"]
+[node name="WeatherRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Field Effects/FieldContent"]
+layout_mode = 2
+
+[node name="WeatherLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Field Effects/FieldContent/WeatherRow"]
+layout_mode = 2
+text = "Weather:"
+
+[node name="WeatherOption" type="OptionButton" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Field Effects/FieldContent/WeatherRow" unique_name_in_owner=true]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="WeatherPermanent" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Field Effects/FieldContent/WeatherRow" unique_name_in_owner=true]
+layout_mode = 2
+text = "Perm"
+
+[node name="TerrainRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Field Effects/FieldContent"]
+layout_mode = 2
+
+[node name="TerrainLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Field Effects/FieldContent/TerrainRow"]
+layout_mode = 2
+text = "Terrain:"
+
+[node name="TerrainOption" type="OptionButton" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Field Effects/FieldContent/TerrainRow" unique_name_in_owner=true]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="TerrainPermanent" type="CheckBox" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Field Effects/FieldContent/TerrainRow" unique_name_in_owner=true]
+layout_mode = 2
+text = "Perm"
+
+[node name="GlobalSeparator" type="HSeparator" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Field Effects/FieldContent"]
+layout_mode = 2
+
+[node name="GlobalEffectsLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Field Effects/FieldContent"]
+layout_mode = 2
+text = "Global Effects:"
+
+[node name="GlobalEffectsList" type="VBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Field Effects/FieldContent" unique_name_in_owner=true]
+layout_mode = 2
+
+[node name="Side Presets" type="ScrollContainer" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs"]
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="SidePresetContent" type="VBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Side Presets"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SideEffectsLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Side Presets/SidePresetContent"]
+layout_mode = 2
+text = "Side Effects:"
+
+[node name="SideEffectsList" type="VBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Side Presets/SidePresetContent" unique_name_in_owner=true]
+layout_mode = 2
+
+[node name="HazardSeparator" type="HSeparator" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Side Presets/SidePresetContent"]
+layout_mode = 2
+
+[node name="HazardsLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Side Presets/SidePresetContent"]
+layout_mode = 2
+text = "Hazards:"
+
+[node name="HazardsList" type="VBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Side Presets/SidePresetContent" unique_name_in_owner=true]
+layout_mode = 2
+
+[node name="Bag" type="VBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs"]
+layout_mode = 2
+
+[node name="BagCategoryRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Bag"]
+layout_mode = 2
+
+[node name="BagCategoryLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Bag/BagCategoryRow"]
+layout_mode = 2
+text = "Category:"
+
+[node name="BagCategoryOption" type="OptionButton" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Bag/BagCategoryRow" unique_name_in_owner=true]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BagScroll" type="ScrollContainer" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Bag"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="BagItemList" type="VBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/BagSection/BagScroll" unique_name_in_owner=true]
+[node name="BagItemList" type="VBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Bag/BagScroll" unique_name_in_owner=true]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3

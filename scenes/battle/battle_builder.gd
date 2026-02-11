@@ -6,33 +6,43 @@ const PICKER_SCENE_PATH := "res://scenes/battle/digimon_picker.tscn"
 const SLOT_PANEL_SCENE := preload("res://ui/components/digimon_slot_panel.tscn")
 const TEAM_SAVE_POPUP_SCENE := preload("res://ui/components/team_save_popup.tscn")
 
-@onready var _format_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/FormatRow/FormatOption
 @onready var _side_selector: TabBar = $MarginContainer/VBox/HSplit/LeftPanel/SideSelector
 @onready var _team_list: VBoxContainer = $MarginContainer/VBox/HSplit/LeftPanel/TeamList
 @onready var _add_digimon_button: Button = $MarginContainer/VBox/HSplit/LeftPanel/AddDigimonButton
-@onready var _controller_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/ControllerRow/ControllerOption
-@onready var _wild_toggle: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/WildRow/WildToggle
-@onready var _xp_toggle: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/XPRow/XPToggle
-@onready var _exp_share_toggle: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/ExpShareRow/ExpShareToggle
-@onready var _launch_button: Button = $MarginContainer/VBox/BottomBar/LaunchButton
-@onready var _back_button: Button = $MarginContainer/VBox/HeaderBar/HBox/BackButton
 @onready var _save_team_button: Button = $MarginContainer/VBox/HSplit/LeftPanel/TeamButtonRow/SaveTeamButton
 @onready var _load_team_button: Button = $MarginContainer/VBox/HSplit/LeftPanel/TeamButtonRow/LoadTeamButton
+@onready var _launch_button: Button = $MarginContainer/VBox/BottomBar/LaunchButton
+@onready var _back_button: Button = $MarginContainer/VBox/HeaderBar/HBox/BackButton
 @onready var _validation_label: RichTextLabel = $MarginContainer/VBox/HSplit/RightPanel/ValidationLabel
-@onready var _side_label: Label = $MarginContainer/VBox/HSplit/RightPanel/SideLabel
-@onready var _bag_category_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/BagSection/BagCategoryRow/BagCategoryOption
-@onready var _bag_item_list: VBoxContainer = $MarginContainer/VBox/HSplit/RightPanel/BagSection/BagScroll/BagItemList
-@onready var _weather_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/WeatherRow/WeatherOption
-@onready var _weather_permanent: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/WeatherRow/WeatherPermanent
-@onready var _terrain_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/TerrainRow/TerrainOption
-@onready var _terrain_permanent: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/TerrainRow/TerrainPermanent
-@onready var _global_effects_list: VBoxContainer = $MarginContainer/VBox/HSplit/RightPanel/GlobalEffectsList
+# Settings tab
+@onready var _format_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings/FormatRow/FormatOption
+@onready var _xp_toggle: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings/XPRow/XPToggle
+@onready var _exp_share_toggle: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings/ExpShareRow/ExpShareToggle
+@onready var _side_label: Label = $MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings/SideLabel
+@onready var _controller_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings/ControllerRow/ControllerOption
+@onready var _wild_toggle: CheckBox = $MarginContainer/VBox/HSplit/RightPanel/RightTabs/Settings/WildRow/WildToggle
+# Field Effects tab
+@onready var _weather_option: OptionButton = $"MarginContainer/VBox/HSplit/RightPanel/RightTabs/Field Effects/FieldContent/WeatherRow/WeatherOption"
+@onready var _weather_permanent: CheckBox = $"MarginContainer/VBox/HSplit/RightPanel/RightTabs/Field Effects/FieldContent/WeatherRow/WeatherPermanent"
+@onready var _terrain_option: OptionButton = $"MarginContainer/VBox/HSplit/RightPanel/RightTabs/Field Effects/FieldContent/TerrainRow/TerrainOption"
+@onready var _terrain_permanent: CheckBox = $"MarginContainer/VBox/HSplit/RightPanel/RightTabs/Field Effects/FieldContent/TerrainRow/TerrainPermanent"
+@onready var _global_effects_list: VBoxContainer = $"MarginContainer/VBox/HSplit/RightPanel/RightTabs/Field Effects/FieldContent/GlobalEffectsList"
+# Side Presets tab
+@onready var _side_effects_list: VBoxContainer = $"MarginContainer/VBox/HSplit/RightPanel/RightTabs/Side Presets/SidePresetContent/SideEffectsList"
+@onready var _hazards_list: VBoxContainer = $"MarginContainer/VBox/HSplit/RightPanel/RightTabs/Side Presets/SidePresetContent/HazardsList"
+# Bag tab
+@onready var _bag_category_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/RightTabs/Bag/BagCategoryRow/BagCategoryOption
+@onready var _bag_item_list: VBoxContainer = $MarginContainer/VBox/HSplit/RightPanel/RightTabs/Bag/BagScroll/BagItemList
 
 var _config: BattleConfig = BattleConfig.new()
 var _current_side: int = 0
 var _editing_index: int = -1
 var _builder_bag: BagState = BagState.new()
 var _bag_category_filter: int = -1  ## -1 = All
+
+## Per-side preset state. Key = side_index, value = { side_effects: {key: {enabled, permanent}},
+## hazards: {key: {enabled, permanent, layers}} }
+var _side_presets: Dictionary = {}
 
 
 func _ready() -> void:
@@ -52,9 +62,11 @@ func _ready() -> void:
 		_sync_format_selector()
 
 	_setup_field_effect_options()
+	_init_side_presets()
 	_update_side_selector()
 	_update_team_display()
 	_update_controller_display()
+	_update_side_presets_display()
 
 
 func _restore_from_picker() -> void:
@@ -115,6 +127,7 @@ func _sync_format_selector() -> void:
 	_xp_toggle.button_pressed = _config.xp_enabled
 	_exp_share_toggle.button_pressed = _config.exp_share_enabled
 	_sync_field_effect_selectors()
+	_sync_side_presets_from_config()
 
 
 func _connect_signals() -> void:
@@ -145,16 +158,20 @@ func _on_format_selected(index: int) -> void:
 	if index >= 0 and index < presets.size():
 		_config.apply_preset(presets[index])
 		_current_side = 0
+		_init_side_presets()
 		_update_side_selector()
 		_update_team_display()
 		_update_controller_display()
+		_update_side_presets_display()
 		_clear_validation()
 
 
 func _on_side_selected(index: int) -> void:
+	_save_side_presets()
 	_current_side = index
 	_update_team_display()
 	_update_controller_display()
+	_update_side_presets_display()
 
 
 func _on_add_digimon() -> void:
@@ -590,3 +607,300 @@ func _apply_field_effects_to_config() -> void:
 		presets["global_effects"] = global_effects
 
 	_config.preset_field_effects = presets
+
+	# Side presets — save current side UI state first
+	_save_side_presets()
+	_apply_side_presets_to_config()
+
+
+# --- Side Presets (per-side side effects and hazards) ---
+
+
+## Initialise empty preset state for each side.
+func _init_side_presets() -> void:
+	_side_presets.clear()
+	for i: int in _config.side_count:
+		_side_presets[i] = {
+			"side_effects": {},
+			"hazards": {},
+		}
+
+
+## Save the current UI toggles into _side_presets for the current side.
+func _save_side_presets() -> void:
+	if not _side_presets.has(_current_side):
+		_side_presets[_current_side] = {"side_effects": {}, "hazards": {}}
+
+	var side_data: Dictionary = _side_presets[_current_side]
+
+	# Side effects
+	var se_dict: Dictionary = {}
+	for i: int in _side_effects_list.get_child_count():
+		var row: HBoxContainer = _side_effects_list.get_child(i) as HBoxContainer
+		if row == null or row.get_child_count() < 2:
+			continue
+		var toggle: CheckBox = row.get_child(0) as CheckBox
+		var perm: CheckBox = row.get_child(1) as CheckBox
+		var key: StringName = Registry.SIDE_EFFECT_TYPES[i]
+		se_dict[key] = {"enabled": toggle.button_pressed, "permanent": perm.button_pressed}
+	side_data["side_effects"] = se_dict
+
+	# Hazards — each hazard type has different extra controls
+	var hz_dict: Dictionary = {}
+	for i: int in _hazards_list.get_child_count():
+		var container: VBoxContainer = _hazards_list.get_child(i) as VBoxContainer
+		if container == null:
+			continue
+		var key: StringName = Registry.HAZARD_TYPES[i]
+		var header: HBoxContainer = container.get_child(0) as HBoxContainer
+		var toggle: CheckBox = header.get_child(0) as CheckBox
+		var perm: CheckBox = header.get_child(1) as CheckBox
+		var layers_spin: SpinBox = header.get_child(2) as SpinBox
+		var entry: Dictionary = {
+			"enabled": toggle.button_pressed,
+			"permanent": perm.button_pressed,
+			"layers": int(layers_spin.value),
+		}
+		var extras: HBoxContainer = container.get_child(1) as HBoxContainer
+		if key == &"entry_damage":
+			var element_opt: OptionButton = extras.get_child(1) as OptionButton
+			var dmg_spin: SpinBox = extras.get_child(3) as SpinBox
+			var element_idx: int = element_opt.selected
+			entry["element"] = _HAZARD_ELEMENTS[element_idx] if element_idx < _HAZARD_ELEMENTS.size() else &""
+			entry["damagePercent"] = dmg_spin.value
+		elif key == &"entry_stat_reduction":
+			var stat_opt: OptionButton = extras.get_child(1) as OptionButton
+			var stages_spin: SpinBox = extras.get_child(3) as SpinBox
+			entry["stat"] = _HAZARD_STATS[stat_opt.selected] if stat_opt.selected < _HAZARD_STATS.size() else "spe"
+			entry["stages"] = int(stages_spin.value)
+		hz_dict[key] = entry
+	side_data["hazards"] = hz_dict
+
+
+## Rebuild the side effects and hazards UI for the current side.
+func _update_side_presets_display() -> void:
+	_build_side_effects_list()
+	_build_hazards_list()
+
+
+func _build_side_effects_list() -> void:
+	for child: Node in _side_effects_list.get_children():
+		child.queue_free()
+
+	var saved: Dictionary = {}
+	if _side_presets.has(_current_side):
+		saved = _side_presets[_current_side].get("side_effects", {})
+
+	for key: StringName in Registry.SIDE_EFFECT_TYPES:
+		var row := HBoxContainer.new()
+		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var toggle := CheckBox.new()
+		toggle.text = str(key).replace("_", " ").capitalize()
+		toggle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		if saved.has(key):
+			toggle.button_pressed = saved[key].get("enabled", false)
+		row.add_child(toggle)
+		var perm := CheckBox.new()
+		perm.text = "Perm"
+		perm.button_pressed = true
+		if saved.has(key):
+			perm.button_pressed = saved[key].get("permanent", true)
+		row.add_child(perm)
+		_side_effects_list.add_child(row)
+
+
+## Element keys for the entry_damage element dropdown (index 0 = None).
+const _HAZARD_ELEMENTS: Array[StringName] = [
+	&"", &"fire", &"water", &"air", &"earth", &"ice",
+	&"lightning", &"plant", &"metal", &"dark", &"light",
+]
+
+## Stat abbreviations for the entry_stat_reduction stat dropdown.
+const _HAZARD_STATS: Array[String] = ["atk", "def", "spa", "spd", "spe"]
+
+
+func _build_hazards_list() -> void:
+	for child: Node in _hazards_list.get_children():
+		child.queue_free()
+
+	var saved: Dictionary = {}
+	if _side_presets.has(_current_side):
+		saved = _side_presets[_current_side].get("hazards", {})
+
+	for key: StringName in Registry.HAZARD_TYPES:
+		var container := VBoxContainer.new()
+		container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+		# Header row: toggle + perm + layers
+		var header := HBoxContainer.new()
+		header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var toggle := CheckBox.new()
+		toggle.text = str(key).replace("_", " ").capitalize()
+		toggle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		if saved.has(key):
+			toggle.button_pressed = saved[key].get("enabled", false)
+		header.add_child(toggle)
+		var perm := CheckBox.new()
+		perm.text = "Perm"
+		perm.button_pressed = true
+		if saved.has(key):
+			perm.button_pressed = saved[key].get("permanent", true)
+		header.add_child(perm)
+		var layers := SpinBox.new()
+		layers.min_value = 1
+		layers.max_value = 3
+		layers.value = 1
+		layers.custom_minimum_size = Vector2(60, 0)
+		layers.tooltip_text = "Layers"
+		if saved.has(key):
+			layers.value = saved[key].get("layers", 1)
+		header.add_child(layers)
+		container.add_child(header)
+
+		# Extras row: type-specific controls
+		var extras := HBoxContainer.new()
+		extras.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		if key == &"entry_damage":
+			var el_label := Label.new()
+			el_label.text = "  Element:"
+			extras.add_child(el_label)
+			var el_option := OptionButton.new()
+			el_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			el_option.add_item("None")
+			for el_key: StringName in _HAZARD_ELEMENTS:
+				if el_key != &"":
+					el_option.add_item(str(el_key).capitalize())
+			var saved_element: StringName = &""
+			if saved.has(key):
+				saved_element = StringName(saved[key].get("element", ""))
+			if saved_element != &"":
+				for ei: int in _HAZARD_ELEMENTS.size():
+					if _HAZARD_ELEMENTS[ei] == saved_element:
+						el_option.selected = ei
+						break
+			extras.add_child(el_option)
+			var dmg_label := Label.new()
+			dmg_label.text = "Dmg%:"
+			extras.add_child(dmg_label)
+			var dmg_spin := SpinBox.new()
+			dmg_spin.min_value = 0.0
+			dmg_spin.max_value = 0.5
+			dmg_spin.step = 0.0625
+			dmg_spin.value = 0.125
+			dmg_spin.custom_minimum_size = Vector2(80, 0)
+			if saved.has(key):
+				dmg_spin.value = saved[key].get("damagePercent", 0.125)
+			extras.add_child(dmg_spin)
+		elif key == &"entry_stat_reduction":
+			var stat_label := Label.new()
+			stat_label.text = "  Stat:"
+			extras.add_child(stat_label)
+			var stat_option := OptionButton.new()
+			stat_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			for abbr: String in _HAZARD_STATS:
+				stat_option.add_item(abbr.to_upper())
+			var saved_stat: String = ""
+			if saved.has(key):
+				saved_stat = saved[key].get("stat", "spe")
+			for si: int in _HAZARD_STATS.size():
+				if _HAZARD_STATS[si] == saved_stat:
+					stat_option.selected = si
+					break
+			extras.add_child(stat_option)
+			var stages_label := Label.new()
+			stages_label.text = "Stages:"
+			extras.add_child(stages_label)
+			var stages_spin := SpinBox.new()
+			stages_spin.min_value = -6
+			stages_spin.max_value = -1
+			stages_spin.value = -1
+			stages_spin.custom_minimum_size = Vector2(60, 0)
+			if saved.has(key):
+				stages_spin.value = saved[key].get("stages", -1)
+			extras.add_child(stages_spin)
+		container.add_child(extras)
+
+		_hazards_list.add_child(container)
+
+
+## Convert _side_presets into config arrays.
+func _apply_side_presets_to_config() -> void:
+	var side_effects: Array[Dictionary] = []
+	var hazards: Array[Dictionary] = []
+
+	for side_idx: int in _side_presets:
+		var data: Dictionary = _side_presets[side_idx]
+
+		# Side effects
+		for key: StringName in data.get("side_effects", {}):
+			var entry: Dictionary = data["side_effects"][key]
+			if not entry.get("enabled", false):
+				continue
+			side_effects.append({
+				"key": key,
+				"sides": [side_idx],
+				"permanent": entry.get("permanent", true),
+			})
+
+		# Hazards
+		for key: StringName in data.get("hazards", {}):
+			var entry: Dictionary = data["hazards"][key]
+			if not entry.get("enabled", false):
+				continue
+			var extra: Dictionary = {}
+			if key == &"entry_damage":
+				var element: StringName = StringName(entry.get("element", ""))
+				if element != &"":
+					extra["element"] = element
+				extra["damagePercent"] = entry.get("damagePercent", 0.125)
+				extra["aerial_is_immune"] = true
+			elif key == &"entry_stat_reduction":
+				extra["stat"] = entry.get("stat", "spe")
+				extra["stages"] = entry.get("stages", -1)
+				extra["aerial_is_immune"] = true
+			hazards.append({
+				"key": key,
+				"sides": [side_idx],
+				"layers": entry.get("layers", 1),
+				"permanent": entry.get("permanent", true),
+				"extra": extra,
+			})
+
+	_config.preset_side_effects = side_effects
+	_config.preset_hazards = hazards
+
+
+## Restore _side_presets from config (when returning from picker).
+func _sync_side_presets_from_config() -> void:
+	_init_side_presets()
+
+	# Side effects
+	for entry: Dictionary in _config.preset_side_effects:
+		var key: StringName = StringName(entry.get("key", ""))
+		var permanent: bool = entry.get("permanent", true)
+		for side_idx: Variant in entry.get("sides", []):
+			var idx: int = int(side_idx)
+			if _side_presets.has(idx):
+				_side_presets[idx]["side_effects"][key] = {
+					"enabled": true, "permanent": permanent,
+				}
+
+	# Hazards
+	for entry: Dictionary in _config.preset_hazards:
+		var key: StringName = StringName(entry.get("key", ""))
+		var permanent: bool = entry.get("permanent", true)
+		var layers: int = int(entry.get("layers", 1))
+		var extra: Dictionary = entry.get("extra", {})
+		for side_idx: Variant in entry.get("sides", []):
+			var idx: int = int(side_idx)
+			if _side_presets.has(idx):
+				var hz_data: Dictionary = {
+					"enabled": true, "permanent": permanent, "layers": layers,
+				}
+				if key == &"entry_damage":
+					hz_data["element"] = StringName(extra.get("element", ""))
+					hz_data["damagePercent"] = extra.get("damagePercent", 0.125)
+				elif key == &"entry_stat_reduction":
+					hz_data["stat"] = extra.get("stat", "spe")
+					hz_data["stages"] = extra.get("stages", -1)
+				_side_presets[idx]["hazards"][key] = hz_data
