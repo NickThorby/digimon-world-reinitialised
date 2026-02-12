@@ -12,13 +12,13 @@ static func calculate_stat(base: int, iv: int, tv: int, level: int) -> int:
 ## Calculate all seven stats for a Digimon.
 static func calculate_all_stats(data: DigimonData, state: DigimonState) -> Dictionary:
 	return {
-		&"hp": calculate_stat(data.base_hp, state.ivs.get(&"hp", 0), state.tvs.get(&"hp", 0), state.level),
-		&"energy": calculate_stat(data.base_energy, state.ivs.get(&"energy", 0), state.tvs.get(&"energy", 0), state.level),
-		&"attack": calculate_stat(data.base_attack, state.ivs.get(&"attack", 0), state.tvs.get(&"attack", 0), state.level),
-		&"defence": calculate_stat(data.base_defence, state.ivs.get(&"defence", 0), state.tvs.get(&"defence", 0), state.level),
-		&"special_attack": calculate_stat(data.base_special_attack, state.ivs.get(&"special_attack", 0), state.tvs.get(&"special_attack", 0), state.level),
-		&"special_defence": calculate_stat(data.base_special_defence, state.ivs.get(&"special_defence", 0), state.tvs.get(&"special_defence", 0), state.level),
-		&"speed": calculate_stat(data.base_speed, state.ivs.get(&"speed", 0), state.tvs.get(&"speed", 0), state.level),
+		&"hp": calculate_stat(data.base_hp, state.get_final_iv(&"hp"), state.tvs.get(&"hp", 0), state.level),
+		&"energy": calculate_stat(data.base_energy, state.get_final_iv(&"energy"), state.tvs.get(&"energy", 0), state.level),
+		&"attack": calculate_stat(data.base_attack, state.get_final_iv(&"attack"), state.tvs.get(&"attack", 0), state.level),
+		&"defence": calculate_stat(data.base_defence, state.get_final_iv(&"defence"), state.tvs.get(&"defence", 0), state.level),
+		&"special_attack": calculate_stat(data.base_special_attack, state.get_final_iv(&"special_attack"), state.tvs.get(&"special_attack", 0), state.level),
+		&"special_defence": calculate_stat(data.base_special_defence, state.get_final_iv(&"special_defence"), state.tvs.get(&"special_defence", 0), state.level),
+		&"speed": calculate_stat(data.base_speed, state.get_final_iv(&"speed"), state.tvs.get(&"speed", 0), state.level),
 	}
 
 

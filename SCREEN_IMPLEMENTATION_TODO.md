@@ -42,10 +42,10 @@ No UI — state classes, field additions, and test reorganisation.
 
 ## Phase 3 — Advanced Screens
 
-- [ ] **3a** Storage Screen — `scenes/screens/storage_screen.tscn` + `.gd`, `ui/components/storage_slot.tscn` + `.gd` | depends on: StorageState, Party concepts
-- [ ] **3b** Shop Screen — `scenes/screens/shop_screen.tscn` + `.gd` | depends on: ShopData, Bag interaction
-- [ ] **3c** Training Screen — `scenes/screens/training_screen.tscn` + `.gd` | depends on: TP, TrainingCalculator, Party select
-- [ ] **3d** Evolution Screen — `scenes/screens/evolution_screen.tscn` + `.gd` | depends on: EvolutionChecker, Summary (stat display)
+- [x] **3a** Storage Screen — `scenes/screens/storage_screen.tscn` + `.gd`, `ui/components/storage_slot.tscn` + `.gd` | depends on: StorageState, Party concepts
+- [x] **3b** Shop Screen — `scenes/screens/shop_screen.tscn` + `.gd` | depends on: ShopData, Bag interaction
+- [x] **3c** Training Screen — `scenes/screens/training_screen.tscn` + `.gd` | depends on: TP, TrainingCalculator, Party select
+- [x] **3d** Evolution Screen — `scenes/screens/evolution_screen.tscn` + `.gd` | depends on: EvolutionChecker, Summary (stat display)
 
 ## Phase 4 — Battle Integration
 
@@ -67,9 +67,9 @@ No UI — state classes, field additions, and test reorganisation.
 Wire up cross-references after each phase:
 
 - [x] After Phase 2c: add "Summary" to Party context menu
-- [ ] After Phase 2b: add "Item → Give" flow from Party/Storage to Bag
-- [ ] After Phase 3a: add "Storage" navigation from Mode Screen
-- [ ] After Phase 3d: add "Evolution" to Party and Storage context menus
+- [x] After Phase 2b: add "Item → Give" flow from Party/Storage to Bag
+- [x] After Phase 3a: add "Storage" navigation from Mode Screen
+- [x] After Phase 3d: add "Evolution" to Party and Storage context menus
 
 ## Testing
 
@@ -84,7 +84,7 @@ Wire up cross-references after each phase:
 
 - [x] `create_test_game_state()` — fresh state with 3 test Digimon, storage, 10000 bits
 - [x] `create_test_party()` / `create_test_inventory()` / `create_test_storage()`
-- [ ] `create_test_shop()` / `create_test_encounter_table()` / `create_test_zone_data()` (shop done; encounter_table + zone_data deferred to Phase 5)
+- [x] `create_test_shop()` / `create_test_encounter_table()` / `create_test_zone_data()` (shop done; encounter_table + zone_data deferred to Phase 5)
 - [x] `inject_screen_test_data()` / `clear_screen_test_data()`
 
 ### Per-Screen Tests
@@ -107,9 +107,9 @@ Wire up cross-references after each phase:
 - [ ] `tests/screens/test_party_screen.gd` — full UI reorder, context menu
 - [ ] `tests/screens/test_bag_screen.gd` — full UI category filter, item sort, use/give/toss
 - [ ] `tests/screens/test_summary_screen.gd` — full UI page navigation, ability swap
-- [ ] `tests/screens/test_storage_screen.gd` — deposit/withdraw, last-member guard, release
-- [ ] `tests/screens/test_shop_screen.gd` — price calc, buy/sell, insufficient funds, test shop
-- [ ] `tests/screens/test_training_screen.gd` — course execution, TV cap, animation complete
-- [ ] `tests/screens/test_evolution_screen.gd` — evolve action, stat recalc, item consumption
+- [x] `tests/screens/test_storage_screen_logic.gd` — deposit/withdraw, last-member guard, release
+- [x] `tests/screens/test_shop_screen_logic.gd` — price calc, buy/sell, insufficient funds, test shop
+- [x] `tests/screens/test_training_screen_logic.gd` — course execution, TV cap, animation complete
+- [x] `tests/screens/test_evolution_screen_logic.gd` — evolve action, stat recalc, item consumption
 - [ ] `tests/screens/test_start_battle_screen.gd` — BattleConfig construction, battle launch, post-battle write-back
 - [ ] `tests/screens/test_wild_battle_test_screen.gd` — encounter table save/load, format weights, roll preview, battle launch

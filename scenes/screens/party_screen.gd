@@ -4,6 +4,7 @@ extends Control
 const PARTY_SCREEN_PATH := "res://scenes/screens/party_screen.tscn"
 const SUMMARY_SCREEN_PATH := "res://scenes/screens/summary_screen.tscn"
 const BAG_SCREEN_PATH := "res://scenes/screens/bag_screen.tscn"
+const EVOLUTION_SCREEN_PATH := "res://scenes/screens/evolution_screen.tscn"
 const SLOT_PANEL_SCENE := preload("res://ui/components/digimon_slot_panel.tscn")
 
 const _HEADER := "MarginContainer/VBox/HeaderBar"
@@ -142,8 +143,6 @@ func _show_context_menu(index: int) -> void:
 	item_submenu.set_item_disabled(1, not has_consumable)
 	item_submenu.add_separator()
 	item_submenu.add_item(tr("Give Item"), 2)
-	item_submenu.set_item_disabled(2, true)
-	item_submenu.set_item_tooltip(2, tr("Coming Soon"))
 
 	popup.add_child(item_submenu)
 	popup.add_submenu_node_item(tr("Item"), item_submenu, 1)
@@ -152,8 +151,6 @@ func _show_context_menu(index: int) -> void:
 	popup.add_item(tr("Switch"), 2)
 	popup.add_separator()
 	popup.add_item(tr("Evolution"), 3)
-	popup.set_item_disabled(popup.get_item_index(3), true)
-	popup.set_item_tooltip(popup.get_item_index(3), tr("Coming Soon"))
 
 	add_child(popup)
 
@@ -184,6 +181,8 @@ func _on_context_menu_selected(index: int, id: int) -> void:
 			_navigate_to_summary(index)
 		2:  # Switch
 			_start_swap(index)
+		3:  # Evolution
+			_navigate_to_evolution(index)
 
 
 func _on_item_submenu_selected(index: int, id: int) -> void:
@@ -207,6 +206,8 @@ func _on_item_submenu_selected(index: int, id: int) -> void:
 				member.equipped_consumable_key = &""
 				_add_item_to_inventory(consumable_key)
 				_build_slot_list()
+		2:  # Give Item
+			_navigate_to_give_item(index)
 
 
 func _add_item_to_inventory(item_key: StringName) -> void:
@@ -284,3 +285,33 @@ func _on_reorder_requested(from_index: int, to_index: int) -> void:
 	members[from_index] = members[to_index]
 	members[to_index] = temp
 	_build_slot_list()
+
+
+func _navigate_to_evolution(index: int) -> void:
+	if Game.state == null:
+		return
+	if index < 0 or index >= Game.state.party.members.size():
+		return
+	Game.screen_context = {
+		"party_index": index,
+		"storage_box": -1,
+		"storage_slot": -1,
+		"mode": _mode,
+		"return_scene": PARTY_SCREEN_PATH,
+	}
+	SceneManager.change_scene(EVOLUTION_SCREEN_PATH)
+
+
+func _navigate_to_give_item(index: int) -> void:
+	if Game.state == null:
+		return
+	if index < 0 or index >= Game.state.party.members.size():
+		return
+	Game.screen_context = {
+		"mode": _mode,
+		"select_mode": true,
+		"select_prompt": "Select item to give",
+		"return_scene": PARTY_SCREEN_PATH,
+		"give_to_index": index,
+	}
+	SceneManager.change_scene(BAG_SCREEN_PATH)

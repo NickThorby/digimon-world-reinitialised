@@ -186,3 +186,19 @@ func test_effective_speed_maximum_priority() -> void:
 	# MAXIMUM is not in PRIORITY_SPEED_MULTIPLIERS, defaults to 1.0x
 	var result: float = StatCalculator.calculate_effective_speed(100, Registry.Priority.MAXIMUM)
 	assert_eq(result, 100.0, "Maximum priority should default to 1.0x speed")
+
+
+# --- calculate_all_stats with hyper IVs ---
+
+
+func test_calculate_all_stats_uses_final_ivs() -> void:
+	var data: DigimonData = Atlas.digimon.get(&"test_agumon") as DigimonData
+	var state: DigimonState = TestBattleFactory.make_digimon_state(&"test_agumon")
+	state.ivs[&"attack"] = 20
+	state.hyper_trained_ivs[&"attack"] = 10
+	# Final IV for attack = 30
+	# Expected attack stat: FLOOR((((2*100 + 30 + 0) * 50) / 100)) + 60
+	# = FLOOR(((230 * 50) / 100)) + 60 = FLOOR(115) + 60 = 175
+	var stats: Dictionary = StatCalculator.calculate_all_stats(data, state)
+	assert_eq(stats[&"attack"], 175,
+		"calculate_all_stats should use final IV (base + hyper)")

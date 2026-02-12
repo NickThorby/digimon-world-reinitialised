@@ -54,6 +54,7 @@ var _stage: Stage = Stage.BROWSE
 var _max_equipped: int = 4
 var _max_iv: int = 50
 var _max_tv: int = 500
+var _max_total_tvs: int = 1000
 var _max_level: int = 100
 
 ## Pending state created by DigimonFactory, modified by config sliders.
@@ -113,6 +114,7 @@ func _ready() -> void:
 		_max_level = balance.max_level
 		_max_iv = balance.max_iv
 		_max_tv = balance.max_tv
+		_max_total_tvs = balance.max_total_tvs
 
 	_technique_label.text = "Techniques (select up to %d)" % _max_equipped
 
@@ -856,12 +858,17 @@ func _on_confirm() -> void:
 			var slider: HSlider = entry["slider"] as HSlider
 			_pending_state.ivs[stat_key] = int(slider.value)
 
-	# Override TVs from sliders
+	# Override TVs from sliders, enforcing global TV cap
+	var tv_total: int = 0
 	for stat_key: StringName in STAT_KEYS:
 		if _tv_slider_map.has(stat_key):
 			var entry: Dictionary = _tv_slider_map[stat_key]
 			var slider: HSlider = entry["slider"] as HSlider
-			_pending_state.tvs[stat_key] = int(slider.value)
+			var tv_val: int = int(slider.value)
+			var headroom: int = maxi(_max_total_tvs - tv_total, 0)
+			tv_val = mini(tv_val, headroom)
+			_pending_state.tvs[stat_key] = tv_val
+			tv_total += tv_val
 
 	# Recalculate HP and energy with overridden IVs/TVs
 	_pending_state.current_hp = StatCalculator.calculate_stat(

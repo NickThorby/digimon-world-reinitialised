@@ -26,6 +26,26 @@ func get_effective_personality_key() -> StringName:
 var ivs: Dictionary = {}
 ## Stat key -> value (0-500, earned through training).
 var tvs: Dictionary = {}
+## Stat key -> value (extra IVs gained from hyper training).
+var hyper_trained_ivs: Dictionary = {}
+
+
+## Returns the final IV for a stat, combining base IV and hyper-trained IV, capped at max_iv.
+func get_final_iv(stat_key: StringName) -> int:
+	var balance: GameBalance = load("res://data/config/game_balance.tres") as GameBalance
+	var max_iv: int = balance.max_iv if balance else 50
+	var base_iv: int = ivs.get(stat_key, 0) as int
+	var hyper_iv: int = hyper_trained_ivs.get(stat_key, 0) as int
+	return mini(base_iv + hyper_iv, max_iv)
+
+
+## Returns the sum of all TV values across all stats.
+func get_total_tvs() -> int:
+	var total: int = 0
+	for value: Variant in tvs.values():
+		total += int(value)
+	return total
+
 
 var current_hp: int = 0
 var current_energy: int = 0
@@ -71,6 +91,7 @@ func to_dict() -> Dictionary:
 		"personality_override_key": personality_override_key,
 		"ivs": ivs.duplicate(),
 		"tvs": tvs.duplicate(),
+		"hyper_trained_ivs": hyper_trained_ivs.duplicate(),
 		"current_hp": current_hp,
 		"current_energy": current_energy,
 		"known_technique_keys": Array(known_technique_keys),
@@ -105,6 +126,7 @@ static func from_dict(data: Dictionary) -> DigimonState:
 	state.personality_override_key = StringName(data.get("personality_override_key", ""))
 	state.ivs = data.get("ivs", {})
 	state.tvs = data.get("tvs", {})
+	state.hyper_trained_ivs = data.get("hyper_trained_ivs", {})
 	state.current_hp = data.get("current_hp", 0)
 	state.current_energy = data.get("current_energy", 0)
 	state.active_ability_slot = data.get("active_ability_slot", 1)

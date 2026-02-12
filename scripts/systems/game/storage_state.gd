@@ -77,6 +77,17 @@ func get_box_count() -> int:
 	return boxes.size()
 
 
+## Return the number of occupied slots in a specific box.
+func get_box_occupied_count(box_index: int) -> int:
+	if box_index < 0 or box_index >= boxes.size():
+		return 0
+	var count: int = 0
+	for slot: Variant in boxes[box_index]["slots"]:
+		if slot != null:
+			count += 1
+	return count
+
+
 ## Return the total number of stored Digimon across all boxes.
 func get_total_stored() -> int:
 	var count: int = 0

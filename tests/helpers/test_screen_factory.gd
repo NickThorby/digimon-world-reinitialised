@@ -75,6 +75,21 @@ static func create_test_shop() -> ShopData:
 	return shop
 
 
+## Create a test ShopData with priced items for buy/sell testing.
+static func create_test_priced_shop() -> ShopData:
+	var shop := ShopData.new()
+	shop.key = &"test_priced_shop"
+	shop.name = "Test Priced Shop"
+	shop.stock = [
+		{"item_key": &"test_potion", "price": 100, "quantity": -1},
+		{"item_key": &"test_super_potion", "price": 300, "quantity": -1},
+		{"item_key": &"test_energy_drink", "price": 200, "quantity": 5},
+	]
+	shop.buy_multiplier = 1.0
+	shop.sell_multiplier = 0.5
+	return shop
+
+
 ## Inject screen test data into Atlas. Delegates to TestBattleFactory.
 static func inject_screen_test_data() -> void:
 	TestBattleFactory.inject_all_test_data()

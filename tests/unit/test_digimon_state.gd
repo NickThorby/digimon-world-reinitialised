@@ -126,3 +126,67 @@ func test_helper_assigns_ids() -> void:
 		"display_id should be 8 characters")
 	assert_eq(str(state.secret_id).length(), 8,
 		"secret_id should be 8 characters")
+
+
+# --- Hyper trained IVs ---
+
+
+func test_get_final_iv_combines_base_and_hyper() -> void:
+	var state: DigimonState = TestBattleFactory.make_digimon_state(&"test_agumon")
+	state.ivs[&"attack"] = 30
+	state.hyper_trained_ivs[&"attack"] = 15
+	assert_eq(state.get_final_iv(&"attack"), 45,
+		"Final IV should combine base IV + hyper IV")
+
+
+func test_get_final_iv_capped_at_max() -> void:
+	var state: DigimonState = TestBattleFactory.make_digimon_state(&"test_agumon")
+	state.ivs[&"attack"] = 40
+	state.hyper_trained_ivs[&"attack"] = 20
+	assert_eq(state.get_final_iv(&"attack"), 50,
+		"Final IV should be capped at max_iv (50), not 60")
+
+
+func test_get_final_iv_no_hyper() -> void:
+	var state: DigimonState = TestBattleFactory.make_digimon_state(&"test_agumon")
+	state.ivs[&"speed"] = 25
+	assert_eq(state.get_final_iv(&"speed"), 25,
+		"Final IV with no hyper training should equal base IV")
+
+
+func test_get_total_tvs_sums_all() -> void:
+	var state: DigimonState = TestBattleFactory.make_digimon_state(&"test_agumon")
+	state.tvs = {
+		&"hp": 100, &"energy": 50, &"attack": 200,
+		&"defence": 0, &"special_attack": 0,
+		&"special_defence": 150, &"speed": 0,
+	}
+	assert_eq(state.get_total_tvs(), 500,
+		"get_total_tvs should sum all TV values")
+
+
+func test_get_total_tvs_empty() -> void:
+	var state: DigimonState = TestBattleFactory.make_digimon_state(&"test_agumon")
+	assert_eq(state.get_total_tvs(), 0,
+		"get_total_tvs should return 0 when all TVs are 0")
+
+
+func test_hyper_trained_ivs_serialisation() -> void:
+	var state: DigimonState = TestBattleFactory.make_digimon_state(&"test_agumon")
+	state.hyper_trained_ivs = {&"attack": 10, &"speed": 5}
+	var data: Dictionary = state.to_dict()
+	var restored: DigimonState = DigimonState.from_dict(data)
+	assert_eq(restored.hyper_trained_ivs.get(&"attack", 0), 10,
+		"hyper_trained_ivs[attack] should persist through serialisation")
+	assert_eq(restored.hyper_trained_ivs.get(&"speed", 0), 5,
+		"hyper_trained_ivs[speed] should persist through serialisation")
+
+
+func test_hyper_trained_ivs_backward_compat() -> void:
+	var data: Dictionary = {
+		"key": "test_agumon",
+		"level": 10,
+	}
+	var state: DigimonState = DigimonState.from_dict(data)
+	assert_eq(state.hyper_trained_ivs.size(), 0,
+		"Missing hyper_trained_ivs should default to empty dict")

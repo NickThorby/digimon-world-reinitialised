@@ -1,0 +1,138 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/screens/storage_screen.gd" id="1"]
+[ext_resource type="Theme" path="res://ui/theme/game_theme.tres" id="2"]
+
+[node name="StorageScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.035, 0.035, 0.043, 1)
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme = ExtResource("2")
+theme_override_constants/margin_left = 40
+theme_override_constants/margin_top = 30
+theme_override_constants/margin_right = 40
+theme_override_constants/margin_bottom = 30
+
+[node name="VBox" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+
+[node name="HeaderBar" type="HBoxContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="BackButton" type="Button" parent="MarginContainer/VBox/HeaderBar"]
+layout_mode = 2
+text = "< Back"
+
+[node name="HeaderSpacer" type="Control" parent="MarginContainer/VBox/HeaderBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="TitleLabel" type="Label" parent="MarginContainer/VBox/HeaderBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.024, 0.714, 0.831, 1)
+theme_override_font_sizes/font_size = 24
+text = "Storage"
+horizontal_alignment = 1
+
+[node name="HeaderSpacer2" type="Control" parent="MarginContainer/VBox/HeaderBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HSeparator" type="HSeparator" parent="MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="Spacer" type="Control" parent="MarginContainer/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 8)
+
+[node name="ContentHBox" type="HBoxContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="PartyPanel" type="VBoxContainer" parent="MarginContainer/VBox/ContentHBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(300, 0)
+theme_override_constants/separation = 8
+
+[node name="PartyHeader" type="Label" parent="MarginContainer/VBox/ContentHBox/PartyPanel"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.024, 0.714, 0.831, 1)
+theme_override_font_sizes/font_size = 18
+text = "Party (0/6)"
+
+[node name="PartyScroll" type="ScrollContainer" parent="MarginContainer/VBox/ContentHBox/PartyPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="PartyList" type="VBoxContainer" parent="MarginContainer/VBox/ContentHBox/PartyPanel/PartyScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="BoxPanel" type="VBoxContainer" parent="MarginContainer/VBox/ContentHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BoxHeader" type="HBoxContainer" parent="MarginContainer/VBox/ContentHBox/BoxPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PrevBoxButton" type="Button" parent="MarginContainer/VBox/ContentHBox/BoxPanel/BoxHeader"]
+layout_mode = 2
+custom_minimum_size = Vector2(36, 36)
+text = "<"
+
+[node name="BoxNameLabel" type="Label" parent="MarginContainer/VBox/ContentHBox/BoxPanel/BoxHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+text = "Box 1 (0/50)"
+
+[node name="NextBoxButton" type="Button" parent="MarginContainer/VBox/ContentHBox/BoxPanel/BoxHeader"]
+layout_mode = 2
+custom_minimum_size = Vector2(36, 36)
+text = ">"
+
+[node name="BoxScroll" type="ScrollContainer" parent="MarginContainer/VBox/ContentHBox/BoxPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="BoxGrid" type="GridContainer" parent="MarginContainer/VBox/ContentHBox/BoxPanel/BoxScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+columns = 10
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 4
+
+[node name="BottomBar" type="HBoxContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="AddButton" type="Button" parent="MarginContainer/VBox/BottomBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(160, 40)
+text = "Add Digimon"
+
+[node name="StatusLabel" type="Label" parent="MarginContainer/VBox/BottomBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.443, 0.443, 0.478, 1)
+theme_override_font_sizes/font_size = 14
+text = ""

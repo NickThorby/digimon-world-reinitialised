@@ -8,6 +8,9 @@ const SETTINGS_PATH := "res://ui/menus/settings_screen.tscn"
 const MAIN_MENU_PATH := "res://scenes/main/main.tscn"
 const PARTY_SCREEN_PATH := "res://scenes/screens/party_screen.tscn"
 const BAG_SCREEN_PATH := "res://scenes/screens/bag_screen.tscn"
+const STORAGE_SCREEN_PATH := "res://scenes/screens/storage_screen.tscn"
+const SHOP_SCREEN_PATH := "res://scenes/screens/shop_screen.tscn"
+const TRAINING_SCREEN_PATH := "res://scenes/screens/training_screen.tscn"
 
 var _mode: Registry.GameMode = Registry.GameMode.TEST
 
@@ -93,24 +96,20 @@ func _configure_buttons() -> void:
 	_shop_button.visible = is_test
 	_training_button.visible = is_test
 
-	# Enabled: Party, Bag, Save, Battle, Settings
-	# Disabled: Storage, Wild Battle, Shop, Training
-	_storage_button.disabled = true
-	_storage_button.tooltip_text = coming_soon
+	# Disabled: Wild Battle (still coming soon)
 	_wild_battle_button.disabled = true
 	_wild_battle_button.tooltip_text = coming_soon
-	_shop_button.disabled = true
-	_shop_button.tooltip_text = coming_soon
-	_training_button.disabled = true
-	_training_button.tooltip_text = coming_soon
 
 
 func _connect_signals() -> void:
 	_back_button.pressed.connect(_on_back_pressed)
 	_party_button.pressed.connect(_on_party_pressed)
 	_bag_button.pressed.connect(_on_bag_pressed)
+	_storage_button.pressed.connect(_on_storage_pressed)
 	_save_button.pressed.connect(_on_save_pressed)
 	_battle_button.pressed.connect(_on_battle_pressed)
+	_shop_button.pressed.connect(_on_shop_pressed)
+	_training_button.pressed.connect(_on_training_pressed)
 	_settings_button.pressed.connect(_on_settings_pressed)
 
 
@@ -128,6 +127,35 @@ func _on_bag_pressed() -> void:
 		"return_scene": MODE_SCREEN_PATH,
 	}
 	SceneManager.change_scene(BAG_SCREEN_PATH)
+
+
+func _on_storage_pressed() -> void:
+	var is_test: bool = _mode == Registry.GameMode.TEST
+	Game.screen_context = {
+		"mode": _mode,
+		"free_mode": is_test,
+		"return_scene": MODE_SCREEN_PATH,
+	}
+	SceneManager.change_scene(STORAGE_SCREEN_PATH)
+
+
+func _on_shop_pressed() -> void:
+	Game.screen_context = {
+		"shop_key": &"test_shop",
+		"mode": _mode,
+		"return_scene": MODE_SCREEN_PATH,
+	}
+	SceneManager.change_scene(SHOP_SCREEN_PATH)
+
+
+func _on_training_pressed() -> void:
+	Game.screen_context = {
+		"mode": _mode,
+		"party_index": -1,
+		"return_scene": MODE_SCREEN_PATH,
+		"hyper_unlocked": false,
+	}
+	SceneManager.change_scene(TRAINING_SCREEN_PATH)
 
 
 func _on_save_pressed() -> void:

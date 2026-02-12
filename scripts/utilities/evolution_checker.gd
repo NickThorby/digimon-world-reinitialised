@@ -165,6 +165,6 @@ static func _get_calculated_stat(
 	if base_field == &"" or stat_key == &"":
 		return 0
 	var base: int = data.get(base_field) as int
-	var iv: int = digimon.ivs.get(stat_key, 0)
+	var iv: int = digimon.get_final_iv(stat_key)
 	var tv: int = digimon.tvs.get(stat_key, 0)
 	return StatCalculator.calculate_stat(base, iv, tv, digimon.level)

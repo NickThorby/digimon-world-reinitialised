@@ -17,6 +17,7 @@ static func inject_all_test_data() -> void:
 	_inject_techniques()
 	_inject_abilities()
 	_inject_items()
+	_inject_evolutions()
 
 
 ## Remove all test data (keys starting with "test_") from Atlas.
@@ -28,6 +29,7 @@ static func clear_test_data() -> void:
 	_clear_dict(Atlas.items)
 	_clear_dict(Atlas.tamers)
 	_clear_dict(Atlas.shops)
+	_clear_dict(Atlas.evolutions)
 
 
 static func _clear_dict(dict: Dictionary) -> void:
@@ -1710,6 +1712,53 @@ static func _inject_items() -> void:
 	Atlas.items[&"test_scanner"] = _make_capture_item(
 		&"test_scanner", "Test Scanner",
 	)
+
+
+# --- Evolution data ---
+
+
+static func _inject_evolutions() -> void:
+	# test_agumon evolves to test_tank (standard, level 20)
+	Atlas.evolutions[&"test_evo_agumon_tank"] = _make_evolution(
+		&"test_evo_agumon_tank", &"test_agumon", &"test_tank",
+		Registry.EvolutionType.STANDARD,
+		[{"type": "level", "level": 20}],
+	)
+	# test_agumon evolves to test_sweeper (standard, level 30 + stat)
+	Atlas.evolutions[&"test_evo_agumon_sweeper"] = _make_evolution(
+		&"test_evo_agumon_sweeper", &"test_agumon", &"test_sweeper",
+		Registry.EvolutionType.STANDARD,
+		[{"type": "level", "level": 30}, {"type": "stat", "stat": "atk", "operator": ">=", "value": 100}],
+	)
+	# test_gabumon evolves to test_wall (standard, level 20)
+	Atlas.evolutions[&"test_evo_gabumon_wall"] = _make_evolution(
+		&"test_evo_gabumon_wall", &"test_gabumon", &"test_wall",
+		Registry.EvolutionType.STANDARD,
+		[{"type": "level", "level": 20}],
+	)
+	# test_patamon evolves to test_speedster (spirit, requires spirit item)
+	Atlas.evolutions[&"test_evo_patamon_speedster"] = _make_evolution(
+		&"test_evo_patamon_speedster", &"test_patamon", &"test_speedster",
+		Registry.EvolutionType.SPIRIT,
+		[{"type": "spirit", "spirit": "test_spirit_item"}],
+	)
+
+
+static func _make_evolution(
+	key: StringName,
+	from_key: StringName,
+	to_key: StringName,
+	evo_type: Registry.EvolutionType,
+	requirements: Array,
+) -> EvolutionLinkData:
+	var link := EvolutionLinkData.new()
+	link.key = key
+	link.from_key = from_key
+	link.to_key = to_key
+	link.evolution_type = evo_type
+	for req: Variant in requirements:
+		link.requirements.append(req as Dictionary)
+	return link
 
 
 static func _make_medicine(

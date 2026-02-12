@@ -168,9 +168,14 @@ static func _apply_out_of_battle_effect(
 				"res://data/config/game_balance.tres"
 			) as GameBalance
 			var max_tv: int = balance.max_tv if balance else 500
+			var max_total: int = balance.max_total_tvs if balance else 1000
 			var stat_key: StringName = parsed.stat_key
 			var current: int = digimon.tvs.get(stat_key, 0) as int
-			digimon.tvs[stat_key] = mini(current + parsed.amount, max_tv)
+			var current_total: int = digimon.get_total_tvs()
+			var headroom: int = maxi(max_total - current_total, 0)
+			digimon.tvs[stat_key] = mini(
+				current + parsed.amount, mini(max_tv, current + headroom)
+			)
 			return true
 		"removeTv":
 			var parsed: Dictionary = _parse_stat_value(value)

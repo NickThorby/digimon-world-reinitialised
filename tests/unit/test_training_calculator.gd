@@ -119,3 +119,71 @@ func test_all_pass_max_tv() -> void:
 			break
 	assert_true(found_all_pass,
 		"Should find a seed where all 3 basic steps pass within 100 tries")
+
+
+# --- Hyper training cost / rate lookups ---
+
+
+func test_get_hyper_tp_cost_basic() -> void:
+	assert_eq(TrainingCalculator.get_hyper_tp_cost("basic"), 10,
+		"Basic hyper course should cost 1 * 10 = 10 TP")
+
+
+func test_get_hyper_tp_cost_intermediate() -> void:
+	assert_eq(TrainingCalculator.get_hyper_tp_cost("intermediate"), 30,
+		"Intermediate hyper course should cost 3 * 10 = 30 TP")
+
+
+func test_get_hyper_tp_cost_advanced() -> void:
+	assert_eq(TrainingCalculator.get_hyper_tp_cost("advanced"), 50,
+		"Advanced hyper course should cost 5 * 10 = 50 TP")
+
+
+func test_get_hyper_iv_per_step_basic() -> void:
+	assert_eq(TrainingCalculator.get_hyper_iv_per_step("basic"), 1,
+		"Basic hyper course should give 1 IV per step")
+
+
+func test_get_hyper_iv_per_step_advanced() -> void:
+	assert_eq(TrainingCalculator.get_hyper_iv_per_step("advanced"), 3,
+		"Advanced hyper course should give 3 IV per step")
+
+
+func test_get_hyper_pass_rate_basic() -> void:
+	assert_almost_eq(TrainingCalculator.get_hyper_pass_rate("basic"), 0.9, 0.001,
+		"Basic hyper course should have 0.9 pass rate")
+
+
+# --- run_hyper_course() ---
+
+
+func test_run_hyper_course_returns_three_steps() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 12345
+	var result: Dictionary = TrainingCalculator.run_hyper_course("basic", rng)
+	var steps: Array = result["steps"]
+	assert_eq(steps.size(), 3,
+		"Hyper course should have exactly 3 steps")
+
+
+func test_run_hyper_course_iv_gained_matches_passed_steps() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 12345
+	var result: Dictionary = TrainingCalculator.run_hyper_course("basic", rng)
+	var steps: Array = result["steps"]
+	var expected_iv: int = 0
+	for step: Variant in steps:
+		if step as bool:
+			expected_iv += 1  # basic iv_per_step = 1
+	assert_eq(int(result["iv_gained"]), expected_iv,
+		"IV gained should equal passed_steps * iv_per_step")
+
+
+func test_run_hyper_course_unknown_difficulty_empty() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 12345
+	var result: Dictionary = TrainingCalculator.run_hyper_course("nonexistent", rng)
+	assert_eq(result["steps"].size(), 0,
+		"Unknown difficulty should return empty steps")
+	assert_eq(int(result["iv_gained"]), 0,
+		"Unknown difficulty should return 0 IV")
