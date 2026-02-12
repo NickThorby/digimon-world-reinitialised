@@ -190,10 +190,10 @@
 | Key | Type | Required | Description |
 |---|---|---|---|
 | `brick` | `"healing"` | Yes | Discriminator |
-| `type` | `String` | Yes | `percentage`, `fixed`, `drain`, `weather`, `status`, `energyFixed`, `energyPercentage` |
-| `percent` | `float` | No | % of max HP |
-| `amount` | `int` | No | Fixed HP |
-| `target` | `String` | No | BrickTarget (default `self`) |
+| `type` | `String` | Yes | `fixed`, `percentage`, `drain`, `weather`, `status`, `revive`, `full_restore` |
+| `percent` | `float` | No | % of max HP/energy |
+| `amount` | `int` | No | Fixed HP/energy amount |
+| `target` | `String` | No | `"energy"` to heal energy instead of HP. Omit or `""` for HP (default). In battle context, also accepts BrickTarget values |
 | `weather` | `String` | No | Weather modifying heal |
 | `terrain` | `String` | No | Terrain modifying heal |
 | `cureStatus` | `String`/`Array` | No | Status(es) to cure |
