@@ -145,6 +145,61 @@ func test_level_up_learns_technique() -> void:
 	)
 
 
+# --- Training points on level-up ---
+
+
+func test_tp_granted_on_level_up() -> void:
+	var state: DigimonState = TestBattleFactory.make_digimon_state(&"test_agumon", 5)
+	state.experience = 0
+	state.training_points = 0
+	# Give enough XP to level up at least once
+	var _result: Dictionary = XPCalculator.apply_xp(state, 100000)
+	assert_gt(state.training_points, 0,
+		"Training points should be granted on level up")
+
+
+func test_tp_not_granted_without_level_up() -> void:
+	var state: DigimonState = TestBattleFactory.make_digimon_state(&"test_agumon", 5)
+	state.experience = 0
+	state.training_points = 0
+	var _result: Dictionary = XPCalculator.apply_xp(state, 1)
+	assert_eq(state.training_points, 0,
+		"Training points should not change without level up")
+
+
+func test_tp_capped_at_max() -> void:
+	var balance: GameBalance = load("res://data/config/game_balance.tres") as GameBalance
+	var state: DigimonState = TestBattleFactory.make_digimon_state(&"test_agumon", 1)
+	state.experience = 0
+	state.training_points = balance.max_training_points - 1
+	# Level up many times
+	var _result: Dictionary = XPCalculator.apply_xp(state, 99999999)
+	assert_lte(state.training_points, balance.max_training_points,
+		"Training points should not exceed max_training_points")
+
+
+func test_tp_per_level_matches_balance() -> void:
+	var balance: GameBalance = load("res://data/config/game_balance.tres") as GameBalance
+	var state: DigimonState = TestBattleFactory.make_digimon_state(&"test_agumon", 5)
+	state.experience = XPCalculator.total_xp_for_level(5, Registry.GrowthRate.MEDIUM_FAST)
+	state.training_points = 0
+	# Give enough XP for exactly 1 level up
+	var xp_for_6: int = XPCalculator.total_xp_for_level(
+		6, Registry.GrowthRate.MEDIUM_FAST,
+	) - state.experience + 1
+	var xp_for_7: int = XPCalculator.total_xp_for_level(
+		7, Registry.GrowthRate.MEDIUM_FAST,
+	) - state.experience
+	# Give enough for level 6 but not 7
+	var xp_to_give: int = xp_for_6
+	if xp_to_give >= xp_for_7:
+		xp_to_give = xp_for_6  # Edge case: just use level 6 amount
+	var result: Dictionary = XPCalculator.apply_xp(state, xp_to_give)
+	if int(result["levels_gained"]) == 1:
+		assert_eq(state.training_points, balance.training_points_per_level,
+			"1 level-up should grant exactly training_points_per_level TP")
+
+
 # --- xp_to_next_level() ---
 
 

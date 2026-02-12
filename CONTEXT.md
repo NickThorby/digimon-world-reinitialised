@@ -98,6 +98,7 @@ Each `technique_entries` element: `{ "key": StringName, "requirements": Array[Di
 | `active_ability_slot`    | `int`               | Which slot is active (1, 2, or 3)   |
 | `equipped_gear_key`      | `StringName`        | Equipable gear                      |
 | `equipped_consumable_key`| `StringName`        | Consumable gear                     |
+| `training_points`        | `int`               | Training points for stat training  |
 | `scan_data`              | `float`             | Scan progress (0.0-1.0)            |
 
 ### Stat Formula
@@ -229,6 +230,8 @@ Requirements are dictionaries with a `type` field:
 - `digimental` — requires a specific digimental
 - `x_antibody` — requires X-Antibody item
 - `description` — freeform text requirement (for manual/story gates)
+
+Requirements are checked at runtime by `EvolutionChecker` (see Utility Classes section).
 
 ---
 
@@ -726,7 +729,7 @@ Player display preferences, persisted to `user://settings.cfg`:
 
 Central enum registry containing all game enums and constants:
 
-**Enums**: Attribute, Element, Stat, EvolutionLevel, TechniqueClass, Targeting, Priority, BrickType, TechniqueFlag, AbilityTrigger, StackLimit, StatusCondition, StatusCategory, BattleStat, BrickTarget, BattleCounter, EvolutionType, ItemCategory, GearSlot
+**Enums**: Attribute, Element, Stat, GameMode, EvolutionLevel, TechniqueClass, Targeting, Priority, BrickType, TechniqueFlag, AbilityTrigger, StackLimit, StatusCondition, StatusCategory, BattleStat, BrickTarget, BattleCounter, EvolutionType, ItemCategory, GearSlot, GrowthRate
 
 **Constants**:
 - `STAT_STAGE_MULTIPLIERS`: Dictionary mapping stage (-6 to +6) to multiplier
@@ -742,7 +745,7 @@ Each enum has a corresponding `_labels` dictionary using `tr()` for localisation
 ### Atlas (`autoload/atlas.gd`)
 
 Data resource loader with typed dictionaries:
-- `digimon`, `techniques`, `abilities`, `evolutions`, `elements`, `items`, `status_effects`, `personalities`
+- `digimon`, `techniques`, `abilities`, `evolutions`, `elements`, `items`, `status_effects`, `personalities`, `tamers`, `shops`
 - Loads all `.tres` files from `data/` folders on `_ready()`
 - Resources keyed by their `key` field
 
@@ -750,9 +753,12 @@ Data resource loader with typed dictionaries:
 
 Game lifecycle manager:
 - `state: GameState` — current game state (null if no game)
+- `game_mode: Registry.GameMode` — current mode (TEST or STORY)
+- `screen_context: Dictionary` — context passed to the current screen
+- `screen_result: Variant` — result from the current screen (null on cancel)
 - `new_game()` — creates fresh GameState
-- `load_game(slot)` — loads from save file
-- `save_game(slot)` — saves current state
+- `load_game(slot)` — loads from save file (passes `game_mode` to SaveManager)
+- `save_game(slot)` — saves current state (passes `game_mode` to SaveManager)
 - `return_to_menu()` — clears state, returns to main menu
 
 ### SceneManager (`autoload/scene_manager.gd`)
@@ -812,12 +818,17 @@ Translation CSV files live in `data/locale/`. All user-facing text uses `tr()` f
 
 ```
 GameState (root)
+├── tamer_name: String
+├── tamer_id: StringName
+├── play_time: int
 ├── party: PartyState
 │   └── members: Array[DigimonState]
-├── storage: Array[DigimonState]
+├── storage: StorageState
+│   └── boxes: Array[Dictionary]  (100 boxes × 50 slots each)
+│       └── { "name": String, "slots": Array[DigimonState | null] }
 ├── inventory: InventoryState
 │   ├── items: Dictionary[StringName, int]
-│   └── money: int
+│   └── bits: int
 ├── story_flags: Dictionary
 └── scan_log: Dictionary[StringName, float]
 ```
@@ -832,16 +843,34 @@ GameState (root)
 
 ### SaveManager
 
+Mode-based save directories — saves are segregated by game mode:
+
 ```gdscript
-SaveManager.save_game(state, "slot1")        # JSON (dev)
-SaveManager.save_game(state, "slot1", true)   # Binary (production)
-SaveManager.load_game("slot1")                # Auto-detects format
-SaveManager.save_exists("slot1")
-SaveManager.delete_save("slot1")
-SaveManager.get_save_slots()
+# All methods accept a mode parameter (defaults to TEST)
+SaveManager.save_game(state, "slot1", mode)              # JSON (dev)
+SaveManager.save_game(state, "slot1", mode, true)        # Binary (production)
+SaveManager.load_game("slot1", mode)                     # Auto-detects format
+SaveManager.save_exists("slot1", mode)
+SaveManager.delete_save("slot1", mode)
+SaveManager.get_save_slots(mode)
+SaveManager.get_save_metadata("slot1", mode)             # Read metadata only
+SaveManager.get_save_dir(mode)                           # Returns directory path
 ```
 
-Save files stored in `user://saves/` with `.json` (dev) or `.sav` (binary) extension.
+Save directories: `user://saves/test/` (TEST mode), `user://saves/story/` (STORY mode).
+
+Save files use a metadata envelope format:
+```json
+{
+  "meta": {
+    "tamer_name": "...", "play_time": 0, "saved_at": 0,
+    "party_keys": [...], "party_levels": [...], "mode": 0
+  },
+  "state": { ... }  // GameState.to_dict()
+}
+```
+
+Backward-compatible: `_load_json`/`_load_binary` handle both envelope and flat (legacy) formats.
 
 ### Serialisation Pattern
 
@@ -1006,6 +1035,8 @@ Configuration is in `.gutconfig.json` pointing to `res://tests/`.
 
 All test keys are prefixed with `test_` and cleaned up via `clear_test_data()`.
 
+`TestScreenFactory` (`tests/helpers/test_screen_factory.gd`) provides screen-specific test data: `create_test_game_state()`, `create_test_party()`, `create_test_inventory()`, `create_test_storage()`, `create_test_shop()`. Delegates Atlas injection/cleanup to TestBattleFactory.
+
 ### Test Data Isolation
 
 Tests **never** use imported dex data. This ensures tests remain stable regardless of balance changes to real game data. `inject_all_test_data()` runs in `before_all()`, `clear_test_data()` in `after_all()`.
@@ -1020,27 +1051,31 @@ All battles use a fixed seed (default `12345`) passed to `BattleFactory.create_b
 tests/
   helpers/
     test_battle_factory.gd   # Synthetic test data + battle creation helpers
-  unit/                       # Pure function tests (no engine dependency)
+    test_screen_factory.gd   # Screen test data helpers (delegates to TestBattleFactory)
+  unit/                       # Non-battle unit tests
     test_stat_calculator.gd
-    test_damage_calculator.gd
-    test_action_sorter.gd
-    test_xp_calculator.gd
-    test_battle_digimon_state.gd
-    test_brick_executor.gd
-    test_field_state.gd
-    test_side_state.gd
-    test_bag_state.gd
-  integration/                # Engine + signals + full turn loop
-    test_battle_engine_core.gd
-    test_technique_execution.gd
-    test_status_conditions.gd
-    test_energy_system.gd
-    test_switching.gd
-    test_ability_system.gd
-    test_battle_end.gd
-    test_doubles_2v2.gd
-    test_battle_ai.gd
-    test_item_system.gd
+    test_digimon_state.gd
+    test_storage_state.gd
+    test_inventory_state.gd
+    test_training_calculator.gd
+    test_evolution_checker.gd
+  battle/
+    unit/                     # Battle-specific unit tests
+      test_damage_calculator.gd
+      test_action_sorter.gd
+      test_xp_calculator.gd
+      test_battle_digimon_state.gd
+      test_brick_executor.gd
+      test_field_state.gd
+      test_side_state.gd
+      test_bag_state.gd
+      ... (25 test files)
+    integration/              # Engine + signals + full turn loop
+      test_battle_engine_core.gd
+      test_technique_execution.gd
+      test_status_conditions.gd
+      ... (18 test files)
+  screens/                    # Screen tests (future)
 ```
 
 ### Signal Verification
@@ -1102,6 +1137,73 @@ When a Digimon learns a new technique at level-up and already has `max_equipped_
 
 ---
 
+## Tamer System
+
+### TamerData Resource
+
+Immutable template defining an NPC tamer (`data/tamer/tamer_data.gd`):
+
+| Field | Type | Description |
+|---|---|---|
+| `key` | `StringName` | Unique identifier |
+| `name` | `String` | Display name |
+| `title` | `String` | Title (e.g. "Gym Leader") |
+| `party_config` | `Array[Dictionary]` | Party build config per Digimon |
+| `item_keys` | `Array[StringName]` | Items for battle use |
+| `ai_type` | `StringName` | AI behaviour key |
+| `sprite_key` | `StringName` | Overworld/battle sprite |
+| `battle_dialogue` | `Dictionary` | intro/win/lose dialogue |
+| `reward_bits` | `int` | Currency reward on defeat |
+| `reward_items` | `Array[Dictionary]` | Item rewards on defeat |
+
+### TamerState Runtime
+
+Built from `TamerData` via `TamerState.from_tamer_data(data)`:
+- Creates party via `DigimonFactory.create_digimon()` for each `party_config` entry
+- Applies overrides: `ability_slot`, `technique_keys`, `gear_key`, `consumable_key`
+- `to_battle_side_config()` returns a Dictionary suitable for `BattleConfig.side_configs`
+
+### ShopData Resource
+
+Immutable shop template (`data/shop/shop_data.gd`):
+
+| Field | Type | Description |
+|---|---|---|
+| `key` | `StringName` | Unique identifier |
+| `name` | `String` | Display name |
+| `stock` | `Array[Dictionary]` | `{ item_key, price, quantity }` (-1 = unlimited) |
+| `buy_multiplier` | `float` | Price multiplier for buying (1.0 = base) |
+| `sell_multiplier` | `float` | Price multiplier for selling (0.5 = half) |
+
+---
+
+## Utility Classes
+
+### TrainingCalculator (`scripts/utilities/training_calculator.gd`)
+
+Pure static utility for Digimon stat training courses. Reads course config from `GameBalance.training_courses`.
+
+- `run_course(difficulty, rng)` → `{ "steps": Array[bool], "tv_gained": int }` — 3 steps per course, each pass/fail based on `pass_rate`
+- `get_tp_cost(difficulty)`, `get_tv_per_step(difficulty)`, `get_pass_rate(difficulty)` — lookup helpers
+
+Training course tiers (from GameBalance):
+| Difficulty | TP Cost | TV/Step | Pass Rate |
+|---|---|---|---|
+| basic | 1 | 2 | 90% |
+| intermediate | 3 | 5 | 60% |
+| advanced | 5 | 10 | 30% |
+
+### EvolutionChecker (`scripts/utilities/evolution_checker.gd`)
+
+Pure static utility for checking evolution requirements against a DigimonState and inventory.
+
+- `check_requirements(link, digimon, inventory)` → `Array[Dictionary]` with `{ type, description, met }`
+- `can_evolve(link, digimon, inventory)` → `bool` (true only if all requirements met)
+- Handles all 7 requirement types: `level`, `stat`, `stat_highest_of`, `spirit`, `digimental`, `x_antibody`, `description` (always unmet)
+- Uses `StatCalculator.calculate_stat()` for computed stat comparisons
+
+---
+
 ## Important Technical Notes
 
 - **Godot Version**: 4.6 (GDScript only, no C#)
@@ -1115,4 +1217,4 @@ When a Digimon learns a new technique at level-up and already has `max_equipped_
 
 ---
 
-*Last Updated: 2026-02-09*
+*Last Updated: 2026-02-12*

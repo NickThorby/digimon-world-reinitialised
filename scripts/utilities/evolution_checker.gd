@@ -42,7 +42,7 @@ static func check_requirements(
 				var needed: int = int(req.get("level", 1))
 				results.append({
 					"type": "level",
-					"description": tr("Level %d") % needed,
+					"description": "Level %d" % needed,
 					"met": digimon.level >= needed,
 				})
 			"stat":
@@ -73,7 +73,7 @@ static func check_requirements(
 				var owned: int = inventory.items.get(x_key, 0)
 				results.append({
 					"type": "x_antibody",
-					"description": tr("X-Antibody x%d") % needed,
+					"description": "X-Antibody x%d" % needed,
 					"met": owned >= needed,
 				})
 			"description":

@@ -36,7 +36,7 @@ func new_game() -> void:
 ## Load a game from a save slot.
 ## Returns true on success.
 func load_game(slot_name: String) -> bool:
-	var loaded_state := SaveManager.load_game(slot_name)
+	var loaded_state := SaveManager.load_game(slot_name, game_mode)
 	if loaded_state == null:
 		push_error("Game: Failed to load save: %s" % slot_name)
 		return false
@@ -53,7 +53,7 @@ func save_game(slot_name: String) -> bool:
 		push_error("Game: No active game state to save")
 		return false
 
-	return SaveManager.save_game(state, slot_name)
+	return SaveManager.save_game(state, slot_name, game_mode)
 
 
 ## Return to main menu (clears current state).

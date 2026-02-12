@@ -66,6 +66,35 @@ func test_tamer_fields_default_empty() -> void:
 		"original_tamer_id should default to empty StringName")
 
 
+# --- Training points ---
+
+
+func test_training_points_default_zero() -> void:
+	var state: DigimonState = TestBattleFactory.make_digimon_state(&"test_agumon")
+	assert_eq(state.training_points, 0,
+		"training_points should default to 0")
+
+
+func test_training_points_serialisation_round_trip() -> void:
+	var state: DigimonState = TestBattleFactory.make_digimon_state(&"test_agumon")
+	state.training_points = 42
+	var data: Dictionary = state.to_dict()
+	var restored: DigimonState = DigimonState.from_dict(data)
+	assert_eq(restored.training_points, 42,
+		"training_points should persist through serialisation")
+
+
+func test_training_points_backward_compat() -> void:
+	# Old save data without training_points
+	var data: Dictionary = {
+		"key": "test_agumon",
+		"level": 10,
+	}
+	var state: DigimonState = DigimonState.from_dict(data)
+	assert_eq(state.training_points, 0,
+		"Missing training_points in save data should default to 0")
+
+
 # --- unique_id ---
 
 
