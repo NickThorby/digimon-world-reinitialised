@@ -90,3 +90,26 @@ extends Resource
 # --- Level ---
 
 @export var max_level: int = 100
+
+# --- Training ---
+
+## Training points granted per level-up.
+@export var training_points_per_level: int = 5
+## Maximum training points a Digimon can accumulate.
+@export var max_training_points: int = 999
+## Training course tiers: Array of { "difficulty": String, "tp_cost": int,
+## "tv_per_step": int, "pass_rate": float }.
+@export var training_courses: Array[Dictionary] = [
+	{"difficulty": "basic", "tp_cost": 1, "tv_per_step": 2, "pass_rate": 0.9},
+	{"difficulty": "intermediate", "tp_cost": 3, "tv_per_step": 5, "pass_rate": 0.6},
+	{"difficulty": "advanced", "tp_cost": 5, "tv_per_step": 10, "pass_rate": 0.3},
+]
+
+# --- Storage ---
+
+@export var storage_box_count: int = 100
+@export var storage_slots_per_box: int = 50
+
+# --- Save ---
+
+@export var save_slot_count: int = 3

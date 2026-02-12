@@ -34,6 +34,9 @@ var active_ability_slot: int = 1
 var equipped_gear_key: StringName = &""
 var equipped_consumable_key: StringName = &""
 
+## Training points available for stat training.
+var training_points: int = 0
+
 ## Scan data percentage (0.0-1.0, for wild Digimon scanning progress).
 var scan_data: float = 0.0
 
@@ -66,6 +69,7 @@ func to_dict() -> Dictionary:
 		"active_ability_slot": active_ability_slot,
 		"equipped_gear_key": equipped_gear_key,
 		"equipped_consumable_key": equipped_consumable_key,
+		"training_points": training_points,
 		"scan_data": scan_data,
 		"status_conditions": status_conditions.duplicate(true),
 	}
@@ -96,6 +100,7 @@ static func from_dict(data: Dictionary) -> DigimonState:
 	state.active_ability_slot = data.get("active_ability_slot", 1)
 	state.equipped_gear_key = StringName(data.get("equipped_gear_key", ""))
 	state.equipped_consumable_key = StringName(data.get("equipped_consumable_key", ""))
+	state.training_points = data.get("training_points", 0)
 	state.scan_data = data.get("scan_data", 0.0)
 
 	for technique_key: String in data.get("known_technique_keys", []):

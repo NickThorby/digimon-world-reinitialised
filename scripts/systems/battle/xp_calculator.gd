@@ -227,6 +227,12 @@ static func apply_xp(state: DigimonState, xp: int) -> Dictionary:
 		state.level += 1
 		levels_gained += 1
 
+		# Grant training points
+		state.training_points = mini(
+			state.training_points + balance.training_points_per_level,
+			balance.max_training_points,
+		)
+
 		# Check for new techniques at this level
 		var learnable: Array[StringName] = data.get_technique_keys_at_level(state.level)
 		for tech_key: StringName in learnable:
