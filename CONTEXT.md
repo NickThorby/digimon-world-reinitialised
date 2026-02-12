@@ -1210,10 +1210,13 @@ Pure static utility for checking evolution requirements against a DigimonState a
 
 ```
 Title Screen → Save Screen (select) → Mode Screen (hub)
+                                         ├→ Party Screen → context menu → Summary Screen → Party Screen
+                                         │               → context menu → Bag Screen (select) → Party Screen
+                                         ├→ Bag Screen → Use → Party Screen (select) → Bag Screen (medicine applied)
                                          ├→ Battle Builder → Battle → Battle Builder → Mode Screen
                                          ├→ Save Screen (save) → Mode Screen
                                          ├→ Settings → Mode Screen
-                                         └→ [Party, Bag, Storage, etc. — disabled for now]
+                                         └→ [Storage, Wild Battle, Shop, Training — disabled for now]
 Title Screen → Settings → Title Screen
 ```
 
@@ -1246,7 +1249,32 @@ Context persists across sub-navigation (e.g. Mode Screen → Battle Builder → 
 - `"save"` — from Mode Screen: shows Save/Delete on occupied, Save on empty
 - `"load"` — shows Load/Delete on occupied, nothing on empty
 
-**Mode Screen** (`scenes/screens/mode_screen.tscn`): Central hub. Shows tamer name, bits, party strip. Button grid: Save, Battle Builder, Settings (enabled); Party, Bag, Storage, Wild Battle, Shop, Training (disabled — Coming Soon). TEST mode shows battle/wild/shop/training buttons; STORY mode hides them.
+**Mode Screen** (`scenes/screens/mode_screen.tscn`): Central hub. Shows tamer name, bits, party strip. Button grid: Party, Bag, Save, Battle Builder, Settings (enabled); Storage, Wild Battle, Shop, Training (disabled — Coming Soon). TEST mode shows battle/wild/shop/training buttons; STORY mode hides them.
+
+**Party Screen** (`scenes/screens/party_screen.tscn`): View/manage active party. DigimonSlotPanels with context menus (Summary, Item, Switch, Evolution). Supports select mode for cross-screen flows (e.g. Bag "Use" picks a target Digimon). Context: `mode`, `select_mode`, `select_filter`, `select_prompt`, `return_scene`. Result: `{"party_index": int, "digimon": DigimonState}` or `null`.
+
+**Bag Screen** (`scenes/screens/bag_screen.tscn`): View/manage inventory. Category tabs, item list with detail panel. Actions: Use (medicine applicator), Toss. "Give" disabled (Coming Soon — needs Held Items page). Use flow: Bag → Party Screen (select) → Bag (applies medicine via `_bag_pending_use` round-trip in `screen_context`).
+
+**Summary Screen** (`scenes/screens/summary_screen.tscn`): Three-page Digimon detail view. Page 1 (Info): sprite, name, species, attribute, elements, personality, OT, level/XP, TP. Page 2 (Stats): 7 stat rows with personality colouring, IV/TV labels, BST total. Page 3 (Techniques): equipped list with unequip, known list with equip/swap. Party navigation arrows cycle through party members.
+
+### Select Mode Pattern
+
+Several screens support a "select mode" for cross-screen data exchange:
+1. The initiating screen sets `Game.screen_context` with `select_mode: true`, `select_filter: Callable`, `select_prompt: String`
+2. The target screen shows filtered options; user picks one
+3. The target screen sets `Game.screen_result` with the selection and navigates back
+4. The initiating screen reads `Game.screen_result` in `_ready()` to handle the response
+5. For round-trips (Bag → Party → Bag), the Bag stores pending state in `screen_context` keys prefixed with `_bag_`
+
+### Medicine Applicator
+
+Out-of-battle item use is handled by `BagScreen._apply_medicine()`. Interprets healing bricks from `ItemData.bricks`:
+- `"fixed"` — add flat HP
+- `"percentage"` — add % of max HP
+- `"energy_fixed"` / `"energy_percentage"` — heal energy
+- `"status"` — heal HP + cure specified statuses
+- `"full_restore"` — max HP, max energy, clear all statuses
+- `"revive"` — restore fainted Digimon to % of max HP
 
 ---
 

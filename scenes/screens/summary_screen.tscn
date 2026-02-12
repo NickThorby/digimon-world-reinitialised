@@ -1,0 +1,111 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/screens/summary_screen.gd" id="1"]
+[ext_resource type="Theme" path="res://ui/theme/game_theme.tres" id="2"]
+
+[node name="SummaryScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.035, 0.035, 0.043, 1)
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme = ExtResource("2")
+theme_override_constants/margin_left = 40
+theme_override_constants/margin_top = 30
+theme_override_constants/margin_right = 40
+theme_override_constants/margin_bottom = 30
+
+[node name="VBox" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+
+[node name="HeaderBar" type="HBoxContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="BackButton" type="Button" parent="MarginContainer/VBox/HeaderBar"]
+layout_mode = 2
+text = "< Back"
+
+[node name="PrevButton" type="Button" parent="MarginContainer/VBox/HeaderBar"]
+layout_mode = 2
+text = "<"
+
+[node name="HeaderSpacer" type="Control" parent="MarginContainer/VBox/HeaderBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PageLabel" type="Label" parent="MarginContainer/VBox/HeaderBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.443, 0.443, 0.478, 1)
+theme_override_font_sizes/font_size = 16
+text = "1 / 3"
+
+[node name="HeaderSpacer2" type="Control" parent="MarginContainer/VBox/HeaderBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="NextButton" type="Button" parent="MarginContainer/VBox/HeaderBar"]
+layout_mode = 2
+text = ">"
+
+[node name="PageTabs" type="HBoxContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="InfoTab" type="Button" parent="MarginContainer/VBox/PageTabs"]
+layout_mode = 2
+text = "Info"
+
+[node name="StatsTab" type="Button" parent="MarginContainer/VBox/PageTabs"]
+layout_mode = 2
+text = "Stats"
+
+[node name="TechniquesTab" type="Button" parent="MarginContainer/VBox/PageTabs"]
+layout_mode = 2
+text = "Techniques"
+
+[node name="HSeparator" type="HSeparator" parent="MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="PageContainer" type="MarginContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/margin_top = 8
+
+[node name="InfoPage" type="ScrollContainer" parent="MarginContainer/VBox/PageContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="InfoVBox" type="VBoxContainer" parent="MarginContainer/VBox/PageContainer/InfoPage"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="StatsPage" type="ScrollContainer" parent="MarginContainer/VBox/PageContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+visible = false
+
+[node name="StatsVBox" type="VBoxContainer" parent="MarginContainer/VBox/PageContainer/StatsPage"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="TechniquesPage" type="ScrollContainer" parent="MarginContainer/VBox/PageContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+visible = false
+
+[node name="TechniquesVBox" type="VBoxContainer" parent="MarginContainer/VBox/PageContainer/TechniquesPage"]
+layout_mode = 2
+size_flags_horizontal = 3

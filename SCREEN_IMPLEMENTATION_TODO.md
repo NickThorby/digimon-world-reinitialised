@@ -36,9 +36,9 @@ No UI — state classes, field additions, and test reorganisation.
 
 ## Phase 2 — Core Management Screens
 
-- [ ] **2a** Party Screen — `scenes/screens/party_screen.tscn` + `.gd` | depends on: Mode Screen navigation
-- [ ] **2b** Bag Screen — `scenes/screens/bag_screen.tscn` + `.gd` | depends on: Mode Screen navigation
-- [ ] **2c** Digimon Summary Screen — `scenes/screens/summary_screen.tscn` + `.gd` | depends on: Party Screen
+- [x] **2a** Party Screen — `scenes/screens/party_screen.tscn` + `.gd` | depends on: Mode Screen navigation
+- [x] **2b** Bag Screen — `scenes/screens/bag_screen.tscn` + `.gd` | depends on: Mode Screen navigation
+- [x] **2c** Digimon Summary Screen — `scenes/screens/summary_screen.tscn` + `.gd` | depends on: Party Screen
 
 ## Phase 3 — Advanced Screens
 
@@ -66,7 +66,7 @@ No UI — state classes, field additions, and test reorganisation.
 
 Wire up cross-references after each phase:
 
-- [ ] After Phase 2c: add "Summary" to Party context menu
+- [x] After Phase 2c: add "Summary" to Party context menu
 - [ ] After Phase 2b: add "Item → Give" flow from Party/Storage to Bag
 - [ ] After Phase 3a: add "Storage" navigation from Mode Screen
 - [ ] After Phase 3d: add "Evolution" to Party and Storage context menus

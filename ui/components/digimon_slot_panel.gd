@@ -8,6 +8,9 @@ extends PanelContainer
 signal edit_pressed(index: int)
 signal remove_pressed(index: int)
 signal reorder_requested(from_index: int, to_index: int)
+signal slot_clicked(index: int)
+
+enum ButtonMode { EDIT_REMOVE, CONTEXT_MENU, HIDDEN }
 
 const HP_COLOUR_GREEN := Color(0.133, 0.773, 0.369)
 const HP_COLOUR_YELLOW := Color(0.918, 0.702, 0.031)
@@ -27,6 +30,7 @@ const XP_COLOUR := Color(0.024, 0.714, 0.831)
 
 var _index: int = -1
 var _digimon_state: DigimonState = null
+var _button_mode: ButtonMode = ButtonMode.EDIT_REMOVE
 
 
 func setup(index: int, state: DigimonState) -> void:
@@ -39,6 +43,26 @@ func _ready() -> void:
 	_edit_button.pressed.connect(_on_edit_pressed)
 	_remove_button.pressed.connect(_on_remove_pressed)
 	_setup_bar_styles()
+	_apply_button_mode()
+
+
+func set_button_mode(mode: ButtonMode) -> void:
+	_button_mode = mode
+	if is_node_ready():
+		_apply_button_mode()
+
+
+func set_sprite_flipped(flipped: bool) -> void:
+	if _sprite_rect:
+		_sprite_rect.flip_h = flipped
+
+
+func set_greyed_out(greyed: bool) -> void:
+	modulate.a = 0.4 if greyed else 1.0
+
+
+func get_digimon_state() -> DigimonState:
+	return _digimon_state
 
 
 func _setup_bar_styles() -> void:
@@ -191,3 +215,27 @@ func _on_edit_pressed() -> void:
 
 func _on_remove_pressed() -> void:
 	remove_pressed.emit(_index)
+
+
+func _apply_button_mode() -> void:
+	var button_vbox: VBoxContainer = $HBox/ButtonVBox
+	match _button_mode:
+		ButtonMode.EDIT_REMOVE:
+			button_vbox.visible = true
+			mouse_default_cursor_shape = Control.CURSOR_ARROW
+		ButtonMode.CONTEXT_MENU:
+			button_vbox.visible = false
+			mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		ButtonMode.HIDDEN:
+			button_vbox.visible = false
+			mouse_default_cursor_shape = Control.CURSOR_ARROW
+
+
+func _gui_input(event: InputEvent) -> void:
+	if _button_mode != ButtonMode.CONTEXT_MENU:
+		return
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = event as InputEventMouseButton
+		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+			slot_clicked.emit(_index)
+			accept_event()

@@ -6,6 +6,8 @@ const SAVE_SCREEN_PATH := "res://scenes/screens/save_screen.tscn"
 const BATTLE_BUILDER_PATH := "res://scenes/battle/battle_builder.tscn"
 const SETTINGS_PATH := "res://ui/menus/settings_screen.tscn"
 const MAIN_MENU_PATH := "res://scenes/main/main.tscn"
+const PARTY_SCREEN_PATH := "res://scenes/screens/party_screen.tscn"
+const BAG_SCREEN_PATH := "res://scenes/screens/bag_screen.tscn"
 
 var _mode: Registry.GameMode = Registry.GameMode.TEST
 
@@ -91,12 +93,8 @@ func _configure_buttons() -> void:
 	_shop_button.visible = is_test
 	_training_button.visible = is_test
 
-	# Enabled: Save, Battle, Settings
-	# Disabled: Party, Bag, Storage, Wild Battle, Shop, Training
-	_party_button.disabled = true
-	_party_button.tooltip_text = coming_soon
-	_bag_button.disabled = true
-	_bag_button.tooltip_text = coming_soon
+	# Enabled: Party, Bag, Save, Battle, Settings
+	# Disabled: Storage, Wild Battle, Shop, Training
 	_storage_button.disabled = true
 	_storage_button.tooltip_text = coming_soon
 	_wild_battle_button.disabled = true
@@ -109,9 +107,27 @@ func _configure_buttons() -> void:
 
 func _connect_signals() -> void:
 	_back_button.pressed.connect(_on_back_pressed)
+	_party_button.pressed.connect(_on_party_pressed)
+	_bag_button.pressed.connect(_on_bag_pressed)
 	_save_button.pressed.connect(_on_save_pressed)
 	_battle_button.pressed.connect(_on_battle_pressed)
 	_settings_button.pressed.connect(_on_settings_pressed)
+
+
+func _on_party_pressed() -> void:
+	Game.screen_context = {
+		"mode": _mode,
+		"return_scene": MODE_SCREEN_PATH,
+	}
+	SceneManager.change_scene(PARTY_SCREEN_PATH)
+
+
+func _on_bag_pressed() -> void:
+	Game.screen_context = {
+		"mode": _mode,
+		"return_scene": MODE_SCREEN_PATH,
+	}
+	SceneManager.change_scene(BAG_SCREEN_PATH)
 
 
 func _on_save_pressed() -> void:
