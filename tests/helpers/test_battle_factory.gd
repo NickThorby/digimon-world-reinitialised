@@ -435,6 +435,16 @@ static func _inject_techniques() -> void:
 			"aerialIsImmune": true,
 		}],
 	)
+	Atlas.techniques[&"test_status_hazard"] = _make_technique(
+		&"test_status_hazard", "Test Status Hazard",
+		Registry.TechniqueClass.STATUS, &"dark", 0, 0, 5,
+		Registry.Targeting.SINGLE_FOE, Registry.Priority.NORMAL,
+		[], [{
+			"brick": "hazard", "hazardType": "entry_status_effect",
+			"side": "target", "status": "poisoned",
+			"maxLayers": 3, "aerialIsImmune": true,
+		}],
+	)
 	Atlas.techniques[&"test_grounded_hazard"] = _make_technique(
 		&"test_grounded_hazard", "Test Grounded Hazard",
 		Registry.TechniqueClass.STATUS, &"fire", 0, 0, 5,

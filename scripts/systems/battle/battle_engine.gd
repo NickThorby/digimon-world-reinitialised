@@ -3243,12 +3243,10 @@ func _apply_entry_hazards(digimon: BattleDigimonState) -> void:
 
 			# Immune (0.0 resistance) = no damage
 			if resistance <= 0.0:
-				var immune_name: String = String(
-					hazard.get("source_name", str(key)),
-				)
 				battle_message.emit(
 					"%s is immune to %s!" % [
-						_get_digimon_name(digimon), immune_name,
+						_get_digimon_name(digimon),
+						_get_hazard_display_name(hazard),
 					],
 				)
 				continue
@@ -3260,12 +3258,10 @@ func _apply_entry_hazards(digimon: BattleDigimonState) -> void:
 			var hazard_result: Dictionary = _apply_damage_and_emit(
 				digimon, damage, &"hazard",
 			)
-			var hazard_name: String = String(
-				hazard.get("source_name", str(key)),
-			)
 			battle_message.emit(
 				"%s was hurt by %s! (%d damage)" % [
-					_get_digimon_name(digimon), hazard_name,
+					_get_digimon_name(digimon),
+					_get_hazard_display_name(hazard),
 					int(hazard_result["actual"]),
 				],
 			)
@@ -3293,18 +3289,116 @@ func _apply_entry_hazards(digimon: BattleDigimonState) -> void:
 				digimon.side_index, digimon.slot_index,
 				stat_key, actual,
 			)
-			var stat_hazard_name: String = String(
-				hazard.get("source_name", str(key)),
-			)
 			battle_message.emit(
 				"%s was affected by %s!" % [
-					_get_digimon_name(digimon), stat_hazard_name,
+					_get_digimon_name(digimon),
+					_get_hazard_display_name(hazard),
 				],
 			)
 			_emit_stat_change_message(
 				_get_digimon_name(digimon), stat_key, stages, actual,
 			)
 			hazard_applied.emit(digimon.side_index, key)
+
+		elif hazard.has("status"):
+			# Entry status effect hazard
+			var status_key: StringName = hazard.get("status", &"") as StringName
+			if status_key == &"":
+				continue
+			var status_hazard_name: String = _get_hazard_display_name(hazard)
+
+			# Side immunity check
+			var target_side: SideState = _battle.sides[digimon.side_index]
+			if target_side.has_side_effect(&"status_immunity"):
+				battle_message.emit(
+					"%s is protected from %s!" % [
+						_get_digimon_name(digimon), status_hazard_name,
+					],
+				)
+				continue
+
+			# Shield blocks_status check
+			var shields: Variant = digimon.volatiles.get("shields", [])
+			var shield_blocked: bool = false
+			if shields is Array:
+				for shield_entry: Variant in (shields as Array):
+					if shield_entry is Dictionary \
+							and (shield_entry as Dictionary).get(
+								"blocks_status", false,
+							):
+						shield_blocked = true
+						break
+			if shield_blocked:
+				continue
+
+			# Resistance-based immunity check
+			var immune_element: StringName = \
+				Registry.STATUS_RESISTANCE_IMMUNITIES.get(
+					status_key, &"",
+				)
+			if immune_element != &"":
+				if digimon.get_effective_resistance(immune_element) <= 0.5:
+					battle_message.emit(
+						"%s is immune to %s!" % [
+							_get_digimon_name(digimon),
+							status_hazard_name,
+						],
+					)
+					continue
+
+			# Determine effective status (upgrade if layers >= 2)
+			if layers >= 2:
+				if not digimon.has_status(status_key):
+					digimon.add_status(status_key)
+				BrickExecutor._apply_status_overrides(digimon, status_key)
+			else:
+				if not digimon.has_status(status_key):
+					digimon.add_status(status_key)
+
+			# Emit message with source name
+			var effective_status: StringName = status_key
+			if _has_upgraded_status(digimon, status_key):
+				effective_status = _get_upgraded_status_key(status_key)
+			if digimon.has_status(status_key) \
+					or digimon.has_status(effective_status):
+				battle_message.emit(
+					"%s was %s by %s!" % [
+						_get_digimon_name(digimon),
+						_format_status_name(effective_status),
+						status_hazard_name,
+					],
+				)
+				hazard_applied.emit(digimon.side_index, key)
+
+
+## Get display name for a hazard, preferring hazard_name > source_name > key.
+func _get_hazard_display_name(hazard: Dictionary) -> String:
+	var display: String = hazard.get("hazard_name", "") as String
+	if display.is_empty():
+		display = hazard.get("source_name", "") as String
+	if display.is_empty():
+		display = str(hazard.get("key", ""))
+	return display
+
+
+## Check if the Digimon has an upgraded version of the base status.
+func _has_upgraded_status(
+	digimon: BattleDigimonState, base_key: StringName,
+) -> bool:
+	match str(base_key).to_lower():
+		"poisoned": return digimon.has_status(&"badly_poisoned")
+		"burned": return digimon.has_status(&"badly_burned")
+		"frostbitten": return digimon.has_status(&"frozen")
+	return false
+
+
+## Get the upgraded status key for a base status.
+func _get_upgraded_status_key(base_key: StringName) -> StringName:
+	match str(base_key).to_lower():
+		"poisoned": return &"badly_poisoned"
+		"burned": return &"badly_burned"
+		"frostbitten": return &"frozen"
+	return base_key
 
 
 ## Emit signals for field effect, side effect, and hazard brick results.

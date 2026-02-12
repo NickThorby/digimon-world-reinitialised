@@ -633,7 +633,7 @@ const TERRAIN_TYPES: Array[StringName] = [
 ]
 
 const HAZARD_TYPES: Array[StringName] = [
-	&"entry_damage", &"entry_stat_reduction",
+	&"entry_damage", &"entry_stat_reduction", &"entry_status_effect",
 ]
 
 const GLOBAL_EFFECT_TYPES: Array[StringName] = [

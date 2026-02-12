@@ -21,7 +21,9 @@ func refresh_from_side(side: SideState) -> void:
 	for hazard: Dictionary in side.hazards:
 		var key: StringName = hazard.get("key", &"") as StringName
 		var layers: int = int(hazard.get("layers", 1))
-		var label_text: String = hazard.get("source_name", "") as String
+		var label_text: String = hazard.get("hazard_name", "") as String
+		if label_text.is_empty():
+			label_text = hazard.get("source_name", "") as String
 		if label_text.is_empty():
 			label_text = str(key).replace("_", " ").capitalize()
 		if layers > 1:

@@ -328,3 +328,190 @@ func test_non_aerial_mon_takes_aerial_hazard_damage() -> void:
 		new_mon.current_hp, new_mon.max_hp,
 		"Non-aerial Digimon should take damage from aerial-immune hazard",
 	)
+
+
+# --- Entry status effect hazard ---
+
+
+func test_entry_status_effect_hazard_applies_on_switch_in() -> void:
+	# Use agumon as side 1 reserve (no dark immunity, unlike test_tank)
+	var battle: BattleState = TestBattleFactory.create_1v1_with_reserves(
+		[&"test_agumon", &"test_patamon"],
+		[&"test_gabumon", &"test_agumon"],
+	)
+	var engine: BattleEngine = TestBattleFactory.create_engine(battle)
+
+	battle.sides[1].add_hazard(&"entry_status_effect", 1, {
+		"status": &"poisoned",
+		"maxLayers": 3,
+	})
+
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_rest_action(0, 0),
+		TestBattleFactory.make_switch_action(1, 0, 0),
+	]
+	engine.execute_turn(actions)
+
+	var new_mon: BattleDigimonState = battle.get_digimon_at(1, 0)
+	assert_true(
+		new_mon.has_status(&"poisoned"),
+		"Incoming Digimon should be poisoned by status hazard",
+	)
+
+
+func test_entry_status_effect_two_layers_upgrades_poison() -> void:
+	# Use agumon as side 1 reserve (no dark immunity, unlike test_tank)
+	var battle: BattleState = TestBattleFactory.create_1v1_with_reserves(
+		[&"test_agumon", &"test_patamon"],
+		[&"test_gabumon", &"test_agumon"],
+	)
+	var engine: BattleEngine = TestBattleFactory.create_engine(battle)
+
+	battle.sides[1].add_hazard(&"entry_status_effect", 2, {
+		"status": &"poisoned",
+		"maxLayers": 3,
+	})
+
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_rest_action(0, 0),
+		TestBattleFactory.make_switch_action(1, 0, 0),
+	]
+	engine.execute_turn(actions)
+
+	var new_mon: BattleDigimonState = battle.get_digimon_at(1, 0)
+	assert_true(
+		new_mon.has_status(&"badly_poisoned"),
+		"2-layer poison hazard should upgrade to badly_poisoned",
+	)
+	assert_false(
+		new_mon.has_status(&"poisoned"),
+		"Base poisoned should be removed after upgrade",
+	)
+
+
+func test_entry_status_effect_two_layers_upgrades_burned() -> void:
+	# 2-layer burned → badly_burned
+	_battle.sides[1].add_hazard(&"entry_status_effect", 2, {
+		"status": &"burned",
+		"maxLayers": 3,
+	})
+
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_rest_action(0, 0),
+		TestBattleFactory.make_switch_action(1, 0, 0),
+	]
+	_engine.execute_turn(actions)
+
+	var new_mon: BattleDigimonState = _battle.get_digimon_at(1, 0)
+	assert_true(
+		new_mon.has_status(&"badly_burned"),
+		"2-layer burned hazard should upgrade to badly_burned",
+	)
+
+
+func test_entry_status_effect_two_layers_upgrades_frostbitten() -> void:
+	# 2-layer frostbitten → frozen
+	_battle.sides[1].add_hazard(&"entry_status_effect", 2, {
+		"status": &"frostbitten",
+		"maxLayers": 3,
+	})
+
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_rest_action(0, 0),
+		TestBattleFactory.make_switch_action(1, 0, 0),
+	]
+	_engine.execute_turn(actions)
+
+	var new_mon: BattleDigimonState = _battle.get_digimon_at(1, 0)
+	assert_true(
+		new_mon.has_status(&"frozen"),
+		"2-layer frostbitten hazard should upgrade to frozen",
+	)
+
+
+func test_entry_status_effect_three_layers_same_as_two() -> void:
+	# Use agumon as side 1 reserve (no dark immunity, unlike test_tank)
+	var battle: BattleState = TestBattleFactory.create_1v1_with_reserves(
+		[&"test_agumon", &"test_patamon"],
+		[&"test_gabumon", &"test_agumon"],
+	)
+	var engine: BattleEngine = TestBattleFactory.create_engine(battle)
+
+	battle.sides[1].add_hazard(&"entry_status_effect", 3, {
+		"status": &"poisoned",
+		"maxLayers": 3,
+	})
+
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_rest_action(0, 0),
+		TestBattleFactory.make_switch_action(1, 0, 0),
+	]
+	engine.execute_turn(actions)
+
+	var new_mon: BattleDigimonState = battle.get_digimon_at(1, 0)
+	assert_true(
+		new_mon.has_status(&"badly_poisoned"),
+		"3-layer poison should still upgrade to badly_poisoned",
+	)
+
+
+func test_entry_status_effect_aerial_immunity() -> void:
+	# Patamon (aerial) switching into poisoned hazard with aerial_is_immune
+	_battle.sides[0].add_hazard(&"entry_status_effect", 1, {
+		"status": &"poisoned",
+		"maxLayers": 3,
+		"aerial_is_immune": true,
+	})
+
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_switch_action(0, 0, 0),
+		TestBattleFactory.make_rest_action(1, 0),
+	]
+	_engine.execute_turn(actions)
+
+	var new_mon: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	assert_false(
+		new_mon.has_status(&"poisoned"),
+		"Aerial Digimon should be immune to aerial-immune status hazard",
+	)
+
+
+func test_entry_status_effect_resistance_immunity() -> void:
+	# test_patamon has dark: 0.0 (immune to dark element)
+	# Poisoned maps to dark resistance immunity
+	_battle.sides[0].add_hazard(&"entry_status_effect", 1, {
+		"status": &"poisoned",
+		"maxLayers": 3,
+	})
+
+	# Switch Patamon in on side 0 — no aerial_is_immune, so aerial doesn't
+	# block it, but dark resistance ≤ 0.5 should grant immunity
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_switch_action(0, 0, 0),
+		TestBattleFactory.make_rest_action(1, 0),
+	]
+	_engine.execute_turn(actions)
+
+	var new_mon: BattleDigimonState = _battle.get_digimon_at(0, 0)
+	assert_false(
+		new_mon.has_status(&"poisoned"),
+		"Digimon with dark immunity should resist poison status hazard",
+	)
+
+
+func test_entry_status_effect_persists_after_triggering() -> void:
+	_battle.sides[1].add_hazard(&"entry_status_effect", 1, {
+		"status": &"poisoned",
+		"maxLayers": 3,
+	})
+
+	var actions: Array[BattleAction] = [
+		TestBattleFactory.make_rest_action(0, 0),
+		TestBattleFactory.make_switch_action(1, 0, 0),
+	]
+	_engine.execute_turn(actions)
+
+	assert_eq(
+		_battle.sides[1].get_hazard_layers(&"entry_status_effect"), 1,
+		"Status hazard should persist after triggering",
+	)

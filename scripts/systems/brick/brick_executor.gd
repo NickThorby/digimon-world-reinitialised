@@ -1551,6 +1551,10 @@ static func _execute_hazard(
 		extra["stages"] = int(brick["stages"])
 	if brick.has("aerialIsImmune"):
 		extra["aerial_is_immune"] = bool(brick["aerialIsImmune"])
+	if brick.has("status"):
+		extra["status"] = StringName(brick["status"])
+	if brick.has("hazardName"):
+		extra["hazard_name"] = String(brick["hazardName"])
 	var ctx_source_name: String = execution_context.get("source_name", "")
 	if ctx_source_name != "":
 		extra["source_name"] = ctx_source_name

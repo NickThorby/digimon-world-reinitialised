@@ -748,25 +748,34 @@ func _save_side_presets() -> void:
 		var toggle: CheckBox = header.get_child(0) as CheckBox
 		var perm: CheckBox = header.get_child(1) as CheckBox
 		var layers_spin: SpinBox = header.get_child(2) as SpinBox
-		var name_edit: LineEdit = header.get_child(3) as LineEdit
+		var aerial_check: CheckBox = header.get_child(3) as CheckBox
+		var name_edit: LineEdit = header.get_child(4) as LineEdit
 		var entry: Dictionary = {
 			"enabled": toggle.button_pressed,
 			"permanent": perm.button_pressed,
 			"layers": int(layers_spin.value),
-			"source_name": name_edit.text if name_edit != null else "",
+			"aerial_is_immune": aerial_check.button_pressed,
+			"hazard_name": name_edit.text if name_edit != null else "",
 		}
 		var extras: HBoxContainer = container.get_child(1) as HBoxContainer
 		if key == &"entry_damage":
 			var element_opt: OptionButton = extras.get_child(1) as OptionButton
 			var dmg_spin: SpinBox = extras.get_child(3) as SpinBox
 			var element_idx: int = element_opt.selected
-			entry["element"] = _HAZARD_ELEMENTS[element_idx] if element_idx < _HAZARD_ELEMENTS.size() else &""
+			entry["element"] = _HAZARD_ELEMENTS[element_idx] \
+				if element_idx < _HAZARD_ELEMENTS.size() else &""
 			entry["damagePercent"] = dmg_spin.value
 		elif key == &"entry_stat_reduction":
 			var stat_opt: OptionButton = extras.get_child(1) as OptionButton
 			var stages_spin: SpinBox = extras.get_child(3) as SpinBox
-			entry["stat"] = _HAZARD_STATS[stat_opt.selected] if stat_opt.selected < _HAZARD_STATS.size() else "spe"
+			entry["stat"] = _HAZARD_STATS[stat_opt.selected] \
+				if stat_opt.selected < _HAZARD_STATS.size() else "spe"
 			entry["stages"] = int(stages_spin.value)
+		elif key == &"entry_status_effect":
+			var status_opt: OptionButton = extras.get_child(1) as OptionButton
+			entry["status"] = _HAZARD_STATUSES[status_opt.selected] \
+				if status_opt.selected < _HAZARD_STATUSES.size() \
+				else "poisoned"
 		hz_dict[key] = entry
 	side_data["hazards"] = hz_dict
 
@@ -812,6 +821,11 @@ const _HAZARD_ELEMENTS: Array[StringName] = [
 ## Stat abbreviations for the entry_stat_reduction stat dropdown.
 const _HAZARD_STATS: Array[String] = ["atk", "def", "spa", "spd", "spe"]
 
+## Status keys for the entry_status_effect status dropdown.
+const _HAZARD_STATUSES: Array[String] = [
+	"poisoned", "burned", "frostbitten", "paralysed", "blinded", "seeded",
+]
+
 
 func _build_hazards_list() -> void:
 	for child: Node in _hazards_list.get_children():
@@ -842,19 +856,27 @@ func _build_hazards_list() -> void:
 		header.add_child(perm)
 		var layers := SpinBox.new()
 		layers.min_value = 1
-		layers.max_value = 3
+		layers.max_value = 5
 		layers.value = 1
 		layers.custom_minimum_size = Vector2(60, 0)
 		layers.tooltip_text = "Layers"
 		if saved.has(key):
 			layers.value = saved[key].get("layers", 1)
 		header.add_child(layers)
+		var aerial_check := CheckBox.new()
+		aerial_check.text = "Aerial Immune"
+		aerial_check.button_pressed = false
+		if saved.has(key):
+			aerial_check.button_pressed = saved[key].get(
+				"aerial_is_immune", false,
+			)
+		header.add_child(aerial_check)
 		var name_edit := LineEdit.new()
-		name_edit.placeholder_text = "Display name"
+		name_edit.placeholder_text = "Hazard Name"
 		name_edit.custom_minimum_size = Vector2(100, 0)
 		name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		if saved.has(key):
-			name_edit.text = saved[key].get("source_name", "")
+			name_edit.text = saved[key].get("hazard_name", "")
 		header.add_child(name_edit)
 		container.add_child(header)
 
@@ -919,6 +941,23 @@ func _build_hazards_list() -> void:
 			if saved.has(key):
 				stages_spin.value = saved[key].get("stages", -1)
 			extras.add_child(stages_spin)
+		elif key == &"entry_status_effect":
+			var status_label := Label.new()
+			status_label.text = "  Status:"
+			extras.add_child(status_label)
+			var status_option := OptionButton.new()
+			status_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			for status_name: String in _HAZARD_STATUSES:
+				status_option.add_item(status_name.capitalize())
+			if saved.has(key):
+				var saved_status: String = saved[key].get(
+					"status", "poisoned",
+				)
+				for si: int in _HAZARD_STATUSES.size():
+					if _HAZARD_STATUSES[si] == saved_status:
+						status_option.selected = si
+						break
+			extras.add_child(status_option)
 		container.add_child(extras)
 
 		_hazards_list.add_child(container)
@@ -950,18 +989,22 @@ func _apply_side_presets_to_config() -> void:
 				continue
 			var extra: Dictionary = {}
 			if key == &"entry_damage":
-				var element: StringName = StringName(entry.get("element", ""))
+				var element: StringName = StringName(
+					entry.get("element", ""),
+				)
 				if element != &"":
 					extra["element"] = element
 				extra["damagePercent"] = entry.get("damagePercent", 0.125)
-				extra["aerial_is_immune"] = true
 			elif key == &"entry_stat_reduction":
 				extra["stat"] = entry.get("stat", "spe")
 				extra["stages"] = entry.get("stages", -1)
+			elif key == &"entry_status_effect":
+				extra["status"] = entry.get("status", "poisoned")
+			if entry.get("aerial_is_immune", false):
 				extra["aerial_is_immune"] = true
-			var hz_source_name: String = entry.get("source_name", "")
-			if hz_source_name != "":
-				extra["source_name"] = hz_source_name
+			var hz_name: String = entry.get("hazard_name", "")
+			if hz_name != "":
+				extra["hazard_name"] = hz_name
 			hazards.append({
 				"key": key,
 				"sides": [side_idx],
@@ -1003,11 +1046,20 @@ func _sync_side_presets_from_config() -> void:
 				}
 				if key == &"entry_damage":
 					hz_data["element"] = StringName(extra.get("element", ""))
-					hz_data["damagePercent"] = extra.get("damagePercent", 0.125)
+					hz_data["damagePercent"] = extra.get(
+						"damagePercent", 0.125,
+					)
 				elif key == &"entry_stat_reduction":
 					hz_data["stat"] = extra.get("stat", "spe")
 					hz_data["stages"] = extra.get("stages", -1)
-				var sync_source_name: String = extra.get("source_name", "")
-				if sync_source_name != "":
-					hz_data["source_name"] = sync_source_name
+				elif key == &"entry_status_effect":
+					hz_data["status"] = extra.get("status", "poisoned")
+				hz_data["aerial_is_immune"] = extra.get(
+					"aerial_is_immune", false,
+				)
+				var sync_hazard_name: String = extra.get(
+					"hazard_name", "",
+				)
+				if sync_hazard_name != "":
+					hz_data["hazard_name"] = sync_hazard_name
 				_side_presets[idx]["hazards"][key] = hz_data
