@@ -74,7 +74,7 @@ func _build_occupied_slot(
 	info_vbox.add_child(tamer_label)
 
 	var party_label := Label.new()
-	party_label.text = _build_party_text(meta)
+	party_label.text = FormatUtils.build_party_text(meta)
 	party_label.add_theme_font_size_override("font_size", 13)
 	party_label.add_theme_color_override(
 		"font_color", Color(0.631, 0.631, 0.667, 1)
@@ -82,10 +82,10 @@ func _build_occupied_slot(
 	info_vbox.add_child(party_label)
 
 	var time_label := Label.new()
-	var play_time_str: String = _format_play_time(
+	var play_time_str: String = FormatUtils.format_play_time(
 		meta.get("play_time", 0)
 	)
-	var saved_at_str: String = _format_saved_at(
+	var saved_at_str: String = FormatUtils.format_saved_at(
 		meta.get("saved_at", 0.0)
 	)
 	time_label.text = "Play Time: %s  |  Saved: %s" % [
@@ -232,39 +232,3 @@ func _show_confirm(
 	dialog.popup_centered()
 
 
-func _build_party_text(meta: Dictionary) -> String:
-	var keys: Array = meta.get("party_keys", [])
-	var levels: Array = meta.get("party_levels", [])
-	if keys.is_empty():
-		return "No Digimon in party"
-
-	var parts: Array[String] = []
-	for i: int in keys.size():
-		var key: StringName = StringName(str(keys[i]))
-		var lvl: int = levels[i] if i < levels.size() else 1
-		var digimon_data: DigimonData = Atlas.digimon.get(key)
-		var display: String = digimon_data.display_name if digimon_data else str(key)
-		parts.append("%s Lv.%d" % [display, lvl])
-	return ", ".join(parts)
-
-
-func _format_play_time(seconds: int) -> String:
-	@warning_ignore("integer_division")
-	var h: int = seconds / 3600
-	@warning_ignore("integer_division")
-	var m: int = (seconds % 3600) / 60
-	var s: int = seconds % 60
-	return "%d:%02d:%02d" % [h, m, s]
-
-
-func _format_saved_at(unix: float) -> String:
-	if unix <= 0.0:
-		return "Unknown"
-	var dt: Dictionary = Time.get_datetime_dict_from_unix_time(int(unix))
-	return "%04d-%02d-%02d %02d:%02d" % [
-		dt.get("year", 0),
-		dt.get("month", 0),
-		dt.get("day", 0),
-		dt.get("hour", 0),
-		dt.get("minute", 0),
-	]

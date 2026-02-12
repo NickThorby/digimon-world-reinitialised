@@ -11,6 +11,7 @@ const VALID_BRICK_TYPES: Array[String] = [
 	"requirement", "conditional", "protection", "priorityOverride", "elementModifier",
 	"criticalHit", "resource", "useRandomTechnique", "transform",
 	"shield", "copyTechnique", "abilityManipulation", "turnOrder",
+	"outOfBattleEffect",
 ]
 
 # Required fields per brick type (beyond the "brick" discriminator).
@@ -37,6 +38,7 @@ const REQUIRED_FIELDS: Dictionary = {
 	"abilityManipulation": ["type"],
 	"turnOrder": ["type"],
 	"elementModifier": ["type"],
+	"outOfBattleEffect": ["effect"],
 }
 
 # Enum validation sets for specific fields.
@@ -106,6 +108,17 @@ const ELEMENT_MODIFIER_TYPES: Array[String] = [
 	"addElement", "removeElement", "replaceElements",
 	"changeTechniqueElement", "matchTargetWeakness",
 	"changeUserResistanceProfile", "changeTargetResistanceProfile",
+]
+
+const OUT_OF_BATTLE_EFFECTS: Array[String] = [
+	"toggleAbility", "switchSecretAbility",
+	"addTv", "removeTv", "addIv", "removeIv",
+	"changePersonality", "clearPersonality", "addTp",
+]
+
+const EFFECTS_REQUIRING_VALUE: Array[String] = [
+	"addTv", "removeTv", "addIv", "removeIv",
+	"changePersonality", "addTp",
 ]
 
 const VALID_RESISTANCE_VALUES: Array[float] = [0.0, 0.5, 1.0, 1.5, 2.0]
@@ -241,6 +254,21 @@ func _validate_single_brick(brick: Dictionary, index: int, errors: Array[String]
 					)
 		"turnOrder":
 			_validate_enum_field(brick, "type", TURN_ORDER_TYPES, index, type_str, errors)
+		"outOfBattleEffect":
+			_validate_enum_field(
+				brick, "effect", OUT_OF_BATTLE_EFFECTS, index, type_str, errors
+			)
+			var effect: String = str(brick.get("effect", ""))
+			if effect in EFFECTS_REQUIRING_VALUE and not brick.has("value"):
+				errors.append(
+					"Brick %d (outOfBattleEffect): effect '%s' requires 'value'" % [
+						index, effect
+					]
+				)
+			if brick.has("value") and brick["value"] is not String:
+				errors.append(
+					"Brick %d (outOfBattleEffect): 'value' must be a string" % index
+				)
 
 
 func _validate_enum_field(

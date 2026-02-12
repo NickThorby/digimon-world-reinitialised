@@ -88,7 +88,8 @@ Each `technique_entries` element: `{ "key": StringName, "requirements": Array[Di
 | `nickname`               | `String`            | Player-given name                   |
 | `level`                  | `int`               | Current level                       |
 | `experience`             | `int`               | Current XP                          |
-| `personality_key`        | `StringName`        | Personality reference               |
+| `personality_key`        | `StringName`        | Original personality reference      |
+| `personality_override_key` | `StringName`      | Override personality (items); use `get_effective_personality_key()` for lookup |
 | `ivs`                    | `Dictionary`        | Stat key -> 0-50 (permanent)        |
 | `tvs`                    | `Dictionary`        | Stat key -> 0-500 (earned)          |
 | `current_hp`             | `int`               | Current hit points                  |
@@ -367,7 +368,7 @@ Mapped from digimon-dex `Attack` table (**"attack" in dex = "technique" in game*
 | `charge_conditions`    | `Array[Dictionary]`       | How charges are gained           |
 | `bricks`               | `Array[Dictionary]`       | Modular effect definitions       |
 
-### Brick Types (28)
+### Brick Types (29)
 
 The brick system enables modular effect composition. Each brick is a dictionary with a `brick` type field. Full parameter schemas are in `addons/dex_importer/BRICK_CONTRACT.md`.
 
@@ -401,6 +402,7 @@ The brick system enables modular effect composition. Each brick is a dictionary 
 | `copyTechnique`      | Copies or mimics techniques                      |
 | `abilityManipulation`| Copies, swaps, or suppresses abilities           |
 | `turnOrder`          | Manipulates turn order                           |
+| `outOfBattleEffect`  | Item-only: processed by ItemApplicator, invisible to battle engine |
 
 ### Per-Brick Conditions
 
@@ -1202,6 +1204,25 @@ Pure static utility for checking evolution requirements against a DigimonState a
 - Handles all 7 requirement types: `level`, `stat`, `stat_highest_of`, `spirit`, `digimental`, `x_antibody`, `description` (always unmet)
 - Uses `StatCalculator.calculate_stat()` for computed stat comparisons
 
+### FormatUtils (`scripts/utilities/format_utils.gd`)
+
+Shared formatting utilities extracted from screen scripts to eliminate duplication.
+
+- `format_bits(amount)` → comma-separated number string (e.g. `1234567` → `"1,234,567"`)
+- `format_play_time(seconds)` → `"h:mm:ss"` format
+- `format_saved_at(unix)` → `"DD-MM-YYYY HH:MM"` or `"Unknown"` for invalid timestamps
+- `build_party_text(meta)` → `"Name Lv.X, Name Lv.Y"` from save metadata dictionary
+
+### ItemApplicator (`scripts/utilities/item_applicator.gd`)
+
+Applies item bricks to a DigimonState outside of battle. Handles healing bricks (bug-fixed from original `bag_screen._apply_medicine()`) and `outOfBattleEffect` bricks.
+
+- `apply(item_data, digimon, max_hp, max_energy)` → `bool` — iterates bricks, delegates to type handlers
+- `get_max_stats(digimon)` → `{ "max_hp": int, "max_energy": int }` — personality-aware stat calculation
+- Healing type discrimination uses `brick.get("type")` (not `"subtype"`) and `percent / 100.0` scaling
+- `cureStatus` field handled as both String and Array
+- `outOfBattleEffect` brick effects: `toggleAbility`, `switchSecretAbility`, `addTv`, `removeTv`, `addIv`, `removeIv`, `changePersonality`, `clearPersonality`, `addTp`
+
 ---
 
 ## Screen Navigation System
@@ -1255,7 +1276,7 @@ Context persists across sub-navigation (e.g. Mode Screen → Battle Builder → 
 
 **Bag Screen** (`scenes/screens/bag_screen.tscn`): View/manage inventory. Category tabs, item list with detail panel. Actions: Use (medicine applicator), Toss. "Give" disabled (Coming Soon — needs Held Items page). Use flow: Bag → Party Screen (select) → Bag (applies medicine via `_bag_pending_use` round-trip in `screen_context`).
 
-**Summary Screen** (`scenes/screens/summary_screen.tscn`): Three-page Digimon detail view. Page 1 (Info): sprite, name, species, attribute, elements, personality, OT, level/XP, TP. Page 2 (Stats): 7 stat rows with personality colouring, IV/TV labels, BST total. Page 3 (Techniques): equipped list with unequip, known list with equip/swap. Party navigation arrows cycle through party members.
+**Summary Screen** (`scenes/screens/summary_screen.tscn`): Four-page Digimon detail view. Page 1 (Info): sprite, name, species, attribute, elements, personality (with override display if set), active ability section, OT, level/XP, TP. Page 2 (Stats): 7 stat rows with personality colouring (uses effective personality), IV/TV labels, BST total. Page 3 (Techniques): equipped list with unequip, known list with equip/swap. Page 4 (Held Items): gear and consumable slots with item details and remove buttons. Party navigation arrows cycle through party members.
 
 ### Select Mode Pattern
 

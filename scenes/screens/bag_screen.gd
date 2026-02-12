@@ -361,95 +361,23 @@ func _get_item_display_name(key: StringName) -> String:
 
 func _update_bits_display() -> void:
 	if Game.state:
-		_bits_label.text = "%s Bits" % _format_bits(Game.state.inventory.bits)
+		_bits_label.text = "%s Bits" % FormatUtils.format_bits(Game.state.inventory.bits)
 	else:
 		_bits_label.text = "0 Bits"
 
 
-func _format_bits(amount: int) -> String:
-	var text: String = str(amount)
-	var result: String = ""
-	var count: int = 0
-	for i: int in range(text.length() - 1, -1, -1):
-		if count > 0 and count % 3 == 0:
-			result = "," + result
-		result = text[i] + result
-		count += 1
-	return result
-
-
-## Apply medicine bricks from an item to a DigimonState (out-of-battle).
+## Apply item bricks to a DigimonState (out-of-battle) and consume on success.
 func _apply_medicine(item_key: StringName, digimon: DigimonState) -> void:
 	var item_data: ItemData = Atlas.items.get(item_key) as ItemData
 	if item_data == null:
 		return
 
-	var data: DigimonData = Atlas.digimon.get(digimon.key) as DigimonData
-	if data == null:
-		return
-
-	var stats: Dictionary = StatCalculator.calculate_all_stats(data, digimon)
-	var personality: PersonalityData = Atlas.personalities.get(
-		digimon.personality_key,
-	) as PersonalityData
-	var max_hp: int = StatCalculator.apply_personality(
-		stats.get(&"hp", 1), &"hp", personality,
-	)
-	var max_energy: int = StatCalculator.apply_personality(
-		stats.get(&"energy", 1), &"energy", personality,
+	var max_stats: Dictionary = ItemApplicator.get_max_stats(digimon)
+	var applied: bool = ItemApplicator.apply(
+		item_data, digimon, max_stats.max_hp, max_stats.max_energy,
 	)
 
-	for brick: Dictionary in item_data.bricks:
-		var brick_type: String = str(brick.get("type", ""))
-		var subtype: String = str(brick.get("subtype", ""))
-		var amount: int = int(brick.get("amount", 0))
-		var percent: float = float(brick.get("percent", 0.0))
-
-		match subtype:
-			"fixed":
-				digimon.current_hp = mini(digimon.current_hp + amount, max_hp)
-			"percentage":
-				var heal: int = floori(max_hp * percent)
-				digimon.current_hp = mini(digimon.current_hp + heal, max_hp)
-			"energy_fixed":
-				digimon.current_energy = mini(
-					digimon.current_energy + amount, max_energy,
-				)
-			"energy_percentage":
-				var heal: int = floori(max_energy * percent)
-				digimon.current_energy = mini(
-					digimon.current_energy + heal, max_energy,
-				)
-			"status":
-				# Heal HP if amount/percent provided
-				if amount > 0:
-					digimon.current_hp = mini(digimon.current_hp + amount, max_hp)
-				elif percent > 0.0:
-					var heal: int = floori(max_hp * percent)
-					digimon.current_hp = mini(digimon.current_hp + heal, max_hp)
-				# Cure statuses
-				var cure_statuses: Array = brick.get("cureStatus", []) as Array
-				if cure_statuses.size() > 0:
-					var remaining: Array[Dictionary] = []
-					for condition: Dictionary in digimon.status_conditions:
-						var cond_key: String = str(condition.get("key", ""))
-						if cond_key not in cure_statuses:
-							remaining.append(condition)
-					digimon.status_conditions = remaining
-			"full_restore":
-				digimon.current_hp = max_hp
-				digimon.current_energy = max_energy
-				digimon.status_conditions.clear()
-			"revive":
-				if digimon.current_hp <= 0:
-					if percent > 0.0:
-						digimon.current_hp = maxi(floori(max_hp * percent), 1)
-					else:
-						@warning_ignore("integer_division")
-						digimon.current_hp = maxi(max_hp / 2, 1)
-
-	# Consume the item
-	if Game.state:
+	if applied and Game.state:
 		var current_qty: int = Game.state.inventory.items.get(item_key, 0) as int
 		if current_qty <= 1:
 			Game.state.inventory.items.erase(item_key)

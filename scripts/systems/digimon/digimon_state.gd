@@ -13,6 +13,14 @@ var nickname: String = ""
 var level: int = 1
 var experience: int = 0
 var personality_key: StringName = &""
+var personality_override_key: StringName = &""
+
+
+## Returns the effective personality key, preferring override if set.
+func get_effective_personality_key() -> StringName:
+	if personality_override_key != &"":
+		return personality_override_key
+	return personality_key
 
 ## Stat key -> value (0-50, rolled at creation, permanent).
 var ivs: Dictionary = {}
@@ -60,6 +68,7 @@ func to_dict() -> Dictionary:
 		"level": level,
 		"experience": experience,
 		"personality_key": personality_key,
+		"personality_override_key": personality_override_key,
 		"ivs": ivs.duplicate(),
 		"tvs": tvs.duplicate(),
 		"current_hp": current_hp,
@@ -93,6 +102,7 @@ static func from_dict(data: Dictionary) -> DigimonState:
 	state.level = data.get("level", 1)
 	state.experience = data.get("experience", 0)
 	state.personality_key = StringName(data.get("personality_key", ""))
+	state.personality_override_key = StringName(data.get("personality_override_key", ""))
 	state.ivs = data.get("ivs", {})
 	state.tvs = data.get("tvs", {})
 	state.current_hp = data.get("current_hp", 0)

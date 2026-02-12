@@ -52,6 +52,9 @@ static func _inject_personalities() -> void:
 	Atlas.personalities[&"test_modest"] = _make_personality(
 		&"test_modest", Registry.Stat.SPECIAL_ATTACK, Registry.Stat.ATTACK,
 	)
+	Atlas.personalities[&"test_timid"] = _make_personality(
+		&"test_timid", Registry.Stat.SPEED, Registry.Stat.ATTACK,
+	)
 
 
 static func _make_personality(
@@ -74,6 +77,8 @@ static func _inject_digimon() -> void:
 		{&"ice": 1.5, &"water": 1.5, &"fire": 0.5},
 		&"test_ability_on_entry",
 	)
+	agumon.ability_slot_2_key = &"test_stat_boost"
+	agumon.ability_slot_3_key = &"test_weather_setter"
 	agumon.size_trait = &"medium"
 	agumon.movement_traits = [&"terrestrial"] as Array[StringName]
 	agumon.type_trait = &"dragon"
@@ -1600,12 +1605,12 @@ static func _inject_items() -> void:
 	# Medicine: fixed energy restore
 	Atlas.items[&"test_energy_drink"] = _make_medicine(
 		&"test_energy_drink", "Test Energy Drink",
-		[{"brick": "healing", "type": "energy_fixed", "amount": 30}],
+		[{"brick": "healing", "type": "fixed", "amount": 30, "target": "energy"}],
 	)
 	# Medicine: cure burned status
 	Atlas.items[&"test_burn_heal"] = _make_medicine(
 		&"test_burn_heal", "Test Burn Heal",
-		[{"brick": "healing", "type": "fixed", "amount": 0, "cureStatus": "burned"}],
+		[{"brick": "healing", "type": "status", "cureStatus": "burned"}],
 	)
 	# Medicine: full heal (100% HP + cure major statuses)
 	Atlas.items[&"test_full_heal"] = _make_medicine(
@@ -1615,7 +1620,7 @@ static func _inject_items() -> void:
 	# Medicine: revive (50% HP to fainted Digimon)
 	Atlas.items[&"test_revive"] = _make_medicine(
 		&"test_revive", "Test Revive",
-		[{"brick": "healing", "type": "percentage", "percent": 50}],
+		[{"brick": "healing", "type": "revive", "percent": 50}],
 		true,  # is_revive
 	)
 	# Medicine: stat boost (ATK +2)
@@ -1658,6 +1663,48 @@ static func _inject_items() -> void:
 		Registry.StackLimit.UNLIMITED,
 		"",
 		[{"brick": "damageModifier", "condition": "damageIsSuperEffective", "multiplier": 0.5}],
+	)
+	# Full restore
+	Atlas.items[&"test_full_restore"] = _make_medicine(
+		&"test_full_restore", "Test Full Restore",
+		[{"brick": "healing", "type": "full_restore"}],
+	)
+	# OutOfBattleEffect items
+	Atlas.items[&"test_ability_capsule"] = _make_medicine(
+		&"test_ability_capsule", "Test Ability Capsule",
+		[{"brick": "outOfBattleEffect", "effect": "toggleAbility"}],
+	)
+	Atlas.items[&"test_secret_capsule"] = _make_medicine(
+		&"test_secret_capsule", "Test Secret Capsule",
+		[{"brick": "outOfBattleEffect", "effect": "switchSecretAbility"}],
+	)
+	Atlas.items[&"test_tv_boost"] = _make_medicine(
+		&"test_tv_boost", "Test TV Boost",
+		[{"brick": "outOfBattleEffect", "effect": "addTv", "value": "atk:50"}],
+	)
+	Atlas.items[&"test_tv_reducer"] = _make_medicine(
+		&"test_tv_reducer", "Test TV Reducer",
+		[{"brick": "outOfBattleEffect", "effect": "removeTv", "value": "spe:10"}],
+	)
+	Atlas.items[&"test_iv_boost"] = _make_medicine(
+		&"test_iv_boost", "Test IV Boost",
+		[{"brick": "outOfBattleEffect", "effect": "addIv", "value": "spa:5"}],
+	)
+	Atlas.items[&"test_iv_reducer"] = _make_medicine(
+		&"test_iv_reducer", "Test IV Reducer",
+		[{"brick": "outOfBattleEffect", "effect": "removeIv", "value": "def:3"}],
+	)
+	Atlas.items[&"test_personality_mint"] = _make_medicine(
+		&"test_personality_mint", "Test Personality Mint",
+		[{"brick": "outOfBattleEffect", "effect": "changePersonality", "value": "test_timid"}],
+	)
+	Atlas.items[&"test_personality_reset"] = _make_medicine(
+		&"test_personality_reset", "Test Personality Reset",
+		[{"brick": "outOfBattleEffect", "effect": "clearPersonality"}],
+	)
+	Atlas.items[&"test_tp_candy"] = _make_medicine(
+		&"test_tp_candy", "Test TP Candy",
+		[{"brick": "outOfBattleEffect", "effect": "addTp", "value": "50"}],
 	)
 	# Capture/scan item
 	Atlas.items[&"test_scanner"] = _make_capture_item(

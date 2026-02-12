@@ -1613,14 +1613,14 @@ func _resolve_medicine(
 
 		if item.is_revive and reserve.current_hp <= 0:
 			# Apply healing bricks directly to reserve DigimonState
+			var data: DigimonData = Atlas.digimon.get(
+				reserve.key,
+			) as DigimonData
+			var max_hp: int = _estimate_max_hp(reserve, data)
 			for brick: Dictionary in item.bricks:
 				var brick_type: String = brick.get("brick", "")
 				if brick_type == "healing":
 					var subtype: String = brick.get("type", "fixed")
-					var data: DigimonData = Atlas.digimon.get(
-						reserve.key,
-					) as DigimonData
-					var max_hp: int = _estimate_max_hp(reserve, data)
 					match subtype:
 						"fixed":
 							var amount: int = int(brick.get("amount", 0))
@@ -1635,11 +1635,19 @@ func _resolve_medicine(
 							reserve.current_hp = mini(
 								reserve.current_hp + amount, max_hp,
 							)
-					all_results.append({
-						"handled": true,
-						"healing": reserve.current_hp,
-						"reserve_revive": true,
-					})
+						"revive":
+							var percent: float = float(
+								brick.get("percent", 50),
+							)
+							var amount: int = maxi(
+								floori(float(max_hp) * percent / 100.0), 1,
+							)
+							reserve.current_hp = mini(amount, max_hp)
+			all_results.append({
+				"handled": true,
+				"healing": reserve.current_hp,
+				"reserve_revive": true,
+			})
 			hp_restored.emit(
 				-1, -1, reserve.current_hp,
 			)
@@ -1784,7 +1792,7 @@ func _estimate_max_hp(state: DigimonState, data: DigimonData) -> int:
 		return 100
 	var stats: Dictionary = StatCalculator.calculate_all_stats(data, state)
 	var personality: PersonalityData = Atlas.personalities.get(
-		state.personality_key,
+		state.get_effective_personality_key(),
 	) as PersonalityData
 	var hp: int = stats.get(&"hp", 100)
 	hp = StatCalculator.apply_personality(hp, &"hp", personality)
@@ -2426,7 +2434,7 @@ func _end_of_turn() -> void:
 				data, state,
 			)
 			var personality: PersonalityData = Atlas.personalities.get(
-				state.personality_key,
+				state.get_effective_personality_key(),
 			) as PersonalityData
 			var max_en: int = StatCalculator.apply_personality(
 				all_stats.get(&"energy", 1), &"energy", personality,

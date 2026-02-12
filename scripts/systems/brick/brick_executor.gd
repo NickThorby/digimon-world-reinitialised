@@ -1001,17 +1001,45 @@ static func _execute_healing(
 	var subtype: String = brick.get("type", "fixed")
 	var result: Dictionary = {"handled": true}
 
+	var heal_target: String = str(brick.get("target", ""))
+
 	match subtype:
 		"fixed":
 			var amount: int = int(brick.get("amount", 0))
-			var healed: int = target.restore_hp(amount)
-			result["healing"] = healed
+			if heal_target == "energy":
+				target.restore_energy(amount)
+				result["energy_restored"] = amount
+			else:
+				var healed: int = target.restore_hp(amount)
+				result["healing"] = healed
 
 		"percentage":
 			var percent: float = float(brick.get("percent", 0))
-			var amount: int = maxi(floori(float(target.max_hp) * percent / 100.0), 1)
-			var healed: int = target.restore_hp(amount)
-			result["healing"] = healed
+			if heal_target == "energy":
+				var amount: int = maxi(
+					floori(float(target.max_energy) * percent / 100.0), 1,
+				)
+				target.restore_energy(amount)
+				result["energy_restored"] = amount
+			else:
+				var amount: int = maxi(
+					floori(float(target.max_hp) * percent / 100.0), 1,
+				)
+				var healed: int = target.restore_hp(amount)
+				result["healing"] = healed
+
+		"revive":
+			if target.is_fainted:
+				target.is_fainted = false
+				var percent: float = float(brick.get("percent", 50))
+				var amount: int = maxi(
+					floori(float(target.max_hp) * percent / 100.0), 1,
+				)
+				var healed: int = target.restore_hp(amount)
+				result["healing"] = healed
+				result["revive"] = true
+			else:
+				result["healing"] = 0
 
 		"energy_fixed":
 			var amount: int = int(brick.get("amount", 0))

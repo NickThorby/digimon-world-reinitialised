@@ -123,7 +123,7 @@ func _update_display() -> void:
 func _update_hp_bar(data: DigimonData) -> void:
 	var stats: Dictionary = StatCalculator.calculate_all_stats(data, _digimon_state)
 	var personality: PersonalityData = Atlas.personalities.get(
-		_digimon_state.personality_key,
+		_digimon_state.get_effective_personality_key(),
 	) as PersonalityData
 	var max_hp: int = StatCalculator.apply_personality(
 		stats.get(&"hp", 1), &"hp", personality,

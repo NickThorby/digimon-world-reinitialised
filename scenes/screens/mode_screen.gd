@@ -41,7 +41,7 @@ func _ready() -> void:
 func _update_header() -> void:
 	if Game.state:
 		_tamer_label.text = Game.state.tamer_name
-		_bits_label.text = "%s Bits" % _format_bits(
+		_bits_label.text = "%s Bits" % FormatUtils.format_bits(
 			Game.state.inventory.bits
 		)
 	else:
@@ -154,13 +154,3 @@ func _on_back_pressed() -> void:
 	SceneManager.change_scene(MAIN_MENU_PATH)
 
 
-func _format_bits(amount: int) -> String:
-	var text: String = str(amount)
-	var result: String = ""
-	var count: int = 0
-	for i: int in range(text.length() - 1, -1, -1):
-		if count > 0 and count % 3 == 0:
-			result = "," + result
-		result = text[i] + result
-		count += 1
-	return result

@@ -39,7 +39,7 @@ func show_delta(
 	if data != null:
 		new_stats = StatCalculator.calculate_all_stats(data, state)
 		var personality: PersonalityData = Atlas.personalities.get(
-			state.personality_key,
+			state.get_effective_personality_key(),
 		) as PersonalityData
 		for stat_key: StringName in new_stats:
 			new_stats[stat_key] = StatCalculator.apply_personality(

@@ -23,7 +23,11 @@ static func create_test_party(count: int = 3, level: int = 50) -> PartyState:
 		&"test_tank", &"test_sweeper", &"test_wall",
 	]
 	for i: int in mini(count, keys.size()):
-		party.members.append(TestBattleFactory.make_digimon_state(keys[i], level))
+		var member: DigimonState = TestBattleFactory.make_digimon_state(keys[i], level)
+		if i == 0:
+			member.equipped_gear_key = &"test_power_band"
+			member.equipped_consumable_key = &"test_heal_berry"
+		party.members.append(member)
 	return party
 
 

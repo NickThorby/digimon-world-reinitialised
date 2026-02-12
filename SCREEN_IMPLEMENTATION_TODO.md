@@ -95,11 +95,18 @@ Wire up cross-references after each phase:
 - [x] `tests/unit/test_inventory_state.gd` — bits rename verification
 - [ ] `tests/unit/test_wild_battle_factory.gd` — species roll, level roll, format roll
 - [ ] `tests/unit/test_zone_data.gd` — JSON parsing, level range fallback
+- [x] `tests/screens/test_format_utils.gd` — format_bits, format_play_time, format_saved_at, build_party_text
+- [x] `tests/screens/test_save_screen_logic.gd` — SaveManager round-trip, metadata, delete, slot isolation
+- [x] `tests/screens/test_party_screen_logic.gd` — swap, take gear/consumable, select filter
+- [x] `tests/screens/test_bag_screen_logic.gd` — toss, consume, use filters
+- [x] `tests/screens/test_summary_screen_logic.gd` — technique equip/unequip/swap, personality colour, remove gear/consumable
+- [x] `tests/screens/test_item_applicator.gd` — healing bugs fixed, outOfBattleEffect processing
+- [x] `tests/unit/test_personality_override.gd` — effective key, serialisation, stat calc
 - [ ] `tests/screens/test_mode_screen.gd` — button visibility per mode, navigation, context passing
-- [ ] `tests/screens/test_save_screen.gd` — save/load round-trip, slot overwrite, delete
-- [ ] `tests/screens/test_party_screen.gd` — reorder, context menu actions, select mode filter
-- [ ] `tests/screens/test_bag_screen.gd` — category filter, item sort, use/give/toss flows
-- [ ] `tests/screens/test_summary_screen.gd` — page navigation, technique swap, ability swap
+- [ ] `tests/screens/test_save_screen.gd` — full save/load UI round-trip
+- [ ] `tests/screens/test_party_screen.gd` — full UI reorder, context menu
+- [ ] `tests/screens/test_bag_screen.gd` — full UI category filter, item sort, use/give/toss
+- [ ] `tests/screens/test_summary_screen.gd` — full UI page navigation, ability swap
 - [ ] `tests/screens/test_storage_screen.gd` — deposit/withdraw, last-member guard, release
 - [ ] `tests/screens/test_shop_screen.gd` — price calc, buy/sell, insufficient funds, test shop
 - [ ] `tests/screens/test_training_screen.gd` — course execution, TV cap, animation complete

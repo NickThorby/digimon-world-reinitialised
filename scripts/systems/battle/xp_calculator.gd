@@ -179,7 +179,7 @@ static func _calculate_display_stats(state: DigimonState) -> Dictionary:
 		return {}
 	var stats: Dictionary = StatCalculator.calculate_all_stats(data, state)
 	var personality: PersonalityData = Atlas.personalities.get(
-		state.personality_key,
+		state.get_effective_personality_key(),
 	) as PersonalityData
 	for stat_key: StringName in stats:
 		stats[stat_key] = StatCalculator.apply_personality(

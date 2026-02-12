@@ -1,7 +1,7 @@
 # Brick Contract — Dex ↔ Game Shared Schema
 
-> **Version**: 1.0
-> **Purpose**: Defines the complete parameter schema for all 28 brick types, shared between the digimon-dex editor and the game engine. Both sides must conform to this contract.
+> **Version**: 1.1
+> **Purpose**: Defines the complete parameter schema for all 29 brick types, shared between the digimon-dex editor and the game engine. Both sides must conform to this contract.
 
 ---
 
@@ -78,7 +78,13 @@
 
 ---
 
-## Brick Schemas (28)
+### OutOfBattleEffect
+
+`toggleAbility`, `switchSecretAbility`, `addTv`, `removeTv`, `addIv`, `removeIv`, `changePersonality`, `clearPersonality`, `addTp`
+
+---
+
+## Brick Schemas (29)
 
 ### 1. `damage`
 
@@ -427,6 +433,16 @@
 | `brick` | `"turnOrder"` | Yes | Discriminator |
 | `type` | `String` | Yes | `makeTargetMoveNext`, `makeTargetMoveLast`, `repeatTargetMove` |
 | `target` | `String` | No | BrickTarget (default `target`) |
+
+### 29. `outOfBattleEffect`
+
+| Key | Type | Required | Description |
+|---|---|---|---|
+| `brick` | `"outOfBattleEffect"` | Yes | Discriminator |
+| `effect` | `String` | Yes | Effect identifier (see OutOfBattleEffect enum) |
+| `value` | `String` | No | Context value. Format depends on effect: stat effects use `"abbrev:amount"` (e.g. `"atk:50"`), personality uses key (e.g. `"brave"`), TP uses amount (e.g. `"50"`) |
+
+*Note: This brick is only processed outside battle by the game's ItemApplicator. The battle engine ignores it. Future effects (e.g. `changeWeather`) may be added.*
 
 ---
 

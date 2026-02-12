@@ -50,7 +50,7 @@ size_flags_horizontal = 3
 layout_mode = 2
 theme_override_colors/font_color = Color(0.443, 0.443, 0.478, 1)
 theme_override_font_sizes/font_size = 16
-text = "1 / 3"
+text = "1 / 4"
 
 [node name="HeaderSpacer2" type="Control" parent="MarginContainer/VBox/HeaderBar"]
 layout_mode = 2
@@ -75,6 +75,10 @@ text = "Stats"
 [node name="TechniquesTab" type="Button" parent="MarginContainer/VBox/PageTabs"]
 layout_mode = 2
 text = "Techniques"
+
+[node name="HeldItemsTab" type="Button" parent="MarginContainer/VBox/PageTabs"]
+layout_mode = 2
+text = "Held Items"
 
 [node name="HSeparator" type="HSeparator" parent="MarginContainer/VBox"]
 layout_mode = 2
@@ -107,5 +111,14 @@ size_flags_vertical = 3
 visible = false
 
 [node name="TechniquesVBox" type="VBoxContainer" parent="MarginContainer/VBox/PageContainer/TechniquesPage"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HeldItemsPage" type="ScrollContainer" parent="MarginContainer/VBox/PageContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+visible = false
+
+[node name="HeldItemsVBox" type="VBoxContainer" parent="MarginContainer/VBox/PageContainer/HeldItemsPage"]
 layout_mode = 2
 size_flags_horizontal = 3
