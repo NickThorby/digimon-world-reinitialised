@@ -36,7 +36,8 @@ var _button_mode: ButtonMode = ButtonMode.EDIT_REMOVE
 func setup(index: int, state: DigimonState) -> void:
 	_index = index
 	_digimon_state = state
-	_update_display()
+	if is_node_ready():
+		_update_display()
 
 
 func _ready() -> void:
@@ -44,6 +45,7 @@ func _ready() -> void:
 	_remove_button.pressed.connect(_on_remove_pressed)
 	_setup_bar_styles()
 	_apply_button_mode()
+	_update_display()
 
 
 func set_button_mode(mode: ButtonMode) -> void:

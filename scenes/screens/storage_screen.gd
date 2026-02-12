@@ -93,18 +93,16 @@ func _update_party_panel() -> void:
 	var members: Array[DigimonState] = Game.state.party.members
 	_party_header.text = "Party (%d/6)" % members.size()
 
-	for i: int in members.size():
-		var btn := Button.new()
-		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		var data: DigimonData = Atlas.digimon.get(members[i].key) as DigimonData
-		var name_text: String = data.display_name if data else str(members[i].key)
-		btn.text = "%s Lv.%d" % [name_text, members[i].level]
-		btn.add_theme_font_size_override("font_size", 14)
-		btn.pressed.connect(_on_party_slot_clicked.bind(i))
+	for i: int in 6:
+		var state: DigimonState = members[i] if i < members.size() else null
+		var panel: DigimonSlotPanel = SLOT_PANEL_SCENE.instantiate() as DigimonSlotPanel
+		panel.setup(i, state)
+		panel.set_button_mode(DigimonSlotPanel.ButtonMode.CONTEXT_MENU)
+		panel.slot_clicked.connect(_on_party_slot_clicked)
 		if _is_moving and _move_source.get("type") == "party" \
 				and _move_source.get("index") == i:
-			btn.modulate = Color(0.024, 0.714, 0.831, 1)
-		_party_list.add_child(btn)
+			panel.modulate = Color(0.024, 0.714, 0.831, 1)
+		_party_list.add_child(panel)
 
 
 # --- Box panel ---
@@ -162,7 +160,9 @@ func _on_party_slot_clicked(index: int) -> void:
 		_complete_move_to_party(index)
 		return
 
-	_show_party_context_menu(index)
+	# Only show context menu for occupied slots
+	if index < Game.state.party.members.size():
+		_show_party_context_menu(index)
 
 
 func _on_box_slot_clicked(box_index: int, slot_index: int) -> void:
@@ -253,16 +253,19 @@ func _start_move_from_box(box_index: int, slot_index: int) -> void:
 
 
 func _complete_move_to_party(target_index: int) -> void:
+	var members: Array[DigimonState] = Game.state.party.members
+	var target_occupied: bool = target_index < members.size()
+
 	if _move_source.get("type") == "party":
-		# Swap within party
+		# Swap within party — only between occupied slots
 		var from_idx: int = _move_source.get("index", -1)
-		if from_idx != target_index:
-			var temp: DigimonState = Game.state.party.members[from_idx]
-			Game.state.party.members[from_idx] = Game.state.party.members[target_index]
-			Game.state.party.members[target_index] = temp
+		if target_occupied and from_idx != target_index:
+			var temp: DigimonState = members[from_idx]
+			members[from_idx] = members[target_index]
+			members[target_index] = temp
 	elif _move_source.get("type") == "box":
 		# Withdraw from box to party
-		if Game.state.party.members.size() >= 6:
+		if members.size() >= 6:
 			_status_label.text = "Party is full!"
 			_cancel_move()
 			return
@@ -270,7 +273,7 @@ func _complete_move_to_party(target_index: int) -> void:
 		var slot_i: int = _move_source.get("slot", 0)
 		var digimon: DigimonState = Game.state.storage.remove_digimon(box_i, slot_i)
 		if digimon != null:
-			Game.state.party.members.append(digimon)
+			members.append(digimon)
 
 	_cancel_move()
 
@@ -422,6 +425,7 @@ func _on_back_pressed() -> void:
 	if _is_moving:
 		_cancel_move()
 		return
-	if _return_scene != "":
-		Game.screen_context = {"mode": _mode}
-		SceneManager.change_scene(_return_scene)
+	var target: String = _return_scene if _return_scene != "" \
+		else "res://scenes/screens/mode_screen.tscn"
+	Game.screen_context = {"mode": _mode}
+	SceneManager.change_scene(target)

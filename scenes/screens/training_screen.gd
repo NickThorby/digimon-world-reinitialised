@@ -67,11 +67,17 @@ const DIFFICULTIES: Array[String] = ["basic", "intermediate", "advanced"]
 func _ready() -> void:
 	_read_context()
 
-	if _party_index < 0 or Game.state == null:
-		_navigate_to_party_selector()
+	# Always connect back button so the user is never stuck
+	_back_button.pressed.connect(_on_back_pressed)
+
+	if Game.state == null or Game.state.party.members.is_empty():
 		return
 
-	if Game.state.party.members.size() <= _party_index:
+	if _party_index < 0 or _party_index >= Game.state.party.members.size():
+		# Wait for any in-progress scene transition before redirecting,
+		# otherwise SceneManager silently drops the change_scene call.
+		if SceneManager._is_transitioning:
+			await SceneManager.transition_finished
 		_navigate_to_party_selector()
 		return
 
@@ -89,8 +95,11 @@ func _read_context() -> void:
 	var ctx: Dictionary = Game.screen_context
 	_mode = ctx.get("mode", Registry.GameMode.TEST)
 	_party_index = ctx.get("party_index", -1)
-	_return_scene = ctx.get("return_scene", "")
 	_hyper_unlocked = ctx.get("hyper_unlocked", false)
+
+	# Prefer original_return_scene (preserved through party selector redirect)
+	_return_scene = ctx.get("original_return_scene",
+		ctx.get("return_scene", ""))
 
 	# Check if we got a result from party selector
 	if _party_index < 0 and Game.screen_result is Dictionary:
@@ -105,6 +114,8 @@ func _navigate_to_party_selector() -> void:
 		"select_mode": true,
 		"select_prompt": "Select Digimon to train",
 		"return_scene": TRAINING_SCREEN_PATH,
+		"original_return_scene": _return_scene,
+		"hyper_unlocked": _hyper_unlocked,
 	}
 	SceneManager.change_scene(PARTY_SCREEN_PATH)
 
@@ -149,16 +160,16 @@ func _configure_tabs() -> void:
 
 
 func _connect_signals() -> void:
-	_back_button.pressed.connect(_on_back_pressed)
 	_standard_tab.pressed.connect(_on_standard_tab)
 	_hyper_tab.pressed.connect(_on_hyper_tab)
 	_done_button.pressed.connect(_on_done_pressed)
 
 
 func _on_back_pressed() -> void:
-	if _return_scene != "":
-		Game.screen_context = {"mode": _mode}
-		SceneManager.change_scene(_return_scene)
+	var target: String = _return_scene if _return_scene != "" \
+		else "res://scenes/screens/mode_screen.tscn"
+	Game.screen_context = {"mode": _mode}
+	SceneManager.change_scene(target)
 
 
 func _on_standard_tab() -> void:

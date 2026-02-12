@@ -124,3 +124,8 @@ text = "Training"
 layout_mode = 2
 custom_minimum_size = Vector2(220, 70)
 text = "Settings"
+
+[node name="HealButton" type="Button" parent="MarginContainer/VBox/CentreWrap/ButtonGrid" unique_name_in_owner=true]
+layout_mode = 2
+custom_minimum_size = Vector2(220, 70)
+text = "Heal Party"

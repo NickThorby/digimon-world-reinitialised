@@ -31,6 +31,7 @@ const _GRID := "MarginContainer/VBox/CentreWrap/ButtonGrid"
 @onready var _shop_button: Button = get_node(_GRID + "/ShopButton")
 @onready var _training_button: Button = get_node(_GRID + "/TrainingButton")
 @onready var _settings_button: Button = get_node(_GRID + "/SettingsButton")
+@onready var _heal_button: Button = get_node(_GRID + "/HealButton")
 
 
 func _ready() -> void:
@@ -96,6 +97,7 @@ func _configure_buttons() -> void:
 	_wild_battle_button.visible = is_test
 	_shop_button.visible = is_test
 	_training_button.visible = is_test
+	_heal_button.visible = is_test
 
 	# Disabled: Wild Battle (still coming soon)
 	_wild_battle_button.disabled = true
@@ -112,6 +114,7 @@ func _connect_signals() -> void:
 	_shop_button.pressed.connect(_on_shop_pressed)
 	_training_button.pressed.connect(_on_training_pressed)
 	_settings_button.pressed.connect(_on_settings_pressed)
+	_heal_button.pressed.connect(_on_heal_pressed)
 
 
 func _on_party_pressed() -> void:
@@ -179,6 +182,27 @@ func _on_battle_pressed() -> void:
 func _on_settings_pressed() -> void:
 	Game.screen_context = {"return_scene": MODE_SCREEN_PATH}
 	SceneManager.change_scene(SETTINGS_PATH)
+
+
+func _on_heal_pressed() -> void:
+	if Game.state == null or Game.state.party.members.is_empty():
+		return
+	for member: DigimonState in Game.state.party.members:
+		var data: DigimonData = Atlas.digimon.get(member.key) as DigimonData
+		if data == null:
+			continue
+		var stats: Dictionary = StatCalculator.calculate_all_stats(data, member)
+		var personality: PersonalityData = Atlas.personalities.get(
+			member.get_effective_personality_key(),
+		) as PersonalityData
+		member.current_hp = StatCalculator.apply_personality(
+			stats.get(&"hp", 1), &"hp", personality,
+		)
+		member.current_energy = StatCalculator.apply_personality(
+			stats.get(&"energy", 1), &"energy", personality,
+		)
+		member.status_conditions.clear()
+	_build_party_strip()
 
 
 func _on_back_pressed() -> void:

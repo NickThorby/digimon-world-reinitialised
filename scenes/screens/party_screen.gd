@@ -91,9 +91,10 @@ func _on_back_pressed() -> void:
 	if _select_mode:
 		Game.screen_result = null
 
-	if _return_scene != "":
-		Game.screen_context = {"mode": _mode}
-		SceneManager.change_scene(_return_scene)
+	var target: String = _return_scene if _return_scene != "" \
+		else "res://scenes/screens/mode_screen.tscn"
+	Game.screen_context = {"mode": _mode}
+	SceneManager.change_scene(target)
 
 
 func _on_slot_clicked(index: int) -> void:
@@ -229,6 +230,7 @@ func _navigate_to_summary(index: int) -> void:
 		"editable": true,
 		"party_navigation": true,
 		"return_scene": PARTY_SCREEN_PATH,
+		"party_return_scene": _return_scene,
 		"mode": _mode,
 	}
 	SceneManager.change_scene(SUMMARY_SCREEN_PATH)

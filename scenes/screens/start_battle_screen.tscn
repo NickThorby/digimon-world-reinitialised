@@ -53,32 +53,27 @@ offset_bottom = -20.0
 [node name="VBox" type="VBoxContainer" parent="MarginContainer"]
 layout_mode = 2
 
-[node name="HeaderBar" type="MarginContainer" parent="MarginContainer/VBox"]
+[node name="HeaderBar" type="HBoxContainer" parent="MarginContainer/VBox"]
 layout_mode = 2
-theme_override_constants/margin_bottom = 12
 
 [node name="BackButton" type="Button" parent="MarginContainer/VBox/HeaderBar"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.631, 0.631, 0.667, 1)
-theme_override_colors/font_hover_color = Color(0.133, 0.827, 0.933, 1)
 text = "< Back"
-flat = true
+
+[node name="HeaderSpacer" type="Control" parent="MarginContainer/VBox/HeaderBar"]
+layout_mode = 2
+size_flags_horizontal = 3
 
 [node name="Title" type="Label" parent="MarginContainer/VBox/HeaderBar"]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -100.0
-offset_top = -15.0
-offset_right = 100.0
-offset_bottom = 15.0
+layout_mode = 2
 theme_override_colors/font_color = Color(0.024, 0.714, 0.831, 1)
 theme_override_font_sizes/font_size = 28
 text = "Start Battle"
 horizontal_alignment = 1
+
+[node name="HeaderSpacer2" type="Control" parent="MarginContainer/VBox/HeaderBar"]
+layout_mode = 2
+size_flags_horizontal = 3
 
 [node name="HSplit" type="HSplitContainer" parent="MarginContainer/VBox"]
 layout_mode = 2

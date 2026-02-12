@@ -41,6 +41,7 @@ var _editable: bool = false
 var _party_navigation: bool = false
 var _return_scene: String = ""
 var _mode: Registry.GameMode = Registry.GameMode.TEST
+var _party_return_scene: String = ""
 var _current_page: int = 0
 
 
@@ -60,6 +61,7 @@ func _read_context() -> void:
 	_party_navigation = ctx.get("party_navigation", false)
 	_return_scene = ctx.get("return_scene", "")
 	_mode = ctx.get("mode", Registry.GameMode.TEST)
+	_party_return_scene = ctx.get("party_return_scene", "")
 
 	if _digimon:
 		_data = Atlas.digimon.get(_digimon.key) as DigimonData
@@ -82,7 +84,10 @@ func _connect_signals() -> void:
 
 func _on_back_pressed() -> void:
 	if _return_scene != "":
-		Game.screen_context = {"mode": _mode, "return_scene": ""}
+		var ctx: Dictionary = {"mode": _mode}
+		if _party_return_scene != "":
+			ctx["return_scene"] = _party_return_scene
+		Game.screen_context = ctx
 		SceneManager.change_scene(_return_scene)
 
 
