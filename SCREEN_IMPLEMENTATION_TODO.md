@@ -8,25 +8,25 @@ Progress tracker for [SCREEN_IMPLEMENTATION.md](SCREEN_IMPLEMENTATION.md). Tick 
 
 No UI — state classes, field additions, and test reorganisation.
 
-- [ ] Add `Registry.GameMode` enum — `autoload/registry.gd`
-- [ ] Create `StorageState` — `scripts/systems/game/storage_state.gd` (+ unit tests)
-- [ ] Migrate `GameState.storage` from Array to StorageState — `scripts/systems/game/game_state.gd`
-- [ ] Add `DigimonState.training_points` — `scripts/systems/digimon/digimon_state.gd` (+ serialisation)
-- [ ] Rename `InventoryState.money` to `bits` — `scripts/systems/inventory/inventory_state.gd` (+ serialisation)
-- [ ] Add GameBalance training/storage constants — `data/config/game_balance.gd` + `.tres`
-- [ ] Grant TP on level-up in `XPCalculator` — `scripts/systems/battle/xp_calculator.gd` (+ test update)
-- [ ] Add `Game.screen_context` / `screen_result` / `game_mode` — `autoload/game.gd`
-- [ ] Update `SaveManager` for mode directories + metadata — `scripts/systems/game/save_manager.gd`
-- [ ] Create `TamerData` resource — `data/tamer/tamer_data.gd`
-- [ ] Create `TamerState` — `scripts/systems/game/tamer_state.gd`
-- [ ] Create `ShopData` resource — `data/shop/shop_data.gd`
-- [ ] Create `TrainingCalculator` — `scripts/utilities/training_calculator.gd` (+ unit tests)
-- [ ] Create `EvolutionChecker` — `scripts/utilities/evolution_checker.gd` (+ unit tests)
-- [ ] Add `Atlas.tamers` and `Atlas.shops` loading — `autoload/atlas.gd`
-- [ ] Add `GameState.tamer_name` / `tamer_id` / `play_time` — `scripts/systems/game/game_state.gd`
-- [ ] Reorganise test folders — `tests/` (see §5.1)
-- [ ] Create `TestScreenFactory` helper — `tests/helpers/test_screen_factory.gd`
-- [ ] Update `CONTEXT.md` — document new state classes
+- [x] Add `Registry.GameMode` enum — `autoload/registry.gd`
+- [x] Create `StorageState` — `scripts/systems/game/storage_state.gd` (+ unit tests)
+- [x] Migrate `GameState.storage` from Array to StorageState — `scripts/systems/game/game_state.gd`
+- [x] Add `DigimonState.training_points` — `scripts/systems/digimon/digimon_state.gd` (+ serialisation)
+- [x] Rename `InventoryState.money` to `bits` — `scripts/systems/inventory/inventory_state.gd` (+ serialisation)
+- [x] Add GameBalance training/storage constants — `data/config/game_balance.gd` + `.tres`
+- [x] Grant TP on level-up in `XPCalculator` — `scripts/systems/battle/xp_calculator.gd` (+ test update)
+- [x] Add `Game.screen_context` / `screen_result` / `game_mode` — `autoload/game.gd`
+- [x] Update `SaveManager` for mode directories + metadata — `scripts/systems/game/save_manager.gd`
+- [x] Create `TamerData` resource — `data/tamer/tamer_data.gd`
+- [x] Create `TamerState` — `scripts/systems/game/tamer_state.gd`
+- [x] Create `ShopData` resource — `data/shop/shop_data.gd`
+- [x] Create `TrainingCalculator` — `scripts/utilities/training_calculator.gd` (+ unit tests)
+- [x] Create `EvolutionChecker` — `scripts/utilities/evolution_checker.gd` (+ unit tests)
+- [x] Add `Atlas.tamers` and `Atlas.shops` loading — `autoload/atlas.gd`
+- [x] Add `GameState.tamer_name` / `tamer_id` / `play_time` — `scripts/systems/game/game_state.gd`
+- [x] Reorganise test folders — `tests/` (see §5.1)
+- [x] Create `TestScreenFactory` helper — `tests/helpers/test_screen_factory.gd`
+- [x] Update `CONTEXT.md` — document new state classes
 
 ## Phase 1 — Foundation Screens
 
@@ -75,24 +75,24 @@ Wire up cross-references after each phase:
 
 ### Test Folder Reorganisation (Phase 0)
 
-- [ ] Create `tests/battle/unit/` — move battle-specific unit tests from `tests/unit/`
-- [ ] Create `tests/battle/integration/` — move from `tests/integration/`
-- [ ] Create `tests/screens/` directory
-- [ ] Verify GUT recursive scan picks up all subfolders
+- [x] Create `tests/battle/unit/` — move battle-specific unit tests from `tests/unit/`
+- [x] Create `tests/battle/integration/` — move from `tests/integration/`
+- [x] Create `tests/screens/` directory
+- [x] Verify GUT recursive scan picks up all subfolders
 
 ### TestScreenFactory (Phase 0)
 
-- [ ] `create_test_game_state()` — fresh state with 3 test Digimon, storage, 10000 bits
-- [ ] `create_test_party()` / `create_test_inventory()` / `create_test_storage()`
-- [ ] `create_test_shop()` / `create_test_encounter_table()` / `create_test_zone_data()`
-- [ ] `inject_screen_test_data()` / `clear_screen_test_data()`
+- [x] `create_test_game_state()` — fresh state with 3 test Digimon, storage, 10000 bits
+- [x] `create_test_party()` / `create_test_inventory()` / `create_test_storage()`
+- [ ] `create_test_shop()` / `create_test_encounter_table()` / `create_test_zone_data()` (shop done; encounter_table + zone_data deferred to Phase 5)
+- [x] `inject_screen_test_data()` / `clear_screen_test_data()`
 
 ### Per-Screen Tests
 
-- [ ] `tests/unit/test_storage_state.gd` — CRUD, box navigation, edge cases
-- [ ] `tests/unit/test_training_calculator.gd` — RNG, TP deduction, TV cap
-- [ ] `tests/unit/test_evolution_checker.gd` — requirement checks, can_evolve
-- [ ] `tests/unit/test_inventory_state.gd` — bits rename verification
+- [x] `tests/unit/test_storage_state.gd` — CRUD, box navigation, edge cases
+- [x] `tests/unit/test_training_calculator.gd` — RNG, TP deduction, TV cap
+- [x] `tests/unit/test_evolution_checker.gd` — requirement checks, can_evolve
+- [x] `tests/unit/test_inventory_state.gd` — bits rename verification
 - [ ] `tests/unit/test_wild_battle_factory.gd` — species roll, level roll, format roll
 - [ ] `tests/unit/test_zone_data.gd` — JSON parsing, level range fallback
 - [ ] `tests/screens/test_mode_screen.gd` — button visibility per mode, navigation, context passing
