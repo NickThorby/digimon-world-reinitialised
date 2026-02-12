@@ -152,5 +152,8 @@ func _set_phase_value(value: int) -> void:
 
 
 func _on_continue_pressed() -> void:
+	var return_path: String = Game.builder_context.get(
+		"return_scene", BUILDER_PATH
+	)
 	Game.battle_config = null
-	SceneManager.change_scene(BUILDER_PATH)
+	SceneManager.change_scene(return_path)

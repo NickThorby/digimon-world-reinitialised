@@ -905,10 +905,16 @@ func _on_confirm() -> void:
 
 	Game.picker_result = _pending_state
 	_pending_state = null
-	SceneManager.change_scene(BUILDER_SCENE_PATH)
+	var return_path: String = Game.picker_context.get(
+		"return_scene", BUILDER_SCENE_PATH
+	)
+	SceneManager.change_scene(return_path)
 
 
 func _on_cancel() -> void:
 	_pending_state = null
 	Game.picker_result = null
-	SceneManager.change_scene(BUILDER_SCENE_PATH)
+	var return_path: String = Game.picker_context.get(
+		"return_scene", BUILDER_SCENE_PATH
+	)
+	SceneManager.change_scene(return_path)

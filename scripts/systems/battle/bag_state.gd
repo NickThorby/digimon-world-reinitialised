@@ -77,6 +77,40 @@ func to_dict() -> Dictionary:
 	return data
 
 
+## Return a shallow copy of the internal items dictionary.
+func get_items_dict() -> Dictionary:
+	return _items.duplicate()
+
+
+## Create a BagState from an InventoryState, copying all item quantities.
+static func from_inventory(inventory: InventoryState) -> BagState:
+	var bag := BagState.new()
+	for key: StringName in inventory.items:
+		var qty: int = int(inventory.items[key])
+		if qty > 0:
+			bag._items[key] = qty
+	return bag
+
+
+## Sync consumed items back to an InventoryState.
+## Compares the bag's current quantities against a pre-battle snapshot
+## and removes consumed amounts from the inventory.
+static func sync_to_inventory(
+	bag: BagState, inventory: InventoryState, pre_battle_snapshot: Dictionary
+) -> void:
+	for key: StringName in pre_battle_snapshot:
+		var before: int = int(pre_battle_snapshot[key])
+		var after: int = bag.get_quantity(key)
+		var consumed: int = before - after
+		if consumed > 0:
+			var inv_qty: int = int(inventory.items.get(key, 0))
+			var remaining: int = maxi(inv_qty - consumed, 0)
+			if remaining <= 0:
+				inventory.items.erase(key)
+			else:
+				inventory.items[key] = remaining
+
+
 ## Deserialise from dictionary.
 static func from_dict(data: Dictionary) -> BagState:
 	var bag := BagState.new()

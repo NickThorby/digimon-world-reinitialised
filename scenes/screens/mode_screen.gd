@@ -4,6 +4,7 @@ extends Control
 const MODE_SCREEN_PATH := "res://scenes/screens/mode_screen.tscn"
 const SAVE_SCREEN_PATH := "res://scenes/screens/save_screen.tscn"
 const BATTLE_BUILDER_PATH := "res://scenes/battle/battle_builder.tscn"
+const START_BATTLE_SCREEN_PATH := "res://scenes/screens/start_battle_screen.tscn"
 const SETTINGS_PATH := "res://ui/menus/settings_screen.tscn"
 const MAIN_MENU_PATH := "res://scenes/main/main.tscn"
 const PARTY_SCREEN_PATH := "res://scenes/screens/party_screen.tscn"
@@ -168,8 +169,11 @@ func _on_save_pressed() -> void:
 
 
 func _on_battle_pressed() -> void:
-	Game.screen_context = {"return_scene": MODE_SCREEN_PATH}
-	SceneManager.change_scene(BATTLE_BUILDER_PATH)
+	Game.screen_context = {
+		"mode": _mode,
+		"return_scene": MODE_SCREEN_PATH,
+	}
+	SceneManager.change_scene(START_BATTLE_SCREEN_PATH)
 
 
 func _on_settings_pressed() -> void:

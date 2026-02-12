@@ -49,7 +49,7 @@ No UI — state classes, field additions, and test reorganisation.
 
 ## Phase 4 — Battle Integration
 
-- [ ] **4a** Start Battle Screen — `scenes/screens/start_battle_screen.tscn` + `.gd` (replaces `battle_builder`) | depends on: Mode Screen, Party Screen
+- [x] **4a** Start Battle Screen — `scenes/screens/start_battle_screen.tscn` + `.gd` (replaces `battle_builder`) | depends on: Mode Screen, Party Screen
 
 ## Phase 5 — Wild Battle System
 
@@ -111,5 +111,5 @@ Wire up cross-references after each phase:
 - [x] `tests/screens/test_shop_screen_logic.gd` — price calc, buy/sell, insufficient funds, test shop
 - [x] `tests/screens/test_training_screen_logic.gd` — course execution, TV cap, animation complete
 - [x] `tests/screens/test_evolution_screen_logic.gd` — evolve action, stat recalc, item consumption
-- [ ] `tests/screens/test_start_battle_screen.gd` — BattleConfig construction, battle launch, post-battle write-back
+- [x] `tests/screens/test_start_battle_screen.gd` — BattleConfig construction, battle launch, post-battle write-back
 - [ ] `tests/screens/test_wild_battle_test_screen.gd` — encounter table save/load, format weights, roll preview, battle launch
