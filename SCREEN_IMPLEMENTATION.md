@@ -219,6 +219,128 @@ static func can_evolve(
 ) -> bool
 ```
 
+#### ZoneData — `scripts/systems/world/zone_data.gd`
+
+Parsed from `data/locale/locations.json` at runtime. Holds encounter info only. Not a Resource (parsed from JSON, not .tres). Battlefield environment is **not** stored here — it will be determined dynamically by a future BattlefieldFactory based on zone context, real-time conditions, and other factors.
+
+```
+class_name ZoneData extends RefCounted
+
+Fields:
+  key: StringName                       # Composite: "region/sector/zone" e.g. "grassy_plains/north/clearing"
+  name: String
+  region_name: String
+  sector_name: String
+  description: String
+
+  # Encounter table
+  encounter_entries: Array[Dictionary]  # [{digimon_key, rarity, min_level, max_level}]
+                                        # min_level/max_level: -1 = use zone defaults
+  default_min_level: int = 1
+  default_max_level: int = 5
+  format_weights: Dictionary = {}       # {BattleConfig.FormatPreset -> int weight}
+                                        # Empty = 100% SINGLES_1V1
+
+  # Future hooks
+  boss_entries: Array[Dictionary] = []  # [{digimon_key, level, boss_type}] — special encounters
+  sos_enabled: bool = false
+
+Methods:
+  get_encounter_level_range(entry: Dictionary) -> Dictionary
+    # Returns {"min": int, "max": int} — entry override or zone default
+
+  static parse_from_json(region: Dictionary, sector: Dictionary, zone: Dictionary) -> ZoneData
+    # Parses a single zone from the locations.json structure
+```
+
+#### EncounterTableData — `data/encounter/encounter_table_data.gd`
+
+Resource version for the **test screen** (saveable/loadable presets). Story mode uses ZoneData directly. Same encounter fields as ZoneData but as a Resource with @exports.
+
+```
+class_name EncounterTableData extends Resource
+
+@export var key: StringName = &""
+@export var name: String = ""
+@export var entries: Array[Dictionary] = []          # [{digimon_key, rarity, min_level, max_level}]
+@export var default_min_level: int = 1
+@export var default_max_level: int = 5
+@export var format_weights: Dictionary = {}          # {int(FormatPreset) -> int weight}
+@export var boss_entries: Array[Dictionary] = []
+@export var sos_enabled: bool = false
+
+Methods:
+  to_zone_data() -> ZoneData
+    # Converts to ZoneData for use with WildBattleFactory
+```
+
+#### WildBattleFactory — `scripts/systems/battle/wild_battle_factory.gd`
+
+Pure utility. All static functions. Creates wild encounter BattleConfigs. **Only populates combatant sides** — does NOT set field effects (weather, terrain, hazards). Those are the responsibility of a future BattlefieldFactory that runs after encounter generation.
+
+```
+class_name WildBattleFactory extends RefCounted
+
+## Create a wild encounter BattleConfig from zone data.
+## Returns a BattleConfig with player side and wild side populated.
+## Field effects are NOT set — caller (or future BattlefieldFactory) handles that.
+static func create_encounter(
+  zone: ZoneData,
+  player_party: Array[DigimonState],
+  player_bag: BagState,
+  rng: RandomNumberGenerator = null,
+) -> BattleConfig
+  # 1. Roll battle format from zone.format_weights
+  # 2. Determine wild side slot count from format
+  # 3. For each wild slot: roll species from entries (weighted by rarity), roll level
+  # 4. Create DigimonState via DigimonFactory for each
+  # 5. Build BattleConfig: player side (is_owned: true), wild side (is_wild: true, controller: AI)
+  # 6. Return config (no field effects applied)
+
+## Roll a single species from encounter entries using rarity weights.
+## Returns the entry Dictionary, or {} if entries empty.
+static func roll_species(
+  entries: Array[Dictionary],
+  rng: RandomNumberGenerator = null,
+) -> Dictionary
+
+## Roll a level within an entry's range (with zone default fallback).
+static func roll_level(
+  entry: Dictionary,
+  zone: ZoneData,
+  rng: RandomNumberGenerator = null,
+) -> int
+
+## Roll a battle format from weight distribution.
+## Returns a FormatPreset. Defaults to SINGLES_1V1 if weights empty.
+static func roll_format(
+  format_weights: Dictionary,
+  rng: RandomNumberGenerator = null,
+) -> BattleConfig.FormatPreset
+```
+
+**Rarity → weight mapping** (configurable in GameBalance):
+
+| Rarity | Default Weight |
+|--------|---------------|
+| COMMON | 50 |
+| UNCOMMON | 30 |
+| RARE | 15 |
+| VERY_RARE | 4 |
+| LEGENDARY | 1 |
+
+Multiple entries of the same rarity stack. E.g. 3 COMMON species each get weight 50, so each has 50/(50+50+50) = 33% within the COMMON tier. Total pool: 2 COMMON (50 each) + 1 RARE (15) → probabilities 50/115, 50/115, 15/115.
+
+#### Future: BattlefieldFactory (not built now — documented for context)
+
+A third factory, built later, will be responsible for applying environmental conditions to **any** BattleConfig (wild or tamer). It will consider:
+- Zone identity (volcanic zones tend toward heat, ocean zones toward rain, etc.)
+- Real-time / in-game time factors
+- Story progression flags
+- Random variation
+
+This is why neither WildBattleFactory nor TamerState touches `preset_field_effects` / `preset_side_effects` / `preset_hazards`. The test screen provides manual field effect configuration as a stand-in until BattlefieldFactory exists.
+
 ### 2.2 Modifications to Existing Classes
 
 #### DigimonState — add training points
@@ -266,6 +388,20 @@ Update `to_dict()` / `from_dict()` to use `"bits"` key.
 @export var storage_slots_per_box: int = 50
 # Save
 @export var save_slot_count: int = 3
+# Wild encounters
+@export var rarity_weights: Dictionary = {
+  0: 50,   # COMMON
+  1: 30,   # UNCOMMON
+  2: 15,   # RARE
+  3: 4,    # VERY_RARE
+  4: 1,    # LEGENDARY
+}
+@export var default_encounter_min_level: int = 1
+@export var default_encounter_max_level: int = 5
+@export var default_format_weights: Dictionary = {
+  0: 85,   # SINGLES_1V1
+  1: 15,   # DOUBLES_2V2
+}
 ```
 
 All training courses have **3 steps**. Each step is an independent pass/fail roll at the course's pass rate. TV gained = successful_steps × tv_per_step.
@@ -296,6 +432,12 @@ var shops: Dictionary = {}    # StringName -> ShopData
 
 Load from `data/tamer/` and `data/shop/` directories.
 
+```gdscript
+var zones: Dictionary = {}  # StringName -> ZoneData (keyed by composite "region/sector/zone")
+```
+
+Parsed from `data/locale/locations.json` on load. Zone keys are snake_case composite paths.
+
 #### SaveManager — mode-based directories + metadata
 
 ```gdscript
@@ -311,12 +453,20 @@ static func save_game(state: GameState, slot: String, mode: Registry.GameMode) -
 static func get_save_metadata(slot: String, mode: Registry.GameMode) -> Dictionary
 ```
 
-#### Registry — add GameMode enum
+#### Registry — add GameMode and Rarity enums
 
 ```gdscript
 enum GameMode {
   TEST,
   STORY,
+}
+
+enum Rarity {
+  COMMON,
+  UNCOMMON,
+  RARE,
+  VERY_RARE,
+  LEGENDARY,
 }
 ```
 
@@ -386,6 +536,7 @@ Small panel (~64×64) for a single box slot. Shows Digimon sprite thumbnail (fli
 | Storage | storage_icon | Yes | Yes |
 | Save | save_icon | Yes | Yes |
 | Battle | battle_icon | Yes | **No** |
+| Wild Battle | wild_icon | Yes | **No** |
 | Shop | shop_icon | Yes | **No** |
 | Training | training_icon | Yes | **No** |
 | Settings | settings_icon | Yes | Yes |
@@ -876,6 +1027,64 @@ Each step rolls independently. TV capped at `GameBalance.max_tv` (500) per stat.
 
 ---
 
+### 3.12 Wild Battle Test Screen
+
+**Purpose**: Test-mode-only screen for configuring and simulating wild encounters. Lets users build custom encounter tables, configure format weights, and launch wild battles through the WildBattleFactory. Also allows manual field effect configuration as a stand-in for the future BattlefieldFactory.
+
+**Scene**: `scenes/screens/wild_battle_test_screen.tscn`
+**Script**: `scenes/screens/wild_battle_test_screen.gd`
+
+**Context inputs**:
+```gdscript
+{
+  "mode": Registry.GameMode,  # Always TEST
+}
+```
+
+**Context outputs**: None (launches battle scene, writes back to Game.state on return).
+
+**Layout**:
+- **Left panel — Encounter Table Builder**:
+  - "Encounter Table" header
+  - Entry list (scrollable):
+    - Each row: Digimon sprite + name, rarity dropdown, level range (min-max spinners, blank = zone default)
+    - Remove button per entry
+  - "Add Digimon" button → opens DigimonPicker → adds entry with COMMON default
+  - Zone-wide defaults:
+    - "Default Level Range" — min/max spinners
+  - Save/Load table buttons (saves as EncounterTableData .tres)
+
+- **Right panel — Battle Settings** (tabs):
+  - **Format tab**:
+    - Format weight sliders (1v1, 2v2, 3v3) — each 0-100, shown as percentages
+    - Preview: "85% Singles, 15% Doubles"
+  - **Battlefield tab** (manual stand-in for future BattlefieldFactory):
+    - Weather selector (same as existing builder field effects)
+    - Terrain selector
+    - Global effects list (add/remove)
+    - Side effects / Hazards (reuse existing builder components)
+    - Note: in story mode these will be determined by BattlefieldFactory, not configured manually
+  - **Special tab** (future):
+    - Boss encounter toggle + config
+    - SOS battle toggle
+
+- **Bottom bar**:
+  - "Roll Encounter" button — runs factory, shows preview panel:
+    - Rolled species + level per wild slot
+    - Rolled format
+    - "Accept & Battle" / "Re-roll" / "Cancel"
+  - "Quick Battle" button — runs factory and starts battle immediately
+  - "Back" button
+
+**Key behaviour**:
+- Player side auto-populated from `Game.state.party` (read-only, same as Start Battle Screen)
+- WildBattleFactory produces the BattleConfig with combatant sides
+- Test screen manually applies any configured field effects to the BattleConfig before launching
+- After battle: owned-side write-back updates `Game.state`
+- Save/Load persists EncounterTableData resources to `user://encounter_tables/`
+
+---
+
 ## 4. Implementation Order
 
 ### Phase 0 — Infrastructure
@@ -935,6 +1144,19 @@ Must be completed first. No UI — only state classes, field additions, and test
 |-------|--------|-------------|
 | 4a | Start Battle Screen | Phase 1 (Mode), Phase 2a (Party), replaces old builder |
 
+### Phase 5 — Wild Battle System
+
+| Order | Task | Dependencies |
+|-------|------|-------------|
+| 5a | Add `Registry.Rarity` enum | Phase 0 |
+| 5b | Create `ZoneData` class | Phase 0 |
+| 5c | Add `Atlas.zones` parsing from locations.json | 5b |
+| 5d | Create `EncounterTableData` resource | 5a |
+| 5e | Add GameBalance wild encounter constants | Phase 0 |
+| 5f | Create `WildBattleFactory` | 5b, 5e, DigimonFactory, BattleConfig |
+| 5g | Create Wild Battle Test Screen | 5d, 5f, Phase 1 (Mode Screen), Phase 2a (Party) |
+| 5h | Add "Wild Battle" button to Mode Screen | 5g, Phase 1c |
+
 ### Integration Passes (after each phase)
 
 After each phase, return to previously-built screens to wire up cross-references:
@@ -962,7 +1184,9 @@ tests/
 │   ├── test_storage_state.gd          # NEW
 │   ├── test_training_calculator.gd    # NEW
 │   ├── test_evolution_checker.gd      # NEW
-│   └── test_inventory_state.gd        # NEW (bits rename verification)
+│   ├── test_inventory_state.gd        # NEW (bits rename verification)
+│   ├── test_wild_battle_factory.gd    # NEW
+│   └── test_zone_data.gd             # NEW
 ├── battle/
 │   ├── unit/                          # Moved from tests/unit/ (battle-specific)
 │   │   ├── test_damage_calculator.gd
@@ -983,7 +1207,8 @@ tests/
     ├── test_training_screen.gd
     ├── test_evolution_screen.gd
     ├── test_summary_screen.gd
-    └── test_start_battle_screen.gd
+    ├── test_start_battle_screen.gd
+    └── test_wild_battle_test_screen.gd
 ```
 
 GUT's recursive directory scan will pick up all subfolders — no `.gutconfig.json` changes needed beyond ensuring `"dirs": ["res://tests/"]`.
@@ -1009,6 +1234,10 @@ static func create_test_shop() -> ShopData
 static func inject_screen_test_data() -> void
   # Calls TestBattleFactory.inject_all_test_data() + adds screen-specific data
 
+static func create_test_encounter_table(entry_count: int = 5) -> EncounterTableData
+
+static func create_test_zone_data() -> ZoneData
+
 static func clear_screen_test_data() -> void
 ```
 
@@ -1026,6 +1255,7 @@ static func clear_screen_test_data() -> void
 | Training Screen | TrainingCalculator RNG, TP deduction | Course execution, TV cap, animation complete |
 | Evolution Screen | EvolutionChecker requirements | Evolve action, stat recalc, item consumption |
 | Start Battle Screen | BattleConfig construction from state | Battle launch, post-battle write-back to Game.state |
+| Wild Battle Test Screen | EncounterTableData save/load, format weight normalisation | Roll encounter preview, battle launch, post-battle write-back |
 
 ---
 
@@ -1044,4 +1274,12 @@ static func clear_screen_test_data() -> void
 | `data/config/game_balance.gd` + `.tres` | Training + storage constants |
 | `ui/components/digimon_slot_panel.gd` | Add flipped sprite support |
 | `scenes/main/main.gd` + `.tscn` | Title screen flow changes |
+| `autoload/registry.gd` | Add `Rarity` enum |
+| `autoload/atlas.gd` | Add `zones` dictionary, parse locations.json |
+| `data/config/game_balance.gd` + `.tres` | Rarity weights, encounter defaults |
+| `scripts/systems/battle/wild_battle_factory.gd` | New |
+| `scripts/systems/world/zone_data.gd` | New |
+| `data/encounter/encounter_table_data.gd` | New |
+| `scenes/screens/wild_battle_test_screen.tscn` + `.gd` | New |
+| `scenes/screens/mode_screen.gd` | Add "Wild Battle" button |
 | `CONTEXT.md` | Document all new state classes and screen architecture |
