@@ -297,7 +297,10 @@ func _on_launch() -> void:
 
 
 func _on_back() -> void:
-	SceneManager.change_scene("res://scenes/main/main.tscn")
+	var return_path: String = Game.screen_context.get(
+		"return_scene", "res://scenes/main/main.tscn"
+	)
+	SceneManager.change_scene(return_path)
 
 
 func _on_save_team() -> void:

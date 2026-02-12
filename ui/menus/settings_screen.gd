@@ -71,7 +71,10 @@ func _connect_signals() -> void:
 
 
 func _on_back() -> void:
-	SceneManager.change_scene(MAIN_MENU_PATH)
+	var return_path: String = Game.screen_context.get(
+		"return_scene", MAIN_MENU_PATH
+	)
+	SceneManager.change_scene(return_path)
 
 
 func _on_name_style_changed(index: int) -> void:

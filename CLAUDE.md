@@ -99,3 +99,4 @@ static func from_dict(data: Dictionary) -> MyThingState:
 - Merge battle engine changes without corresponding tests
 - Use imported game data (from `data/`) in tests — use `TestBattleFactory` test data instead
 - Write tests that depend on specific RNG output without documenting the seed
+- Use `%NodeName` unique name syntax in scripts — it breaks with hand-edited .tscn files. Use `$Path/To/Node` or `get_node()` instead

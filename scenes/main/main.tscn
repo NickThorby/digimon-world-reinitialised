@@ -47,12 +47,21 @@ horizontal_alignment = 1
 layout_mode = 2
 custom_minimum_size = Vector2(0, 40)
 
-[node name="BuilderButton" type="Button" parent="CentreContainer/VBox" unique_name_in_owner=true]
+[node name="TestModeButton" type="Button" parent="CentreContainer/VBox" unique_name_in_owner=true]
 layout_mode = 2
 custom_minimum_size = Vector2(300, 50)
-text = "Battle Builder"
+text = "Test Mode"
 
 [node name="ButtonSpacer" type="Control" parent="CentreContainer/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 12)
+
+[node name="StoryModeButton" type="Button" parent="CentreContainer/VBox" unique_name_in_owner=true]
+layout_mode = 2
+custom_minimum_size = Vector2(300, 50)
+text = "Story Mode"
+
+[node name="ButtonSpacer2" type="Control" parent="CentreContainer/VBox"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 12)
 

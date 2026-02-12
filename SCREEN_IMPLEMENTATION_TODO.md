@@ -30,9 +30,9 @@ No UI — state classes, field additions, and test reorganisation.
 
 ## Phase 1 — Foundation Screens
 
-- [ ] **1a** Title Screen updates — `scenes/main/main.gd` + `.tscn` | depends on: SaveManager
-- [ ] **1b** Save Screen — `scenes/screens/save_screen.tscn` + `.gd` | depends on: SaveManager metadata
-- [ ] **1c** Mode Screen (Hub) — `scenes/screens/mode_screen.tscn` + `.gd` | depends on: Game.screen_context, GameMode
+- [x] **1a** Title Screen updates — `scenes/main/main.gd` + `.tscn` | depends on: SaveManager
+- [x] **1b** Save Screen — `scenes/screens/save_screen.tscn` + `.gd` | depends on: SaveManager metadata
+- [x] **1c** Mode Screen (Hub) — `scenes/screens/mode_screen.tscn` + `.gd` | depends on: Game.screen_context, GameMode
 
 ## Phase 2 — Core Management Screens
 

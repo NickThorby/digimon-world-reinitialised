@@ -29,7 +29,8 @@ var screen_result: Variant = null
 ## Start a new game with fresh state.
 func new_game() -> void:
 	state = GameState.new()
-	# TODO: Transition to overworld or intro scene
+	state.tamer_name = "Tamer"
+	state.tamer_id = StringName(str(randi_range(10000000, 99999999)))
 	print("Game: New game started")
 
 
@@ -59,8 +60,4 @@ func save_game(slot_name: String) -> bool:
 ## Return to main menu (clears current state).
 func return_to_menu() -> void:
 	state = null
-	if not Engine.has_singleton(&"SceneManager"):
-		return
-	var sm: Node = Engine.get_singleton(&"SceneManager")
-	if sm:
-		sm.change_scene(SCENE_MAIN_MENU)
+	SceneManager.change_scene(SCENE_MAIN_MENU)

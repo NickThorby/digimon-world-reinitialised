@@ -1204,6 +1204,52 @@ Pure static utility for checking evolution requirements against a DigimonState a
 
 ---
 
+## Screen Navigation System
+
+### Navigation Flow
+
+```
+Title Screen → Save Screen (select) → Mode Screen (hub)
+                                         ├→ Battle Builder → Battle → Battle Builder → Mode Screen
+                                         ├→ Save Screen (save) → Mode Screen
+                                         ├→ Settings → Mode Screen
+                                         └→ [Party, Bag, Storage, etc. — disabled for now]
+Title Screen → Settings → Title Screen
+```
+
+### `Game.screen_context` Pattern
+
+Screens communicate via `Game.screen_context`, a Dictionary set before navigating:
+
+```gdscript
+# Navigating TO a screen — set context before calling change_scene:
+Game.screen_context = {
+    "action": "select",
+    "mode": Registry.GameMode.TEST,
+    "return_scene": "res://scenes/main/main.tscn",
+}
+SceneManager.change_scene("res://scenes/screens/save_screen.tscn")
+
+# The receiving screen reads context in _ready():
+var action: String = Game.screen_context.get("action", "select")
+var return_scene: String = Game.screen_context.get("return_scene", "")
+```
+
+Context persists across sub-navigation (e.g. Mode Screen → Battle Builder → Battle → Builder — the builder's `return_scene` survives the full cycle).
+
+### Screens
+
+**Title Screen** (`scenes/main/main.tscn`): Test Mode button → Save Screen (select), Story Mode (disabled), Settings.
+
+**Save Screen** (`scenes/screens/save_screen.tscn`): Three-slot save management. Context `action` determines behaviour:
+- `"select"` — from Title: shows Load/Delete on occupied slots, New Game on empty
+- `"save"` — from Mode Screen: shows Save/Delete on occupied, Save on empty
+- `"load"` — shows Load/Delete on occupied, nothing on empty
+
+**Mode Screen** (`scenes/screens/mode_screen.tscn`): Central hub. Shows tamer name, bits, party strip. Button grid: Save, Battle Builder, Settings (enabled); Party, Bag, Storage, Wild Battle, Shop, Training (disabled — Coming Soon). TEST mode shows battle/wild/shop/training buttons; STORY mode hides them.
+
+---
+
 ## Important Technical Notes
 
 - **Godot Version**: 4.6 (GDScript only, no C#)
@@ -1214,6 +1260,7 @@ Pure static utility for checking evolution requirements against a DigimonState a
 - **Atlas lookup**: `Atlas.digimon[key]`, `Atlas.techniques[key]`, etc.
 - **Registry access**: `Registry.Attribute.VACCINE`, `Registry.STAT_STAGE_MULTIPLIERS[-3]`
 - **Combat Roles**: Exist only in digimon-dex for base stat generation. NOT needed in this game — only the resulting base stats matter.
+- **No `%` unique name syntax**: `%NodeName` does not work reliably in hand-edited .tscn files. Always use `$Path/To/Node` or `get_node("Path/To/Node")` instead. Use path constants for deeply nested nodes (e.g. `const _GRID := "MarginContainer/VBox/ButtonGrid"`).
 
 ---
 
