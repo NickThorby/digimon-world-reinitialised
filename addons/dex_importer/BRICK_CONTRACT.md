@@ -62,7 +62,7 @@
 
 ### Hazard
 
-`entryDamage`, `entryStatReduction`
+`entryDamage`, `entryStatReduction`, `entryStatusEffect`
 
 ### GlobalEffect
 
@@ -221,13 +221,15 @@
 | Key | Type | Required | Description |
 |---|---|---|---|
 | `brick` | `"hazard"` | Yes | Discriminator |
-| `hazardType` | `String` | Yes | `entryDamage`, `entryStatReduction` |
+| `hazardType` | `String` | Yes | `entryDamage`, `entryStatReduction`, `entryStatusEffect` |
 | `side` | `String` | No | `target` (default), `user`, `allFoes`, `both` |
-| `maxLayers` | `int` | No | Maximum stackable layers (default 1) |
+| `maxLayers` | `int` | No | Maximum stackable layers (default 1, max 5) |
 | `damagePercent` | `float` | No | HP% damage per layer on switch-in (entryDamage) |
 | `element` | `String` | No | Element key — if set, damage scales with target's resistance (entryDamage) |
 | `stat` | `String` | No | Stat abbreviation to reduce on switch-in (entryStatReduction) |
 | `stages` | `int` | No | Stat stages to drop on switch-in (entryStatReduction, default -1) |
+| `status` | `String` | No | Status to inflict on switch-in (entryStatusEffect). At 2+ layers, upgrades stackable statuses (e.g. poisoned → badly_poisoned) |
+| `hazardName` | `String` | No | Display name for the hazard in battle messages and UI. Falls back to technique source_name, then key |
 | `remove` | `bool` | No | Remove this hazard type |
 | `removeAll` | `bool` | No | Remove all hazards |
 | `aerialIsImmune` | `bool` | No | If true, Digimon with aerial movement trait are immune to this hazard on switch-in (default false) |
@@ -497,6 +499,7 @@ The importer converts camelCase identifiers to snake_case:
 |---|---|
 | `entryDamage` | `entry_damage` |
 | `entryStatReduction` | `entry_stat_reduction` |
+| `entryStatusEffect` | `entry_status_effect` |
 | `groundingField` | `grounding_field` |
 | `speedInversion` | `speed_inversion` |
 | `gearSuppression` | `gear_suppression` |
@@ -518,4 +521,4 @@ The importer converts camelCase identifiers to snake_case:
 
 ---
 
-*Last Updated: 2026-02-09*
+*Last Updated: 2026-02-12*
