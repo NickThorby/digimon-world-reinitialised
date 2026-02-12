@@ -33,6 +33,7 @@ enum Stage { BROWSE, CONFIGURE }
 @onready var _ability_buttons: VBoxContainer = $MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/AbilitySection/AbilityButtons
 @onready var _iv_sliders: VBoxContainer = $MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigScroll/ScrollVBox/IVSection/IVSliders
 @onready var _tv_sliders: VBoxContainer = $MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigScroll/ScrollVBox/TVSection/TVSliders
+@onready var _technique_label: Label = $MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigScroll/ScrollVBox/TechniqueConfigSection/TechniqueLabel
 @onready var _technique_buttons: VBoxContainer = $MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigScroll/ScrollVBox/TechniqueConfigSection/TechniqueButtons
 @onready var _equipable_gear_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigScroll/ScrollVBox/GearSection/EquipableGearRow/EquipableGearOption
 @onready var _consumable_gear_option: OptionButton = $MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigScroll/ScrollVBox/GearSection/ConsumableGearRow/ConsumableGearOption
@@ -112,6 +113,8 @@ func _ready() -> void:
 		_max_level = balance.max_level
 		_max_iv = balance.max_iv
 		_max_tv = balance.max_tv
+
+	_technique_label.text = "Techniques (select up to %d)" % _max_equipped
 
 	_level_slider.min_value = 1
 	_level_slider.max_value = _max_level

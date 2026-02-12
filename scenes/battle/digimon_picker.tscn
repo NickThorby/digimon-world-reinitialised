@@ -284,7 +284,7 @@ layout_mode = 2
 
 [node name="TechniqueLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigScroll/ScrollVBox/TechniqueConfigSection"]
 layout_mode = 2
-text = "Techniques (select up to 4)"
+text = "Techniques"
 theme_override_font_sizes/font_size = 14
 
 [node name="TechniqueButtons" type="VBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigScroll/ScrollVBox/TechniqueConfigSection"]

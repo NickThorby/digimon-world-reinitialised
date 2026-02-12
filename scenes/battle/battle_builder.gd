@@ -39,6 +39,7 @@ var _config: BattleConfig = BattleConfig.new()
 var _current_side: int = 0
 var _editing_index: int = -1
 var _bag_category_filter: int = -1  ## -1 = All
+var _balance: GameBalance = null
 
 ## Per-side preset state. Key = side_index, value = { side_effects: {key: {enabled, permanent}},
 ## hazards: {key: {enabled, permanent, layers}} }
@@ -47,6 +48,7 @@ var _side_presets: Dictionary = {}
 
 func _ready() -> void:
 	MusicManager.play("res://assets/audio/music/07. Save Screen.mp3")
+	_balance = load("res://data/config/game_balance.tres") as GameBalance
 
 	var returning_from_battle: bool = Game.builder_context.size() > 0
 	var returning_from_picker: bool = Game.picker_context.size() > 0
@@ -160,6 +162,9 @@ func _restore_from_picker() -> void:
 	if editing_idx >= 0 and editing_idx < party.size():
 		party[editing_idx] = state
 	else:
+		var max_size: int = _balance.max_party_size if _balance else 6
+		if party.size() >= max_size:
+			return
 		party.append(state)
 
 	_config.side_configs[side]["party"] = party
@@ -239,6 +244,12 @@ func _on_side_selected(index: int) -> void:
 
 
 func _on_add_digimon() -> void:
+	var max_size: int = _balance.max_party_size if _balance else 6
+	if _current_side < _config.side_configs.size():
+		var party: Array = _config.side_configs[_current_side].get("party", [])
+		if party.size() >= max_size:
+			_show_validation_message("Party is full (%d max)." % max_size)
+			return
 	_editing_index = -1
 	_navigate_to_picker()
 
@@ -328,12 +339,23 @@ func _on_team_loaded(team: BuilderTeamState) -> void:
 	if _current_side >= _config.side_configs.size():
 		_free_team_popup()
 		return
+	var max_size: int = _balance.max_party_size if _balance else 6
 	var party: Array[DigimonState] = []
 	for member: DigimonState in team.members:
+		if party.size() >= max_size:
+			break
 		party.append(member)
 	_config.side_configs[_current_side]["party"] = party
 	_update_team_display()
-	_show_validation_message("Loaded '%s' (%d members)" % [team.name, team.members.size()])
+	var loaded_count: int = party.size()
+	var total_count: int = team.members.size()
+	if loaded_count < total_count:
+		_show_validation_message(
+			"Loaded '%s' (%d of %d members — truncated to %d max)."
+			% [team.name, loaded_count, total_count, max_size]
+		)
+	else:
+		_show_validation_message("Loaded '%s' (%d members)." % [team.name, loaded_count])
 	_free_team_popup()
 
 
