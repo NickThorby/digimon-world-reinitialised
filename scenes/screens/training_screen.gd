@@ -3,17 +3,19 @@ extends Control
 ##
 ## Purpose: Train a Digimon's TVs (standard) or hyper-train IVs.
 ##
+## Flow: Mode Screen → Party Select → Training Screen (type choice → stat rows).
+##
 ## Context inputs (Game.screen_context):
 ##   mode: Registry.GameMode — TEST or STORY
-##   party_index: int — index of party member to train (-1 = show selector)
-##   return_scene: String — scene to navigate back to
-##   hyper_unlocked: bool — whether Hyper Training tab is visible (default false)
+##   hyper_unlocked: bool — whether Hyper Training button is visible (default false)
+##
+## Screen result inputs (Game.screen_result):
+##   party_index: int — index of party member to train (from party selector)
 ##
 ## Context outputs (Game.screen_result):
 ##   None
 
-const PARTY_SCREEN_PATH := "res://scenes/screens/party_screen.tscn"
-const TRAINING_SCREEN_PATH := "res://scenes/screens/training_screen.tscn"
+const MODE_SCREEN_PATH := "res://scenes/screens/mode_screen.tscn"
 
 const _HEADER := "MarginContainer/VBox/HeaderBar"
 const _DIGI := "MarginContainer/VBox/DigimonHeader"
@@ -25,10 +27,14 @@ const _ANIM := "MarginContainer/VBox/AnimationOverlay/AnimationVBox"
 @onready var _sprite_rect: TextureRect = get_node(_DIGI + "/SpriteRect")
 @onready var _name_label: Label = get_node(_DIGI + "/DigimonInfoVBox/DigimonNameLabel")
 @onready var _level_label: Label = get_node(_DIGI + "/DigimonInfoVBox/DigimonLevelLabel")
+@onready var _type_select_center: CenterContainer = $MarginContainer/VBox/TypeSelectCenter
+@onready var _standard_button: Button = $MarginContainer/VBox/TypeSelectCenter/TypeSelectVBox/StandardButton
+@onready var _hyper_button: Button = $MarginContainer/VBox/TypeSelectCenter/TypeSelectVBox/HyperButton
 @onready var _tab_row: HBoxContainer = $MarginContainer/VBox/TabRow
 @onready var _standard_tab: Button = $MarginContainer/VBox/TabRow/StandardTab
 @onready var _hyper_tab: Button = $MarginContainer/VBox/TabRow/HyperTab
 @onready var _total_tv_label: Label = $MarginContainer/VBox/TotalTVLabel
+@onready var _scroll_container: ScrollContainer = $MarginContainer/VBox/ScrollContainer
 @onready var _stat_rows: VBoxContainer = $MarginContainer/VBox/ScrollContainer/StatRows
 @onready var _animation_overlay: PanelContainer = $MarginContainer/VBox/AnimationOverlay
 @onready var _step_label_1: Label = get_node(_ANIM + "/StepLabel1")
@@ -39,9 +45,9 @@ const _ANIM := "MarginContainer/VBox/AnimationOverlay/AnimationVBox"
 
 var _mode: Registry.GameMode = Registry.GameMode.TEST
 var _party_index: int = -1
-var _return_scene: String = ""
 var _hyper_unlocked: bool = false
 var _is_hyper: bool = false
+var _type_selected: bool = false
 var _digimon: DigimonState = null
 var _rng := RandomNumberGenerator.new()
 var _hop_tween: Tween = null
@@ -74,50 +80,52 @@ func _ready() -> void:
 		return
 
 	if _party_index < 0 or _party_index >= Game.state.party.members.size():
-		# Wait for any in-progress scene transition before redirecting,
-		# otherwise SceneManager silently drops the change_scene call.
-		if SceneManager._is_transitioning:
-			await SceneManager.transition_finished
-		_navigate_to_party_selector()
+		# Invalid selection — go back to mode screen
+		Game.screen_context = {"mode": _mode}
+		SceneManager.change_scene(MODE_SCREEN_PATH)
 		return
 
 	_digimon = Game.state.party.members[_party_index]
 	_rng.randomize()
 
-	_update_header()
 	_update_digimon_info()
-	_configure_tabs()
-	_build_stat_rows()
+	_show_type_selection()
 	_connect_signals()
 
 
 func _read_context() -> void:
 	var ctx: Dictionary = Game.screen_context
 	_mode = ctx.get("mode", Registry.GameMode.TEST)
-	_party_index = ctx.get("party_index", -1)
-	_hyper_unlocked = ctx.get("hyper_unlocked", false)
+	var default_hyper: bool = _mode == Registry.GameMode.TEST
+	_hyper_unlocked = ctx.get("hyper_unlocked", default_hyper)
 
-	# Prefer original_return_scene (preserved through party selector redirect)
-	_return_scene = ctx.get("original_return_scene",
-		ctx.get("return_scene", ""))
-
-	# Check if we got a result from party selector
-	if _party_index < 0 and Game.screen_result is Dictionary:
+	# Read party_index from screen_result (set by party selector)
+	if Game.screen_result is Dictionary:
 		var result: Dictionary = Game.screen_result as Dictionary
 		_party_index = result.get("party_index", -1)
 		Game.screen_result = null
 
 
-func _navigate_to_party_selector() -> void:
-	Game.screen_context = {
-		"mode": _mode,
-		"select_mode": true,
-		"select_prompt": "Select Digimon to train",
-		"return_scene": TRAINING_SCREEN_PATH,
-		"original_return_scene": _return_scene,
-		"hyper_unlocked": _hyper_unlocked,
-	}
-	SceneManager.change_scene(PARTY_SCREEN_PATH)
+func _show_type_selection() -> void:
+	_type_selected = false
+	_title_label.text = "Training"
+	_tp_label.text = "TP: %d" % _digimon.training_points
+	_type_select_center.visible = true
+	_tab_row.visible = false
+	_total_tv_label.visible = false
+	_scroll_container.visible = false
+	_animation_overlay.visible = false
+	_hyper_button.visible = _hyper_unlocked
+
+
+func _on_type_selected(hyper: bool) -> void:
+	_is_hyper = hyper
+	_type_selected = true
+	_type_select_center.visible = false
+	_scroll_container.visible = true
+	_update_header()
+	_configure_tabs()
+	_build_stat_rows()
 
 
 func _update_header() -> void:
@@ -149,27 +157,28 @@ func _update_digimon_info() -> void:
 func _configure_tabs() -> void:
 	if _hyper_unlocked:
 		_tab_row.visible = true
-		_title_label.text = "Standard Training"
 	else:
 		_tab_row.visible = false
-		_title_label.text = "Training"
 	_hyper_tab.visible = _hyper_unlocked
-	_is_hyper = false
-	_standard_tab.button_pressed = true
-	_hyper_tab.button_pressed = false
+	_standard_tab.button_pressed = not _is_hyper
+	_hyper_tab.button_pressed = _is_hyper
+	_title_label.text = "Hyper Training" if _is_hyper else "Standard Training"
 
 
 func _connect_signals() -> void:
+	_standard_button.pressed.connect(_on_type_selected.bind(false))
+	_hyper_button.pressed.connect(_on_type_selected.bind(true))
 	_standard_tab.pressed.connect(_on_standard_tab)
 	_hyper_tab.pressed.connect(_on_hyper_tab)
 	_done_button.pressed.connect(_on_done_pressed)
 
 
 func _on_back_pressed() -> void:
-	var target: String = _return_scene if _return_scene != "" \
-		else "res://scenes/screens/mode_screen.tscn"
+	if _type_selected:
+		_show_type_selection()
+		return
 	Game.screen_context = {"mode": _mode}
-	SceneManager.change_scene(target)
+	SceneManager.change_scene(MODE_SCREEN_PATH)
 
 
 func _on_standard_tab() -> void:

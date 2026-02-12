@@ -20,7 +20,7 @@ const _GRID := "MarginContainer/VBox/CentreWrap/ButtonGrid"
 
 @onready var _back_button: Button = get_node(_HEADER + "/BackButton")
 @onready var _tamer_label: Label = get_node(_HEADER + "/TamerLabel")
-@onready var _bits_label: Label = get_node(_HEADER + "/BitsLabel")
+@onready var _bits_label: Button = get_node(_HEADER + "/BitsLabel")
 @onready var _party_strip: HBoxContainer = $MarginContainer/VBox/PartyStrip
 @onready var _party_button: Button = get_node(_GRID + "/PartyButton")
 @onready var _bag_button: Button = get_node(_GRID + "/BagButton")
@@ -106,6 +106,7 @@ func _configure_buttons() -> void:
 
 func _connect_signals() -> void:
 	_back_button.pressed.connect(_on_back_pressed)
+	_bits_label.pressed.connect(_on_bits_pressed)
 	_party_button.pressed.connect(_on_party_pressed)
 	_bag_button.pressed.connect(_on_bag_pressed)
 	_storage_button.pressed.connect(_on_storage_pressed)
@@ -155,11 +156,11 @@ func _on_shop_pressed() -> void:
 func _on_training_pressed() -> void:
 	Game.screen_context = {
 		"mode": _mode,
-		"party_index": -1,
-		"return_scene": MODE_SCREEN_PATH,
-		"hyper_unlocked": false,
+		"select_mode": true,
+		"select_prompt": "Select Digimon to train",
+		"return_scene": TRAINING_SCREEN_PATH,
 	}
-	SceneManager.change_scene(TRAINING_SCREEN_PATH)
+	SceneManager.change_scene(PARTY_SCREEN_PATH)
 
 
 func _on_save_pressed() -> void:
@@ -205,8 +206,22 @@ func _on_heal_pressed() -> void:
 	_build_party_strip()
 
 
+func _on_bits_pressed() -> void:
+	if Game.state == null:
+		return
+	var popup := PopupMenu.new()
+	popup.add_item("+100 Bits", 100)
+	popup.add_item("+1,000 Bits", 1000)
+	popup.add_item("+10,000 Bits", 10000)
+	add_child(popup)
+	popup.id_pressed.connect(func(amount: int) -> void:
+		Game.state.inventory.bits += amount
+		_update_header()
+		popup.queue_free()
+	)
+	popup.popup_centered()
+
+
 func _on_back_pressed() -> void:
 	Game.state = null
 	SceneManager.change_scene(MAIN_MENU_PATH)
-
-

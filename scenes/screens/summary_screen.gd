@@ -1,7 +1,7 @@
 extends Control
 ## Summary Screen — detailed view of a single Digimon across multiple pages.
 
-const PAGE_COUNT: int = 4
+const PAGE_COUNT: int = 2
 
 const _HEADER := "MarginContainer/VBox/HeaderBar"
 const _TABS := "MarginContainer/VBox/PageTabs"
@@ -18,20 +18,12 @@ const XP_CYAN := Color(0.024, 0.714, 0.831, 1)
 @onready var _next_button: Button = get_node(_HEADER + "/NextButton")
 @onready var _page_label: Label = get_node(_HEADER + "/PageLabel")
 @onready var _info_tab: Button = get_node(_TABS + "/InfoTab")
-@onready var _stats_tab: Button = get_node(_TABS + "/StatsTab")
 @onready var _techniques_tab: Button = get_node(_TABS + "/TechniquesTab")
-@onready var _held_items_tab: Button = get_node(_TABS + "/HeldItemsTab")
 @onready var _info_page: ScrollContainer = get_node(_PAGES + "/InfoPage")
-@onready var _stats_page: ScrollContainer = get_node(_PAGES + "/StatsPage")
 @onready var _techniques_page: ScrollContainer = get_node(_PAGES + "/TechniquesPage")
-@onready var _held_items_page: ScrollContainer = get_node(_PAGES + "/HeldItemsPage")
 @onready var _info_vbox: VBoxContainer = get_node(_PAGES + "/InfoPage/InfoVBox")
-@onready var _stats_vbox: VBoxContainer = get_node(_PAGES + "/StatsPage/StatsVBox")
 @onready var _techniques_vbox: VBoxContainer = get_node(
 	_PAGES + "/TechniquesPage/TechniquesVBox"
-)
-@onready var _held_items_vbox: VBoxContainer = get_node(
-	_PAGES + "/HeldItemsPage/HeldItemsVBox"
 )
 
 var _digimon: DigimonState = null
@@ -77,9 +69,7 @@ func _connect_signals() -> void:
 	_prev_button.pressed.connect(_on_prev)
 	_next_button.pressed.connect(_on_next)
 	_info_tab.pressed.connect(_show_page.bind(0))
-	_stats_tab.pressed.connect(_show_page.bind(1))
-	_techniques_tab.pressed.connect(_show_page.bind(2))
-	_held_items_tab.pressed.connect(_show_page.bind(3))
+	_techniques_tab.pressed.connect(_show_page.bind(1))
 
 
 func _on_back_pressed() -> void:
@@ -116,31 +106,21 @@ func _on_next() -> void:
 func _show_page(page: int) -> void:
 	_current_page = page
 	_info_page.visible = page == 0
-	_stats_page.visible = page == 1
-	_techniques_page.visible = page == 2
-	_held_items_page.visible = page == 3
+	_techniques_page.visible = page == 1
 	_page_label.text = "%d / %d" % [page + 1, PAGE_COUNT]
 
 	# Highlight active tab
 	_info_tab.add_theme_color_override(
 		"font_color", CYAN if page == 0 else Color.WHITE,
 	)
-	_stats_tab.add_theme_color_override(
-		"font_color", CYAN if page == 1 else Color.WHITE,
-	)
 	_techniques_tab.add_theme_color_override(
-		"font_color", CYAN if page == 2 else Color.WHITE,
-	)
-	_held_items_tab.add_theme_color_override(
-		"font_color", CYAN if page == 3 else Color.WHITE,
+		"font_color", CYAN if page == 1 else Color.WHITE,
 	)
 
 
 func _build_all_pages() -> void:
 	_build_info_page()
-	_build_stats_page()
 	_build_techniques_page()
-	_build_held_items_page()
 
 
 # --- Page 1: Info ---
@@ -336,6 +316,16 @@ func _build_info_page() -> void:
 	tp_label.add_theme_font_size_override("font_size", 14)
 	_info_vbox.add_child(tp_label)
 
+	# --- Stats section ---
+	var stats_sep := HSeparator.new()
+	_info_vbox.add_child(stats_sep)
+	_build_stats_section(_info_vbox)
+
+	# --- Held Items section ---
+	var items_sep := HSeparator.new()
+	_info_vbox.add_child(items_sep)
+	_build_held_items_section(_info_vbox)
+
 
 func _build_ability_section(parent: VBoxContainer) -> void:
 	var ability_header := Label.new()
@@ -397,7 +387,7 @@ func _build_ability_section(parent: VBoxContainer) -> void:
 		parent.add_child(desc_label)
 
 
-# --- Page 2: Stats ---
+# --- Stats (embedded in Info page) ---
 
 
 const STAT_KEYS: Array[StringName] = [
@@ -419,9 +409,7 @@ const STAT_DISPLAY_NAMES: Dictionary = {
 const STAT_BAR_MAX: int = 250
 
 
-func _build_stats_page() -> void:
-	_clear_children(_stats_vbox)
-
+func _build_stats_section(parent: VBoxContainer) -> void:
 	if _digimon == null or _data == null:
 		return
 
@@ -441,7 +429,7 @@ func _build_stats_page() -> void:
 
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
-		_stats_vbox.add_child(row)
+		parent.add_child(row)
 
 		# Stat name
 		var name_label := Label.new()
@@ -501,11 +489,11 @@ func _build_stats_page() -> void:
 
 	# BST total row
 	var bst_sep := HSeparator.new()
-	_stats_vbox.add_child(bst_sep)
+	parent.add_child(bst_sep)
 
 	var bst_row := HBoxContainer.new()
 	bst_row.add_theme_constant_override("separation", 8)
-	_stats_vbox.add_child(bst_row)
+	parent.add_child(bst_row)
 
 	var bst_name := Label.new()
 	bst_name.text = "BST"
@@ -539,7 +527,7 @@ static func _get_personality_colour(
 	return Color.WHITE
 
 
-# --- Page 3: Techniques ---
+# --- Page 2: Techniques ---
 
 
 func _build_techniques_page() -> void:
@@ -762,12 +750,10 @@ func _on_swap_technique_confirm(slot_index: int, new_key: StringName) -> void:
 	_build_techniques_page()
 
 
-# --- Page 4: Held Items ---
+# --- Held Items (embedded in Stats & Items page) ---
 
 
-func _build_held_items_page() -> void:
-	_clear_children(_held_items_vbox)
-
+func _build_held_items_section(parent: VBoxContainer) -> void:
 	if _digimon == null:
 		return
 
@@ -776,38 +762,34 @@ func _build_held_items_page() -> void:
 	gear_header.text = tr("Gear")
 	gear_header.add_theme_font_size_override("font_size", 18)
 	gear_header.add_theme_color_override("font_color", CYAN)
-	_held_items_vbox.add_child(gear_header)
+	parent.add_child(gear_header)
 
 	if _digimon.equipped_gear_key != &"":
-		_build_item_slot(
-			_held_items_vbox, _digimon.equipped_gear_key, false,
-		)
+		_build_item_slot(parent, _digimon.equipped_gear_key, false)
 	else:
 		var none_label := Label.new()
 		none_label.text = tr("None")
 		none_label.add_theme_color_override("font_color", MUTED)
-		_held_items_vbox.add_child(none_label)
+		parent.add_child(none_label)
 
 	# Separator
 	var sep := HSeparator.new()
-	_held_items_vbox.add_child(sep)
+	parent.add_child(sep)
 
 	# Consumable slot
 	var consumable_header := Label.new()
 	consumable_header.text = tr("Consumable")
 	consumable_header.add_theme_font_size_override("font_size", 18)
 	consumable_header.add_theme_color_override("font_color", CYAN)
-	_held_items_vbox.add_child(consumable_header)
+	parent.add_child(consumable_header)
 
 	if _digimon.equipped_consumable_key != &"":
-		_build_item_slot(
-			_held_items_vbox, _digimon.equipped_consumable_key, true,
-		)
+		_build_item_slot(parent, _digimon.equipped_consumable_key, true)
 	else:
 		var none_label := Label.new()
 		none_label.text = tr("None")
 		none_label.add_theme_color_override("font_color", MUTED)
-		_held_items_vbox.add_child(none_label)
+		parent.add_child(none_label)
 
 
 func _build_item_slot(
@@ -888,7 +870,7 @@ func _on_remove_held_item(is_consumable: bool) -> void:
 		var current_qty: int = Game.state.inventory.items.get(key, 0) as int
 		Game.state.inventory.items[key] = current_qty + 1
 
-	_build_held_items_page()
+	_build_info_page()
 
 
 # --- Helpers ---

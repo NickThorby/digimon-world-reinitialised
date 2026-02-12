@@ -267,6 +267,9 @@ func _on_wild_toggled(pressed: bool) -> void:
 func _on_owned_toggled(pressed: bool) -> void:
 	if _current_side < _config.side_configs.size():
 		_config.side_configs[_current_side]["is_owned"] = pressed
+		if pressed:
+			_populate_owned_party(_current_side)
+		_update_team_display()
 
 
 func _on_xp_toggled(pressed: bool) -> void:
@@ -389,6 +392,20 @@ func _update_side_selector() -> void:
 	_side_selector.current_tab = _current_side
 
 
+func _is_current_side_owned() -> bool:
+	if _current_side >= _config.side_configs.size():
+		return false
+	return _config.side_configs[_current_side].get("is_owned", false)
+
+
+func _populate_owned_party(side_index: int) -> void:
+	if Game.state == null or Game.state.party.members.is_empty():
+		return
+	if side_index >= _config.side_configs.size():
+		return
+	_config.side_configs[side_index]["party"] = Game.state.party.members.duplicate()
+
+
 func _update_team_display() -> void:
 	# Clear existing slot panels
 	for child: Node in _team_list.get_children():
@@ -396,6 +413,9 @@ func _update_team_display() -> void:
 
 	if _current_side >= _config.side_configs.size():
 		return
+
+	var is_owned: bool = _is_current_side_owned()
+	_add_digimon_button.visible = not is_owned
 
 	var party: Array = _config.side_configs[_current_side].get("party", [])
 
@@ -410,9 +430,12 @@ func _update_team_display() -> void:
 		var panel: DigimonSlotPanel = SLOT_PANEL_SCENE.instantiate() as DigimonSlotPanel
 		_team_list.add_child(panel)
 		panel.setup(i, state)
-		panel.edit_pressed.connect(_on_slot_edit)
-		panel.remove_pressed.connect(_on_slot_remove)
-		panel.reorder_requested.connect(_on_reorder_requested)
+		if is_owned:
+			panel.set_button_mode(DigimonSlotPanel.ButtonMode.HIDDEN)
+		else:
+			panel.edit_pressed.connect(_on_slot_edit)
+			panel.remove_pressed.connect(_on_slot_remove)
+			panel.reorder_requested.connect(_on_reorder_requested)
 
 
 func _add_empty_placeholder() -> void:

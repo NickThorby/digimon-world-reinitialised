@@ -89,6 +89,25 @@ theme_override_colors/font_color = Color(0.443, 0.443, 0.478, 1)
 theme_override_font_sizes/font_size = 14
 text = "Lv. 1"
 
+[node name="TypeSelectCenter" type="CenterContainer" parent="MarginContainer/VBox"]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="TypeSelectVBox" type="VBoxContainer" parent="MarginContainer/VBox/TypeSelectCenter"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="StandardButton" type="Button" parent="MarginContainer/VBox/TypeSelectCenter/TypeSelectVBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(260, 60)
+text = "Standard Training"
+
+[node name="HyperButton" type="Button" parent="MarginContainer/VBox/TypeSelectCenter/TypeSelectVBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(260, 60)
+text = "Hyper Training"
+
 [node name="TabRow" type="HBoxContainer" parent="MarginContainer/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 8
