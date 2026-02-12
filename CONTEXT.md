@@ -1060,7 +1060,7 @@ XP is calculated by `XPCalculator.calculate_xp_awards(battle, exp_share_enabled)
 3. **Collect winning-side Digimon** — active slots + retired (deduplicated by `source_state`).
 4. **Skip fainted winners** — fainted allies on the winning team receive no XP.
 5. **Per winner × per defeated foe**:
-   - If `foe_key in participated_against`: full XP, split by participant count.
+   - If `foe_unique_id in participated_against_ids`: full XP, split by participant count.
    - If NOT participated AND `exp_share_enabled`: 50% XP (not split by participants).
    - Otherwise: 0 XP for this foe.
 6. **Capture pre-XP state** (`old_level`, `old_experience`, `old_stats`) before calling `apply_xp`.
@@ -1068,7 +1068,7 @@ XP is calculated by `XPCalculator.calculate_xp_awards(battle, exp_share_enabled)
 
 ### Participation Tracking
 
-- `BattleDigimonState.participated_against` tracks which foes a Digimon has dealt damage to.
+- `BattleDigimonState.participated_against_ids` tracks the unique IDs of foes a Digimon has participated against.
 - When a Digimon switches out, its `BattleDigimonState` is preserved in `SideState.retired_battle_digimon`.
 - When a Digimon switches back in, its previous participation data is carried forward from the retired entry.
 - `_count_participants` counts both active and retired Digimon when splitting XP.

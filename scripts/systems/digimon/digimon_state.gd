@@ -3,6 +3,12 @@ extends RefCounted
 ## Mutable runtime state for a single Digimon instance.
 
 var key: StringName = &""
+## Visible ID — 8-char hex, shown on summary screens.
+var display_id: StringName = &""
+## Hidden ID — 8-char hex, combined with display_id for true uniqueness.
+var secret_id: StringName = &""
+var original_tamer_name: String = ""
+var original_tamer_id: StringName = &""
 var nickname: String = ""
 var level: int = 1
 var experience: int = 0
@@ -34,10 +40,19 @@ var scan_data: float = 0.0
 ## Status conditions that persist outside battle. Each: { "key": StringName, ... }
 var status_conditions: Array[Dictionary] = []
 
+## Combined 16-char hex identifier for internal tracking (display_id + secret_id).
+var unique_id: StringName:
+	get:
+		return StringName(str(display_id) + str(secret_id))
+
 
 func to_dict() -> Dictionary:
 	return {
 		"key": key,
+		"display_id": display_id,
+		"secret_id": secret_id,
+		"original_tamer_name": original_tamer_name,
+		"original_tamer_id": original_tamer_id,
 		"nickname": nickname,
 		"level": level,
 		"experience": experience,
@@ -59,6 +74,17 @@ func to_dict() -> Dictionary:
 static func from_dict(data: Dictionary) -> DigimonState:
 	var state := DigimonState.new()
 	state.key = StringName(data.get("key", ""))
+	var loaded_display: String = data.get("display_id", "")
+	var loaded_secret: String = data.get("secret_id", "")
+	if loaded_display != "" and loaded_secret != "":
+		state.display_id = StringName(loaded_display)
+		state.secret_id = StringName(loaded_secret)
+	else:
+		var ids: Dictionary = IdGenerator.generate_digimon_ids()
+		state.display_id = ids["display_id"]
+		state.secret_id = ids["secret_id"]
+	state.original_tamer_name = data.get("original_tamer_name", "")
+	state.original_tamer_id = StringName(data.get("original_tamer_id", ""))
 	state.nickname = data.get("nickname", "")
 	state.level = data.get("level", 1)
 	state.experience = data.get("experience", 0)

@@ -16,6 +16,9 @@ static func create_digimon(
 
 	var state := DigimonState.new()
 	state.key = digimon_key
+	var ids: Dictionary = IdGenerator.generate_digimon_ids()
+	state.display_id = ids["display_id"]
+	state.secret_id = ids["secret_id"]
 	state.nickname = nickname
 	state.level = level
 	state.experience = XPCalculator.total_xp_for_level(level, data.growth_rate)

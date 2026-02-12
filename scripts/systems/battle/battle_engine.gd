@@ -1442,9 +1442,9 @@ func _resolve_switch(action: BattleAction) -> Array[Dictionary]:
 	# Carry forward participation data from previous stints
 	for retired: BattleDigimonState in side.retired_battle_digimon:
 		if retired.source_state == new_state:
-			for foe_source: DigimonState in retired.participated_against:
-				if foe_source not in new_battle_mon.participated_against:
-					new_battle_mon.participated_against.append(foe_source)
+			for foe_id: StringName in retired.participated_against_ids:
+				if foe_id not in new_battle_mon.participated_against_ids:
+					new_battle_mon.participated_against_ids.append(foe_id)
 			break
 
 	slot.digimon = new_battle_mon
@@ -2988,10 +2988,10 @@ func _mark_field_participation(battle_mon: BattleDigimonState) -> void:
 			continue
 		if not _battle.are_foes(battle_mon.side_index, active.side_index):
 			continue
-		if active.source_state not in battle_mon.participated_against:
-			battle_mon.participated_against.append(active.source_state)
-		if battle_mon.source_state not in active.participated_against:
-			active.participated_against.append(battle_mon.source_state)
+		if active.source_state.unique_id not in battle_mon.participated_against_ids:
+			battle_mon.participated_against_ids.append(active.source_state.unique_id)
+		if battle_mon.source_state.unique_id not in active.participated_against_ids:
+			active.participated_against_ids.append(battle_mon.source_state.unique_id)
 
 
 ## Calculate effective accuracy factoring user accuracy stage, target evasion stage,

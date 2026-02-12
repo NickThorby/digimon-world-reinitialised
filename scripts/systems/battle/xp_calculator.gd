@@ -46,19 +46,19 @@ static func calculate_xp_awards(
 
 	# Collect ALL winning-side BattleDigimonState (active + retired)
 	var winning_digimon: Array[BattleDigimonState] = []
-	var seen_sources: Array[DigimonState] = []
+	var seen_ids: Array[StringName] = []
 	for side: SideState in battle.sides:
 		if side.team_index != winning_team:
 			continue
 		for slot: SlotState in side.slots:
 			if slot.digimon != null and slot.digimon.source_state != null:
 				winning_digimon.append(slot.digimon)
-				seen_sources.append(slot.digimon.source_state)
+				seen_ids.append(slot.digimon.source_state.unique_id)
 		for retired: BattleDigimonState in side.retired_battle_digimon:
 			if retired.source_state != null \
-					and retired.source_state not in seen_sources:
+					and retired.source_state.unique_id not in seen_ids:
 				winning_digimon.append(retired)
-				seen_sources.append(retired.source_state)
+				seen_ids.append(retired.source_state.unique_id)
 
 	# Award XP to each winning Digimon
 	for battle_mon: BattleDigimonState in winning_digimon:
@@ -78,7 +78,7 @@ static func calculate_xp_awards(
 				continue
 
 			var foe_source: DigimonState = foe["source"] as DigimonState
-			var participated: bool = foe_source in battle_mon.participated_against
+			var participated: bool = foe_source.unique_id in battle_mon.participated_against_ids
 
 			if participated:
 				did_participate = true
@@ -121,7 +121,7 @@ static func calculate_xp_awards(
 			if side.team_index != winning_team:
 				continue
 			for reserve: DigimonState in side.party:
-				if reserve in seen_sources:
+				if reserve.unique_id in seen_ids:
 					continue
 				if reserve.current_hp <= 0:
 					continue
@@ -164,10 +164,10 @@ static func _count_participants(
 			continue
 		for slot: SlotState in side.slots:
 			if slot.digimon != null \
-					and foe_source in slot.digimon.participated_against:
+					and foe_source.unique_id in slot.digimon.participated_against_ids:
 				count += 1
 		for retired: BattleDigimonState in side.retired_battle_digimon:
-			if foe_source in retired.participated_against:
+			if foe_source.unique_id in retired.participated_against_ids:
 				count += 1
 	return maxi(count, 1)
 

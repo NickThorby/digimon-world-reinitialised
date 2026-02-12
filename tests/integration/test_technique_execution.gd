@@ -268,7 +268,7 @@ func test_participation_tracked() -> void:
 	]
 	_engine.execute_turn(actions)
 	assert_true(
-		user.participated_against.has(target.source_state),
+		user.participated_against_ids.has(target.source_state.unique_id),
 		"User should track participation against target",
 	)
 
@@ -280,10 +280,10 @@ func test_participation_tracked_on_field_presence() -> void:
 	var target: BattleDigimonState = _battle.get_digimon_at(1, 0)
 	# Participation is marked at initialise — no turn execution needed
 	assert_true(
-		user.participated_against.has(target.source_state),
+		user.participated_against_ids.has(target.source_state.unique_id),
 		"Field presence should track participation against foe",
 	)
 	assert_true(
-		target.participated_against.has(user.source_state),
+		target.participated_against_ids.has(user.source_state.unique_id),
 		"Field presence should be bidirectional",
 	)

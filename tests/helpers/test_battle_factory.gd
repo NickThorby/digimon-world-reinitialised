@@ -1730,6 +1730,9 @@ static func make_digimon_state(
 ) -> DigimonState:
 	var state := DigimonState.new()
 	state.key = key
+	var ids: Dictionary = IdGenerator.generate_digimon_ids()
+	state.display_id = ids["display_id"]
+	state.secret_id = ids["secret_id"]
 	state.level = level
 	state.personality_key = personality_key
 	state.ivs = {

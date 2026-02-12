@@ -293,7 +293,8 @@ func replay_events(
 
 				# Populate party_digimon for post-battle display
 				if result.winning_team >= 0:
-					var seen: Array[DigimonState] = []
+					var seen_ids: Array[StringName] = []
+					result.party_digimon = []
 					var has_owned: bool = false
 					for side: SideState in _battle.sides:
 						if side.team_index == result.winning_team \
@@ -308,13 +309,18 @@ func replay_events(
 						for slot: SlotState in side.slots:
 							if slot.digimon != null \
 									and slot.digimon.source_state != null \
-									and slot.digimon.source_state \
-										not in seen:
-								seen.append(slot.digimon.source_state)
+									and slot.digimon.source_state.unique_id \
+										not in seen_ids:
+								seen_ids.append(
+									slot.digimon.source_state.unique_id,
+								)
+								result.party_digimon.append(
+									slot.digimon.source_state,
+								)
 						for reserve: DigimonState in side.party:
-							if reserve not in seen:
-								seen.append(reserve)
-					result.party_digimon = seen
+							if reserve.unique_id not in seen_ids:
+								seen_ids.append(reserve.unique_id)
+								result.party_digimon.append(reserve)
 
 				post_battle_screen.show_results(result)
 
