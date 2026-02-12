@@ -15,6 +15,7 @@ const SUMMARY_SCREEN_PATH := "res://scenes/screens/summary_screen.tscn"
 const STORAGE_SCREEN_PATH := "res://scenes/screens/storage_screen.tscn"
 const EVOLUTION_SCREEN_PATH := "res://scenes/screens/evolution_screen.tscn"
 const BAG_SCREEN_PATH := "res://scenes/screens/bag_screen.tscn"
+const PICKER_SCENE_PATH := "res://scenes/battle/digimon_picker.tscn"
 const SLOT_PANEL_SCENE := preload("res://ui/components/digimon_slot_panel.tscn")
 const STORAGE_SLOT_SCENE := preload("res://ui/components/storage_slot.tscn")
 
@@ -49,6 +50,8 @@ func _ready() -> void:
 
 	if Game.state == null:
 		return
+
+	_handle_picker_return()
 
 	_box_count = Game.state.storage.get_box_count()
 
@@ -377,24 +380,42 @@ func _navigate_to_summary_box(box_index: int, slot_index: int) -> void:
 	SceneManager.change_scene(SUMMARY_SCREEN_PATH)
 
 
+func _handle_picker_return() -> void:
+	if Game.picker_context.is_empty():
+		return
+
+	_current_box = Game.picker_context.get("current_box", 0) as int
+
+	if Game.picker_result is DigimonState:
+		var digimon: DigimonState = Game.picker_result as DigimonState
+		var slot_info: Dictionary = Game.state.storage.find_first_empty_slot()
+		if not slot_info.is_empty():
+			Game.state.storage.set_digimon(
+				slot_info["box"], slot_info["slot"], digimon,
+			)
+			_current_box = slot_info["box"] as int
+
+	Game.picker_context = {}
+	Game.picker_result = null
+
+
 func _on_add_pressed() -> void:
-	# Placeholder for TEST/free_mode: add a random test Digimon to storage
 	if not _free_mode or Game.state == null:
 		return
 	var slot_info: Dictionary = Game.state.storage.find_first_empty_slot()
 	if slot_info.is_empty():
 		_status_label.text = "Storage is full!"
 		return
-	var test_keys: Array[StringName] = [
-		&"test_agumon", &"test_gabumon", &"test_patamon",
-	]
-	var rng := RandomNumberGenerator.new()
-	rng.randomize()
-	var key: StringName = test_keys[rng.randi_range(0, test_keys.size() - 1)]
-	var digimon: DigimonState = TestBattleFactory.make_digimon_state(key, 5)
-	Game.state.storage.set_digimon(slot_info["box"], slot_info["slot"], digimon)
-	_update_box_panel()
-	_status_label.text = "Added a Digimon to storage!"
+	Game.screen_context = {
+		"mode": _mode,
+		"free_mode": _free_mode,
+		"return_scene": _return_scene,
+	}
+	Game.picker_context = {
+		"return_scene": STORAGE_SCREEN_PATH,
+		"current_box": _current_box,
+	}
+	SceneManager.change_scene(PICKER_SCENE_PATH)
 
 
 func _on_back_pressed() -> void:
