@@ -271,6 +271,9 @@ horizontal_scroll_mode = 0
 layout_mode = 2
 size_flags_horizontal = 3
 
+[node name="SidePresetSelector" type="TabBar" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Side Presets/SidePresetContent"]
+layout_mode = 2
+
 [node name="SideEffectsLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/RightTabs/Side Presets/SidePresetContent"]
 layout_mode = 2
 text = "Side Effects:"

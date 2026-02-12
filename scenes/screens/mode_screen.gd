@@ -159,6 +159,7 @@ func _on_training_pressed() -> void:
 		"select_mode": true,
 		"select_prompt": "Select Digimon to train",
 		"return_scene": TRAINING_SCREEN_PATH,
+		"cancel_scene": MODE_SCREEN_PATH,
 	}
 	SceneManager.change_scene(PARTY_SCREEN_PATH)
 

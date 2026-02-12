@@ -18,12 +18,14 @@ var _select_mode: bool = false
 var _select_filter: Callable = Callable()
 var _select_prompt: String = ""
 var _return_scene: String = ""
+var _cancel_scene: String = ""
 var _swap_from_index: int = -1
 var _panels: Array[DigimonSlotPanel] = []
 
 
 func _ready() -> void:
 	_read_context()
+	_handle_pending_give()
 	_update_header()
 	_build_slot_list()
 	_connect_signals()
@@ -36,6 +38,7 @@ func _read_context() -> void:
 	_select_filter = ctx.get("select_filter", Callable())
 	_select_prompt = ctx.get("select_prompt", "")
 	_return_scene = ctx.get("return_scene", "")
+	_cancel_scene = ctx.get("cancel_scene", "")
 
 
 func _update_header() -> void:
@@ -91,8 +94,13 @@ func _on_back_pressed() -> void:
 	if _select_mode:
 		Game.screen_result = null
 
-	var target: String = _return_scene if _return_scene != "" \
-		else "res://scenes/screens/mode_screen.tscn"
+	var target: String
+	if _select_mode and _cancel_scene != "":
+		target = _cancel_scene
+	elif _return_scene != "":
+		target = _return_scene
+	else:
+		target = "res://scenes/screens/mode_screen.tscn"
 	Game.screen_context = {"mode": _mode}
 	SceneManager.change_scene(target)
 
@@ -304,6 +312,54 @@ func _navigate_to_evolution(index: int) -> void:
 	SceneManager.change_scene(EVOLUTION_SCREEN_PATH)
 
 
+func _handle_pending_give() -> void:
+	var ctx: Dictionary = Game.screen_context
+	var give_to_index: int = ctx.get("give_to_index", -1) as int
+	if give_to_index < 0:
+		return
+
+	# Returning from bag — always exit select mode and restore return scene
+	_select_mode = false
+	_return_scene = ctx.get("_party_return_scene", "") as String
+
+	var result: Variant = Game.screen_result
+	Game.screen_result = null
+	if result == null or result is not Dictionary:
+		return
+
+	var result_dict: Dictionary = result as Dictionary
+	var item_key: StringName = StringName(str(result_dict.get("item_key", "")))
+	if item_key == &"":
+		return
+
+	if Game.state == null:
+		return
+	if give_to_index >= Game.state.party.members.size():
+		return
+
+	var member: DigimonState = Game.state.party.members[give_to_index]
+	var item_data: ItemData = Atlas.items.get(item_key) as ItemData
+	if item_data == null:
+		return
+
+	# Swap out any existing item of the same slot
+	if item_data.is_consumable:
+		if member.equipped_consumable_key != &"":
+			_add_item_to_inventory(member.equipped_consumable_key)
+		member.equipped_consumable_key = item_key
+	else:
+		if member.equipped_gear_key != &"":
+			_add_item_to_inventory(member.equipped_gear_key)
+		member.equipped_gear_key = item_key
+
+	# Remove item from inventory
+	var current_qty: int = Game.state.inventory.items.get(item_key, 0) as int
+	if current_qty <= 1:
+		Game.state.inventory.items.erase(item_key)
+	else:
+		Game.state.inventory.items[item_key] = current_qty - 1
+
+
 func _navigate_to_give_item(index: int) -> void:
 	if Game.state == null:
 		return
@@ -315,5 +371,6 @@ func _navigate_to_give_item(index: int) -> void:
 		"select_prompt": "Select item to give",
 		"return_scene": PARTY_SCREEN_PATH,
 		"give_to_index": index,
+		"_party_return_scene": _return_scene,
 	}
 	SceneManager.change_scene(BAG_SCREEN_PATH)

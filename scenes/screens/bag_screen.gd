@@ -70,7 +70,12 @@ func _handle_pending_use() -> void:
 	if pending_key == null:
 		return
 
+	# Returning from party select — restore normal bag state
+	_select_mode = false
+	_return_scene = ctx.get("_bag_return_scene", _return_scene) as String
+
 	var result: Variant = Game.screen_result
+	Game.screen_result = null
 	if result == null or result is not Dictionary:
 		return
 
@@ -78,8 +83,6 @@ func _handle_pending_use() -> void:
 	var digimon: Variant = result_dict.get("digimon", null)
 	if digimon is DigimonState:
 		_apply_medicine(StringName(str(pending_key)), digimon as DigimonState)
-
-	Game.screen_result = null
 
 
 func _update_header() -> void:
@@ -283,9 +286,10 @@ func _connect_signals() -> void:
 func _on_back_pressed() -> void:
 	if _select_mode:
 		Game.screen_result = null
-	if _return_scene != "":
-		Game.screen_context = {"mode": _mode}
-		SceneManager.change_scene(_return_scene)
+	var target: String = _return_scene if _return_scene != "" \
+		else "res://scenes/screens/mode_screen.tscn"
+	Game.screen_context = {"mode": _mode}
+	SceneManager.change_scene(target)
 
 
 func _on_use_pressed() -> void:
@@ -311,6 +315,7 @@ func _on_use_pressed() -> void:
 		"select_filter": use_filter,
 		"_bag_pending_use": _selected_item_key,
 		"_bag_category": _current_category,
+		"_bag_return_scene": _return_scene,
 	}
 	SceneManager.change_scene(PARTY_SCREEN_PATH)
 

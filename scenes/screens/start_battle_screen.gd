@@ -40,6 +40,7 @@ const TEAM_SAVE_POPUP_SCENE := preload("res://ui/components/team_save_popup.tscn
 @onready var _global_effects_list: VBoxContainer = $"MarginContainer/VBox/HSplit/RightPanel/RightTabs/Field Effects/FieldContent/GlobalEffectsList"
 
 # Side Presets tab
+@onready var _side_preset_selector: TabBar = $"MarginContainer/VBox/HSplit/RightPanel/RightTabs/Side Presets/SidePresetContent/SidePresetSelector"
 @onready var _side_effects_list: VBoxContainer = $"MarginContainer/VBox/HSplit/RightPanel/RightTabs/Side Presets/SidePresetContent/SideEffectsList"
 @onready var _hazards_list: VBoxContainer = $"MarginContainer/VBox/HSplit/RightPanel/RightTabs/Side Presets/SidePresetContent/HazardsList"
 
@@ -65,6 +66,8 @@ var _return_scene: String = "res://scenes/screens/mode_screen.tscn"
 
 ## Per-side preset state. Key = side_index, value = { side_effects: {}, hazards: {} }
 var _side_presets: Dictionary = {}
+## Currently selected side in the Side Presets tab (includes side 0 = player).
+var _current_preset_side: int = 0
 
 
 func _ready() -> void:
@@ -94,6 +97,7 @@ func _ready() -> void:
 	_setup_field_effect_options()
 	if not returning_from_battle:
 		_init_side_presets()
+	_update_side_preset_selector()
 	_build_player_preview()
 	_update_side_selector()
 	_update_opponent_team_display()
@@ -165,6 +169,7 @@ func _restore_from_battle() -> void:
 	if ctx.has("config"):
 		_config = ctx["config"] as BattleConfig
 	_current_opponent_side = maxi(int(ctx.get("current_opponent_side", 1)), 1)
+	_current_preset_side = int(ctx.get("current_preset_side", 0))
 	if ctx.has("side_presets"):
 		_side_presets = ctx["side_presets"] as Dictionary
 
@@ -241,6 +246,7 @@ func _restore_from_picker() -> void:
 	if ctx.has("config"):
 		_config = ctx["config"] as BattleConfig
 	_current_opponent_side = maxi(int(ctx.get("side", 1)), 1)
+	_current_preset_side = int(ctx.get("current_preset_side", 0))
 	if ctx.has("side_presets"):
 		_side_presets = ctx["side_presets"] as Dictionary
 
@@ -313,6 +319,7 @@ func _connect_signals() -> void:
 	_back_button.pressed.connect(_on_back)
 	_save_team_button.pressed.connect(_on_save_team)
 	_load_team_button.pressed.connect(_on_load_team)
+	_side_preset_selector.tab_changed.connect(_on_preset_side_selected)
 	_bag_category_option.item_selected.connect(_on_bag_category_selected)
 	_setup_bag_category_options()
 
@@ -330,7 +337,9 @@ func _on_format_selected(index: int) -> void:
 		_config.apply_preset(presets[index])
 		_build_player_side_config()
 		_current_opponent_side = 1
+		_current_preset_side = 0
 		_init_side_presets()
+		_update_side_preset_selector()
 		_build_player_preview()
 		_update_side_selector()
 		_update_opponent_team_display()
@@ -340,12 +349,10 @@ func _on_format_selected(index: int) -> void:
 
 
 func _on_side_selected(index: int) -> void:
-	_save_side_presets()
 	# Tab index maps to opponent sides: tab 0 = side 1, tab 1 = side 2, etc.
 	_current_opponent_side = index + 1
 	_update_opponent_team_display()
 	_update_controller_display()
-	_update_side_presets_display()
 	_update_bag_display()
 
 
@@ -405,6 +412,7 @@ func _on_launch() -> void:
 	Game.builder_context = {
 		"config": _config,
 		"current_opponent_side": _current_opponent_side,
+		"current_preset_side": _current_preset_side,
 		"side_presets": _side_presets.duplicate(true),
 		"return_scene": START_BATTLE_SCREEN_PATH,
 		"pre_battle_inventory": pre_battle_inventory,
@@ -497,6 +505,7 @@ func _navigate_to_picker(existing: DigimonState = null) -> void:
 		"existing_state": existing,
 		"config": _config,
 		"side_presets": _side_presets.duplicate(true),
+		"current_preset_side": _current_preset_side,
 		"return_scene": START_BATTLE_SCREEN_PATH,
 	}
 	Game.picker_result = null
@@ -862,6 +871,26 @@ func _apply_field_effects_to_config() -> void:
 # --- Side Presets ---
 
 
+func _update_side_preset_selector() -> void:
+	_side_preset_selector.clear_tabs()
+	for i: int in _config.side_count:
+		if i == 0:
+			_side_preset_selector.add_tab("Player (Side 1)")
+		else:
+			var team_idx: int = _config.team_assignments[i] \
+				if i < _config.team_assignments.size() else i
+			_side_preset_selector.add_tab("Side %d (Team %d)" % [i + 1, team_idx + 1])
+	if _current_preset_side >= _config.side_count:
+		_current_preset_side = 0
+	_side_preset_selector.current_tab = _current_preset_side
+
+
+func _on_preset_side_selected(index: int) -> void:
+	_save_side_presets()
+	_current_preset_side = index
+	_update_side_presets_display()
+
+
 func _init_side_presets() -> void:
 	_side_presets.clear()
 	for i: int in _config.side_count:
@@ -872,12 +901,12 @@ func _init_side_presets() -> void:
 
 
 func _save_side_presets() -> void:
-	if not _side_presets.has(_current_opponent_side):
-		_side_presets[_current_opponent_side] = {
+	if not _side_presets.has(_current_preset_side):
+		_side_presets[_current_preset_side] = {
 			"side_effects": {}, "hazards": {},
 		}
 
-	var side_data: Dictionary = _side_presets[_current_opponent_side]
+	var side_data: Dictionary = _side_presets[_current_preset_side]
 
 	var se_dict: Dictionary = {}
 	for i: int in _side_effects_list.get_child_count():
@@ -945,8 +974,8 @@ func _build_side_effects_list() -> void:
 		child.queue_free()
 
 	var saved: Dictionary = {}
-	if _side_presets.has(_current_opponent_side):
-		saved = _side_presets[_current_opponent_side].get("side_effects", {})
+	if _side_presets.has(_current_preset_side):
+		saved = _side_presets[_current_preset_side].get("side_effects", {})
 
 	for key: StringName in Registry.SIDE_EFFECT_TYPES:
 		var row := HBoxContainer.new()
@@ -983,8 +1012,8 @@ func _build_hazards_list() -> void:
 		child.queue_free()
 
 	var saved: Dictionary = {}
-	if _side_presets.has(_current_opponent_side):
-		saved = _side_presets[_current_opponent_side].get("hazards", {})
+	if _side_presets.has(_current_preset_side):
+		saved = _side_presets[_current_preset_side].get("hazards", {})
 
 	for key: StringName in Registry.HAZARD_TYPES:
 		var container := VBoxContainer.new()
