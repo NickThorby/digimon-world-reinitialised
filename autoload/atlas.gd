@@ -9,6 +9,8 @@ var elements: Dictionary[StringName, Resource] = {}
 var items: Dictionary[StringName, Resource] = {}
 var status_effects: Dictionary[StringName, Resource] = {}
 var personalities: Dictionary[StringName, Resource] = {}
+var tamers: Dictionary[StringName, Resource] = {}
+var shops: Dictionary[StringName, Resource] = {}
 
 
 func _ready() -> void:
@@ -24,6 +26,8 @@ func _load_all() -> void:
 	items = _load_resources_from_folder_recursive("res://data/item")
 	status_effects = _load_resources_from_folder("res://data/status_effect")
 	personalities = _load_resources_from_folder("res://data/personality")
+	tamers = _load_resources_from_folder("res://data/tamer")
+	shops = _load_resources_from_folder("res://data/shop")
 
 	_print_load_summary()
 
@@ -38,6 +42,8 @@ func _print_load_summary() -> void:
 	print("  Items: %d" % items.size())
 	print("  Status Effects: %d" % status_effects.size())
 	print("  Personalities: %d" % personalities.size())
+	print("  Tamers: %d" % tamers.size())
+	print("  Shops: %d" % shops.size())
 
 
 func _load_resources_from_folder(path: String) -> Dictionary[StringName, Resource]:

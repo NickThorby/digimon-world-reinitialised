@@ -74,6 +74,16 @@ var stat_labels: Dictionary = {
 	Stat.SPEED: tr("stat.speed"),
 }
 
+enum GameMode {
+	TEST,
+	STORY,
+}
+
+var game_mode_labels: Dictionary = {
+	GameMode.TEST: tr("game_mode.test"),
+	GameMode.STORY: tr("game_mode.story"),
+}
+
 enum EvolutionLevel {
 	BABY_I = 1,
 	BABY_II = 2,

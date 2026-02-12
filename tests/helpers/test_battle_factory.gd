@@ -26,6 +26,8 @@ static func clear_test_data() -> void:
 	_clear_dict(Atlas.abilities)
 	_clear_dict(Atlas.personalities)
 	_clear_dict(Atlas.items)
+	_clear_dict(Atlas.tamers)
+	_clear_dict(Atlas.shops)
 
 
 static func _clear_dict(dict: Dictionary) -> void:

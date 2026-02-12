@@ -18,6 +18,13 @@ var picker_result: Variant = null
 ## Context for restoring battle builder state after a battle.
 var builder_context: Dictionary = {}
 
+## Current game mode (TEST for battle testing, STORY for story playthrough).
+var game_mode: Registry.GameMode = Registry.GameMode.TEST
+## Context dictionary passed to the current screen (set before navigating).
+var screen_context: Dictionary = {}
+## Result from the current screen (set by screen on exit, null on cancel).
+var screen_result: Variant = null
+
 
 ## Start a new game with fresh state.
 func new_game() -> void:
