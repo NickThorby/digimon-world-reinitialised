@@ -306,14 +306,32 @@ Since Digimon have resistances rather than elemental types, status immunities ar
 
 Each evolution path has requirements that must **ALL** be met (AND logic):
 - Level threshold
-- Stat requirements (specific stat must reach a value)
+- Stat requirements (specific stat must reach a value, with configurable operator)
 - Stat comparison (e.g., ATK must be highest stat)
-- Special items (spirits, digimentals, X-antibody)
+- Special items (spirits, digimentals, mode change items)
+- X-Antibody level
 - Jogress partner (specific Digimon must be in party)
 
 ### Branching Paths
 
 Digimon can evolve into multiple different forms depending on which requirements are met. A single Child-level Digimon might have 5+ possible Adult evolutions, each with different requirements.
+
+### Evolution History & De-Digivolution
+
+Every Digimon tracks its full evolution chain. This enables:
+- **De-digivolution**: Reverting to a previous form, returning consumed items (spirits, digimentals, mode change items) to the inventory
+- **Jogress partner restoration**: Partners absorbed during DNA digivolution are restored from snapshots when de-digivolving
+- **Summary display**: The evolution history is shown on the summary screen
+
+Slide and mode change evolutions replace the last history entry rather than appending, since they represent lateral movement within the same tier.
+
+### Evolution Items
+
+Evolution-specific items are categorised under the **Evolution** item category:
+- **Digimentals**: Required for Armor evolutions, consumed on use, returned on de-digivolution
+- **Spirits**: Required for Spirit evolutions, consumed on use, returned on de-digivolution
+- **Mode Change Items**: Required for some mode changes (others are free), consumed on use, returned on de-digivolution
+- **X-Antibody Items**: Grant X-Antibody levels to Digimon, enabling X-Antibody evolutions
 
 ---
 
@@ -338,7 +356,7 @@ Abilities use the same **brick system** as techniques — modular effect definit
 
 ## Item System
 
-### Item Categories (8)
+### Item Categories (9)
 
 | Category     | Description                                          | Combat Use |
 |--------------|------------------------------------------------------|------------|
@@ -350,6 +368,7 @@ Abilities use the same **brick system** as techniques — modular effect definit
 | Key          | Story progression, passive effects                   | No         |
 | Quest        | Location-specific quest items                        | No         |
 | Card         | Teach techniques to specific Digimon                 | No         |
+| Evolution    | Digimentals, spirits, mode change items, X-Antibody  | No         |
 
 ### Gear System
 
@@ -387,3 +406,5 @@ The overworld consists of themed areas inspired by Digimon World 3's regions:
 ---
 
 *This is a living document and will evolve as the game develops.*
+
+*Last Updated: 2026-02-14*

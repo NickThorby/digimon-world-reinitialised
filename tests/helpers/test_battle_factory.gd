@@ -30,6 +30,7 @@ static func clear_test_data() -> void:
 	_clear_dict(Atlas.tamers)
 	_clear_dict(Atlas.shops)
 	_clear_dict(Atlas.evolutions)
+	EvolutionChecker.clear_cache()
 
 
 static func _clear_dict(dict: Dictionary) -> void:

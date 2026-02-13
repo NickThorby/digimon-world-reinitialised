@@ -13,6 +13,15 @@ const STAT_BASE_MAP: Dictionary = {
 	"energy": &"base_energy",
 }
 
+## Cache: "effect:name" -> item_key for evolution item lookups.
+static var _evo_item_cache: Dictionary = {}
+
+
+## Clear the evolution item lookup cache. Called by test teardown.
+static func clear_cache() -> void:
+	_evo_item_cache.clear()
+
+
 ## Dex stat abbreviation -> stat key for IVs/TVs lookup.
 const STAT_KEY_MAP: Dictionary = {
 	"hp": &"hp",
@@ -51,8 +60,13 @@ static func check_requirements(
 				results.append(_check_stat_highest_of(req, digimon, data))
 			"spirit":
 				var spirit: String = req.get("item", req.get("spirit", ""))
-				var item_key: StringName = StringName(spirit)
-				var has_item: bool = inventory.items.get(item_key, 0) > 0
+				var item_key: StringName = find_evolution_item_key(
+					"spirit", spirit,
+				)
+				var has_item: bool = (
+					item_key != &""
+					and inventory.items.get(item_key, 0) > 0
+				)
 				results.append({
 					"type": "spirit",
 					"description": spirit,
@@ -62,8 +76,13 @@ static func check_requirements(
 				var digimental: String = req.get(
 					"item", req.get("digimental", ""),
 				)
-				var item_key: StringName = StringName(digimental)
-				var has_item: bool = inventory.items.get(item_key, 0) > 0
+				var item_key: StringName = find_evolution_item_key(
+					"digimental", digimental,
+				)
+				var has_item: bool = (
+					item_key != &""
+					and inventory.items.get(item_key, 0) > 0
+				)
 				results.append({
 					"type": "digimental",
 					"description": digimental,
@@ -71,10 +90,13 @@ static func check_requirements(
 				})
 			"mode_change":
 				var item_name: String = req.get("item", "")
-				var item_key: StringName = StringName(item_name)
+				var item_key: StringName = find_evolution_item_key(
+					"mode_change", item_name,
+				)
 				var has_item: bool = (
 					item_name == ""
-					or inventory.items.get(item_key, 0) > 0
+					or (item_key != &""
+						and inventory.items.get(item_key, 0) > 0)
 				)
 				results.append({
 					"type": "mode_change",
@@ -304,3 +326,33 @@ static func _get_calculated_stat(
 	var iv: int = digimon.get_final_iv(stat_key)
 	var tv: int = digimon.tvs.get(stat_key, 0)
 	return StatCalculator.calculate_stat(base, iv, tv, digimon.level)
+
+
+## Find the item key for an evolution requirement by matching outOfBattleEffect bricks.
+## Evolution link requirements store display names (e.g. "Digimental of Courage") but
+## inventory items are keyed by game_id (e.g. "digimental_of_courage"). This helper
+## searches Atlas.items for an item whose outOfBattleEffect brick matches.
+## Results are cached in _evo_item_cache.
+static func find_evolution_item_key(effect: String, name: String) -> StringName:
+	if name == "":
+		return &""
+	var cache_key: String = "%s:%s" % [effect, name]
+	if _evo_item_cache.has(cache_key):
+		return _evo_item_cache[cache_key] as StringName
+	# Also try the name directly as a key (in case requirement already uses game_id).
+	if Atlas.items.has(StringName(name)):
+		_evo_item_cache[cache_key] = StringName(name)
+		return StringName(name)
+	# Search Atlas items for matching outOfBattleEffect brick.
+	for key: StringName in Atlas.items:
+		var item_data: Resource = Atlas.items[key]
+		if not item_data is ItemData:
+			continue
+		for brick: Dictionary in (item_data as ItemData).bricks:
+			if (brick.get("brick") == "outOfBattleEffect"
+				and brick.get("effect") == effect
+				and brick.get("value") == name):
+				_evo_item_cache[cache_key] = key
+				return key
+	_evo_item_cache[cache_key] = &""
+	return &""

@@ -145,10 +145,10 @@ func test_stat_highest_of_not_met() -> void:
 
 func test_spirit_requirement_met() -> void:
 	var link: EvolutionLinkData = _make_link(
-		[{"type": "spirit", "spirit": "test_spirit_fire"}] as Array[Dictionary],
+		[{"type": "spirit", "spirit": "test_spirit_item"}] as Array[Dictionary],
 	)
 	var inv: InventoryState = _make_inventory()
-	inv.items[&"test_spirit_fire"] = 1
+	inv.items[&"test_spirit_item"] = 1
 	var results: Array[Dictionary] = EvolutionChecker.check_requirements(
 		link, _make_digimon(), inv,
 	)
@@ -157,7 +157,7 @@ func test_spirit_requirement_met() -> void:
 
 func test_spirit_requirement_not_met() -> void:
 	var link: EvolutionLinkData = _make_link(
-		[{"type": "spirit", "spirit": "test_spirit_fire"}] as Array[Dictionary],
+		[{"type": "spirit", "spirit": "test_spirit_item"}] as Array[Dictionary],
 	)
 	var results: Array[Dictionary] = EvolutionChecker.check_requirements(
 		link, _make_digimon(), _make_inventory(),

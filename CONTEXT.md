@@ -85,6 +85,7 @@ Each `technique_entries` element: `{ "key": StringName, "requirements": Array[Di
 | Field                    | Type                | Description                         |
 |--------------------------|---------------------|-------------------------------------|
 | `key`                    | `StringName`        | Which DigimonData template          |
+| `unique_id`              | `StringName`        | Unique instance identifier          |
 | `nickname`               | `String`            | Player-given name                   |
 | `level`                  | `int`               | Current level                       |
 | `experience`             | `int`               | Current XP                          |
@@ -92,6 +93,7 @@ Each `technique_entries` element: `{ "key": StringName, "requirements": Array[Di
 | `personality_override_key` | `StringName`      | Override personality (items); use `get_effective_personality_key()` for lookup |
 | `ivs`                    | `Dictionary`        | Stat key -> 0-50 (permanent)        |
 | `tvs`                    | `Dictionary`        | Stat key -> 0-500 (earned)          |
+| `hyper_trained_ivs`      | `Dictionary`        | Stat key -> int (hyper-trained IV overrides) |
 | `current_hp`             | `int`               | Current hit points                  |
 | `current_energy`         | `int`               | Current energy                      |
 | `known_technique_keys`   | `Array[StringName]` | All known techniques                |
@@ -101,6 +103,11 @@ Each `technique_entries` element: `{ "key": StringName, "requirements": Array[Di
 | `equipped_consumable_key`| `StringName`        | Consumable gear                     |
 | `training_points`        | `int`               | Training points for stat training  |
 | `scan_data`              | `float`             | Scan progress (0.0-1.0)            |
+| `x_antibody`             | `int`               | X-Antibody level (0 = none)        |
+| `original_tamer_name`    | `String`            | Original tamer name (OT)           |
+| `display_id`             | `StringName`        | Display identifier for OT          |
+| `evolution_history`      | `Array[Dictionary]` | Chain of evolutions undergone (see Evolution System) |
+| `evolution_item_key`     | `StringName`        | Hidden held item from spirit/digimental/mode change evolution |
 
 ### Stat Formula
 
@@ -225,14 +232,47 @@ Standard, Spirit, Armor, Slide, X-Antibody, Jogress, Mode Change
 
 Requirements are dictionaries with a `type` field:
 - `level` — minimum level threshold
-- `stat` — specific stat must reach a value
+- `stat` — specific stat must reach a value (supports `operator`: `>=`, `>`, `<=`, `<`, `==`)
 - `stat_highest_of` — a stat must be the highest among specified stats
-- `spirit` — requires a specific spirit item
-- `digimental` — requires a specific digimental
-- `x_antibody` — requires X-Antibody item
+- `spirit` — requires a specific spirit item (in `item` or `spirit` field)
+- `digimental` — requires a specific digimental (in `item` or `digimental` field)
+- `x_antibody` — requires X-Antibody level (in `amount` field)
+- `mode_change` — requires a specific mode change item (optional `item` field; omitted = free mode change)
 - `description` — freeform text requirement (for manual/story gates)
 
 Requirements are checked at runtime by `EvolutionChecker` (see Utility Classes section).
+
+### Evolution History
+
+Each DigimonState tracks its full evolution chain in `evolution_history: Array[Dictionary]`. Each entry:
+- `from_key`: StringName — species before this evolution
+- `to_key`: StringName — species after this evolution
+- `evolution_type`: int — `Registry.EvolutionType` value
+- `evolution_item_key`: StringName — item consumed (spirit/digimental/mode item), empty for standard
+- `jogress_partners`: Array[Dictionary] — serialised partner DigimonState snapshots for jogress evolutions
+
+**Slide and mode change** evolutions replace the last history entry (preserving the original `from_key`) rather than appending, since they represent lateral movement within the same tier.
+
+### De-Digivolution
+
+`EvolutionExecutor.execute_de_digivolution()` pops the last history entry and reverts the Digimon:
+- Species key reverts to `from_key` from the popped entry
+- HP/energy scaled proportionally to the reverted form
+- `evolution_item_key` returned to inventory (spirit/digimental/mode item)
+- Jogress partners restored from serialised snapshots (added to party, or storage if full)
+- Innate techniques of the reverted form are learned
+
+### Evolution Execution
+
+`EvolutionExecutor` (`scripts/utilities/evolution_executor.gd`) handles all evolution mutations:
+- `execute_evolution(digimon, link, inventory)` — standard/spirit/armor/x_antibody evolutions
+- `execute_jogress(digimon, link, selected_partners, inventory, party, storage)` — DNA evolutions with partner consumption
+- `execute_slide_or_mode_change(digimon, link, inventory)` — lateral evolutions (replaces last history entry)
+- `execute_de_digivolution(digimon, inventory, party, storage)` — reverts to previous form
+
+### DigimonFactory History Backfill
+
+`DigimonFactory.create_digimon_with_history(key, level, tamer_name, rng)` creates wild/NPC Digimon with plausible evolution history by walking the evolution graph backwards from the target species. Prefers standard evolutions (95% weight) and excludes slide/mode change paths.
 
 ---
 
@@ -660,7 +700,7 @@ Specific abilities may also grant status immunities regardless of resistance.
 
 ## 12. Item System
 
-### Categories (8)
+### Categories (9)
 
 | Category     | Combat Use | Description                                          |
 |--------------|------------|------------------------------------------------------|
@@ -672,6 +712,7 @@ Specific abilities may also grant status immunities regardless of resistance.
 | Key          | No         | Story progression, passive effects                   |
 | Quest        | No         | Location-specific quest items                        |
 | Card         | No         | Teach techniques to specific Digimon                 |
+| Evolution    | No         | Digimentals, spirits, mode change items, X-Antibody  |
 
 ### Data Layer
 
@@ -1029,10 +1070,11 @@ Configuration is in `.gutconfig.json` pointing to `res://tests/`.
 
 `TestBattleFactory` (`tests/helpers/test_battle_factory.gd`) injects synthetic resources directly into Atlas dictionaries at runtime:
 
-- 5 test Digimon species (test_agumon, test_gabumon, test_patamon, test_tank, test_speedster)
+- 6 test Digimon species (test_agumon, test_gabumon, test_patamon, test_tank, test_speedster, test_wall, test_sweeper)
 - 12+ test techniques covering all classes, elements, targeting types, and flags
 - 6 test abilities covering all trigger types and stack limits
 - 12 test items: 7 medicine (potion, super_potion, energy_drink, burn_heal, full_heal, revive, x_attack), 4 gear (power_band, counter_gem, heal_berry, element_guard), 1 capture (scanner)
+- 8 test evolution links: standard (agumon→tank, agumon→sweeper, gabumon→wall), spirit (patamon→speedster), armor (agumon→speedster), slide (speedster→wall), mode change (tank→sweeper), x-antibody (agumon→wall), jogress (agumon+gabumon→wall), free mode change (sweeper→speedster)
 - 3 test personalities (neutral, brave, modest)
 
 All test keys are prefixed with `test_` and cleaned up via `clear_test_data()`.
@@ -1061,6 +1103,11 @@ tests/
     test_inventory_state.gd
     test_training_calculator.gd
     test_evolution_checker.gd
+    test_evolution_executor.gd
+    test_evolution_round_trip.gd
+    test_digimon_factory_history.gd
+    test_wild_battle_factory.gd
+    test_wild_battle_factory_history.gd
   battle/
     unit/                     # Battle-specific unit tests
       test_damage_calculator.gd
@@ -1200,9 +1247,15 @@ Training course tiers (from GameBalance):
 Pure static utility for checking evolution requirements against a DigimonState and inventory.
 
 - `check_requirements(link, digimon, inventory)` → `Array[Dictionary]` with `{ type, description, met }`
-- `can_evolve(link, digimon, inventory)` → `bool` (true only if all requirements met)
-- Handles all 7 requirement types: `level`, `stat`, `stat_highest_of`, `spirit`, `digimental`, `x_antibody`, `description` (always unmet)
+- `can_evolve(link, digimon, inventory, party, storage)` → `bool` (true only if all requirements met, including jogress partners)
+- `check_jogress_partners(link, digimon, party, storage)` → `Array[Dictionary]` with partner availability checks
+- `find_jogress_candidates(link, digimon, party, storage)` → `Dictionary` mapping partner_key → Array[candidate dicts]
+- Handles all 8 requirement types: `level`, `stat`, `stat_highest_of`, `spirit`, `digimental`, `x_antibody`, `mode_change`, `description` (always unmet)
 - Uses `StatCalculator.calculate_stat()` for computed stat comparisons
+
+### EvolutionExecutor (`scripts/utilities/evolution_executor.gd`)
+
+Pure static utility for executing evolution mutations. See Evolution System section for details on each method.
 
 ### FormatUtils (`scripts/utilities/format_utils.gd`)
 
@@ -1221,7 +1274,7 @@ Applies item bricks to a DigimonState outside of battle. Handles healing bricks 
 - `get_max_stats(digimon)` → `{ "max_hp": int, "max_energy": int }` — personality-aware stat calculation
 - Healing type discrimination uses `brick.get("type")` (not `"subtype"`) and `percent / 100.0` scaling
 - `cureStatus` field handled as both String and Array
-- `outOfBattleEffect` brick effects: `toggleAbility`, `switchSecretAbility`, `addTv`, `removeTv`, `addIv`, `removeIv`, `changePersonality`, `clearPersonality`, `addTp`
+- `outOfBattleEffect` brick effects: `toggleAbility`, `switchSecretAbility`, `addTv`, `removeTv`, `addIv`, `removeIv`, `changePersonality`, `clearPersonality`, `addTp`, `gain_xantibody`, `digimental`, `spirit`, `modeChange`
 
 ---
 
@@ -1233,6 +1286,8 @@ Applies item bricks to a DigimonState outside of battle. Handles healing bricks 
 Title Screen → Save Screen (select) → Mode Screen (hub)
                                          ├→ Party Screen → context menu → Summary Screen → Party Screen
                                          │               → context menu → Bag Screen (select) → Party Screen
+                                         │               → context menu → Evolution Screen → Animation → Evolution Screen → Party Screen
+                                         │               → context menu → De-evolution → Animation → Party Screen
                                          ├→ Bag Screen → Use → Party Screen (select) → Bag Screen (medicine applied)
                                          ├→ Battle Builder → Battle → Battle Builder → Mode Screen
                                          ├→ Save Screen (save) → Mode Screen
@@ -1273,11 +1328,11 @@ Context persists across sub-navigation (e.g. Mode Screen → Battle Builder → 
 
 **Mode Screen** (`scenes/screens/mode_screen.tscn`): Central hub. Shows tamer name, bits, party strip. Button grid: Party, Bag, Save, Battle Builder, Wild Battle, Settings (enabled); Storage, Shop, Training (disabled — Coming Soon). TEST mode shows battle/wild/shop/training buttons; STORY mode hides them.
 
-**Party Screen** (`scenes/screens/party_screen.tscn`): View/manage active party. DigimonSlotPanels with context menus (Summary, Item, Switch, Evolution). Supports select mode for cross-screen flows (e.g. Bag "Use" picks a target Digimon). Context: `mode`, `select_mode`, `select_filter`, `select_prompt`, `return_scene`. Result: `{"party_index": int, "digimon": DigimonState}` or `null`.
+**Party Screen** (`scenes/screens/party_screen.tscn`): View/manage active party. DigimonSlotPanels with context menus (Summary, Item, Switch, Evolution, De-evolution). De-evolution option only appears when `evolution_history` is non-empty; calls `EvolutionExecutor.execute_de_digivolution()` then navigates to the evolution animation screen. Supports select mode for cross-screen flows (e.g. Bag "Use" picks a target Digimon). Context: `mode`, `select_mode`, `select_filter`, `select_prompt`, `return_scene`. Result: `{"party_index": int, "digimon": DigimonState}` or `null`.
 
 **Bag Screen** (`scenes/screens/bag_screen.tscn`): View/manage inventory. Category tabs, item list with detail panel. Actions: Use (medicine applicator), Toss. "Give" disabled (Coming Soon — needs Held Items page). Use flow: Bag → Party Screen (select) → Bag (applies medicine via `_bag_pending_use` round-trip in `screen_context`).
 
-**Summary Screen** (`scenes/screens/summary_screen.tscn`): Four-page Digimon detail view. Page 1 (Info): sprite, name, species, attribute, elements, personality (with override display if set), active ability section, OT, level/XP, TP. Page 2 (Stats): 7 stat rows with personality colouring (uses effective personality), IV/TV labels, BST total. Page 3 (Techniques): equipped list with unequip, known list with equip/swap. Page 4 (Held Items): gear and consumable slots with item details and remove buttons. Party navigation arrows cycle through party members.
+**Summary Screen** (`scenes/screens/summary_screen.tscn`): Two-page Digimon detail view. Page 1 (Info): sprite, name, species, attribute, elements, personality (with override display if set), active ability section, OT, level/XP, TP, 7 stat rows with personality colouring (uses effective personality) and IV/TV labels with BST total, gear and consumable held item slots with details and remove buttons, evolution history section (if non-empty — shows chain of from→to with evolution type, items used, and jogress partners). Page 2 (Techniques): equipped list with unequip, known list with equip/swap. Party navigation arrows cycle through party members.
 
 ### Select Mode Pattern
 
@@ -1330,4 +1385,4 @@ Out-of-battle item use is handled by `BagScreen._apply_medicine()`. Interprets h
 
 ---
 
-*Last Updated: 2026-02-13*
+*Last Updated: 2026-02-14*

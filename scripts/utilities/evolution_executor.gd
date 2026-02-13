@@ -290,6 +290,8 @@ static func _learn_innate_techniques(
 
 
 ## Extract the spirit/digimental/mode_change item key from requirements.
+## Uses EvolutionChecker.find_evolution_item_key to resolve display names
+## to actual inventory keys.
 static func _get_item_key_from_requirements(
 	link: EvolutionLinkData,
 ) -> StringName:
@@ -297,13 +299,24 @@ static func _get_item_key_from_requirements(
 		var req_type: String = req.get("type", "")
 		match req_type:
 			"spirit":
-				return StringName(req.get("item", req.get("spirit", "")))
+				var name: String = req.get("item", req.get("spirit", ""))
+				return EvolutionChecker.find_evolution_item_key(
+					"spirit", name,
+				)
 			"digimental":
-				return StringName(
-					req.get("item", req.get("digimental", "")),
+				var name: String = req.get(
+					"item", req.get("digimental", ""),
+				)
+				return EvolutionChecker.find_evolution_item_key(
+					"digimental", name,
 				)
 			"mode_change":
-				return StringName(req.get("item", ""))
+				var name: String = req.get("item", "")
+				if name == "":
+					return &""
+				return EvolutionChecker.find_evolution_item_key(
+					"mode_change", name,
+				)
 	return &""
 
 
