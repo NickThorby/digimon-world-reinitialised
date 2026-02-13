@@ -49,7 +49,10 @@ var _jogress_sprites: Array[TextureRect] = []
 
 func _ready() -> void:
 	_read_context()
-	MusicManager.play("res://assets/audio/music/38. Digivolution Theme.mp3")
+	if _is_jogress:
+		MusicManager.play("res://assets/audio/music/39. DNA Digivolution Theme.mp3")
+	else:
+		MusicManager.play("res://assets/audio/music/38. Digivolution Theme.mp3")
 	if _is_jogress:
 		_setup_jogress_sprites()
 		_run_jogress_animation()
@@ -174,14 +177,14 @@ func _run_jogress_animation() -> void:
 	_is_transitioning = true
 
 	_active_tween = create_tween()
-	_active_tween.tween_method(_set_jogress_whiteness, 0.0, 1.0, 1.0)
+	_active_tween.tween_method(_set_jogress_whiteness, 0.0, 1.0, 1.5)
 	await _active_tween.finished
 
 	# Phase 3 — Slide all sprites to centre
 	_active_tween = create_tween()
 	for sprite: TextureRect in _jogress_sprites:
 		_active_tween.parallel().tween_property(
-			sprite, "position", Vector2.ZERO, 0.8,
+			sprite, "position", Vector2.ZERO, 1.2,
 		).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_CUBIC)
 	await _active_tween.finished
 
@@ -199,7 +202,7 @@ func _run_jogress_animation() -> void:
 
 	# Phase 5 — Reveal result (fade from white)
 	_active_tween = create_tween()
-	_active_tween.tween_method(_set_whiteness, 1.0, 0.0, 1.0)
+	_active_tween.tween_method(_set_whiteness, 1.0, 0.0, 1.5)
 	await _active_tween.finished
 
 	_is_transitioning = false
@@ -228,7 +231,7 @@ func _run_animation() -> void:
 	_is_transitioning = true
 
 	_active_tween = create_tween()
-	_active_tween.tween_method(_set_whiteness, 0.0, 1.0, 1.0)
+	_active_tween.tween_method(_set_whiteness, 0.0, 1.0, 1.5)
 	await _active_tween.finished
 
 	# Swap sprite to new Digimon while fully white
@@ -239,7 +242,7 @@ func _run_animation() -> void:
 		_apply_sprite_size(new_data)
 
 	_active_tween = create_tween()
-	_active_tween.tween_method(_set_whiteness, 1.0, 0.0, 1.0)
+	_active_tween.tween_method(_set_whiteness, 1.0, 0.0, 1.5)
 	await _active_tween.finished
 
 	_is_transitioning = false
