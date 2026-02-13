@@ -31,7 +31,9 @@ static func create_encounter(
 			continue
 		var level: int = roll_level(entry, zone, rng)
 		var digimon_key: StringName = entry.get("digimon_key", &"")
-		var digimon: DigimonState = DigimonFactory.create_digimon(digimon_key, level)
+		var digimon: DigimonState = DigimonFactory.create_digimon_with_history(
+			digimon_key, level, "", rng,
+		)
 		if digimon != null:
 			_set_level_techniques(digimon, level, balance, rng)
 			_randomise_ability_slot(digimon, rng)

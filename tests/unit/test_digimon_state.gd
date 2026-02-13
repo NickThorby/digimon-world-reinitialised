@@ -190,3 +190,80 @@ func test_hyper_trained_ivs_backward_compat() -> void:
 	var state: DigimonState = DigimonState.from_dict(data)
 	assert_eq(state.hyper_trained_ivs.size(), 0,
 		"Missing hyper_trained_ivs should default to empty dict")
+
+
+# --- Evolution history ---
+
+
+func test_evolution_history_serialisation() -> void:
+	var state: DigimonState = TestBattleFactory.make_digimon_state(&"test_agumon")
+	state.evolution_history = [
+		{
+			"from_key": &"test_agumon",
+			"to_key": &"test_tank",
+			"evolution_type": Registry.EvolutionType.STANDARD,
+			"evolution_item_key": &"",
+		},
+	]
+	var data: Dictionary = state.to_dict()
+	var restored: DigimonState = DigimonState.from_dict(data)
+	assert_eq(restored.evolution_history.size(), 1,
+		"evolution_history should persist through serialisation")
+	assert_eq(
+		StringName(restored.evolution_history[0].get("from_key", "")),
+		&"test_agumon",
+		"from_key should persist",
+	)
+	assert_eq(
+		StringName(restored.evolution_history[0].get("to_key", "")),
+		&"test_tank",
+		"to_key should persist",
+	)
+
+
+func test_evolution_history_backward_compat() -> void:
+	var data: Dictionary = {
+		"key": "test_agumon",
+		"level": 10,
+	}
+	var state: DigimonState = DigimonState.from_dict(data)
+	assert_eq(state.evolution_history.size(), 0,
+		"Missing evolution_history should default to empty array")
+
+
+func test_evolution_item_key_serialisation() -> void:
+	var state: DigimonState = TestBattleFactory.make_digimon_state(&"test_agumon")
+	state.evolution_item_key = &"test_digimental_courage"
+	var data: Dictionary = state.to_dict()
+	var restored: DigimonState = DigimonState.from_dict(data)
+	assert_eq(restored.evolution_item_key, &"test_digimental_courage",
+		"evolution_item_key should persist through serialisation")
+
+
+func test_evolution_item_key_backward_compat() -> void:
+	var data: Dictionary = {
+		"key": "test_agumon",
+		"level": 10,
+	}
+	var state: DigimonState = DigimonState.from_dict(data)
+	assert_eq(state.evolution_item_key, &"",
+		"Missing evolution_item_key should default to empty StringName")
+
+
+func test_x_antibody_serialisation() -> void:
+	var state: DigimonState = TestBattleFactory.make_digimon_state(&"test_agumon")
+	state.x_antibody = 3
+	var data: Dictionary = state.to_dict()
+	var restored: DigimonState = DigimonState.from_dict(data)
+	assert_eq(restored.x_antibody, 3,
+		"x_antibody should persist through serialisation")
+
+
+func test_x_antibody_backward_compat() -> void:
+	var data: Dictionary = {
+		"key": "test_agumon",
+		"level": 10,
+	}
+	var state: DigimonState = DigimonState.from_dict(data)
+	assert_eq(state.x_antibody, 0,
+		"Missing x_antibody should default to 0")

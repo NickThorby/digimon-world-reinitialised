@@ -72,7 +72,18 @@ var scan_data: float = 0.0
 var status_conditions: Array[Dictionary] = []
 
 ## Serialised state of Digimon consumed via Jogress evolution, for potential de-evolution.
+## DEPRECATED: Use evolution_history entries instead. Retained for backward-compatible loading.
 var jogress_partners: Array[Dictionary] = []
+
+## Evolution history — chain of evolutions this Digimon has undergone.
+## Each: { "from_key", "to_key", "evolution_type": int, "evolution_item_key", "jogress_partners": Array }
+var evolution_history: Array[Dictionary] = []
+
+## Item held due to evolution (spirit/digimental/mode change). Hidden from UI.
+var evolution_item_key: StringName = &""
+
+## Accumulated X-Antibody value. Gained via items, checked by evo requirements.
+var x_antibody: int = 0
 
 ## Combined 16-char hex identifier for internal tracking (display_id + secret_id).
 var unique_id: StringName:
@@ -106,6 +117,9 @@ func to_dict() -> Dictionary:
 		"scan_data": scan_data,
 		"status_conditions": status_conditions.duplicate(true),
 		"jogress_partners": jogress_partners.duplicate(true),
+		"evolution_history": evolution_history.duplicate(true),
+		"evolution_item_key": evolution_item_key,
+		"x_antibody": x_antibody,
 	}
 
 
@@ -149,5 +163,11 @@ static func from_dict(data: Dictionary) -> DigimonState:
 
 	for partner_dict: Dictionary in data.get("jogress_partners", []):
 		state.jogress_partners.append(partner_dict)
+
+	for history_entry: Dictionary in data.get("evolution_history", []):
+		state.evolution_history.append(history_entry)
+
+	state.evolution_item_key = StringName(data.get("evolution_item_key", ""))
+	state.x_antibody = data.get("x_antibody", 0)
 
 	return state

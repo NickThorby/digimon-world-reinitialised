@@ -50,7 +50,7 @@ static func check_requirements(
 			"stat_highest_of":
 				results.append(_check_stat_highest_of(req, digimon, data))
 			"spirit":
-				var spirit: String = req.get("spirit", "")
+				var spirit: String = req.get("item", req.get("spirit", ""))
 				var item_key: StringName = StringName(spirit)
 				var has_item: bool = inventory.items.get(item_key, 0) > 0
 				results.append({
@@ -59,7 +59,9 @@ static func check_requirements(
 					"met": has_item,
 				})
 			"digimental":
-				var digimental: String = req.get("digimental", "")
+				var digimental: String = req.get(
+					"item", req.get("digimental", ""),
+				)
 				var item_key: StringName = StringName(digimental)
 				var has_item: bool = inventory.items.get(item_key, 0) > 0
 				results.append({
@@ -67,10 +69,23 @@ static func check_requirements(
 					"description": digimental,
 					"met": has_item,
 				})
+			"mode_change":
+				var item_name: String = req.get("item", "")
+				var item_key: StringName = StringName(item_name)
+				var has_item: bool = (
+					item_name == ""
+					or inventory.items.get(item_key, 0) > 0
+				)
+				results.append({
+					"type": "mode_change",
+					"description": (
+						item_name if item_name != "" else "Mode Change"
+					),
+					"met": has_item,
+				})
 			"x_antibody":
 				var needed: int = int(req.get("amount", 1))
-				var x_key: StringName = &"x_antibody"
-				var owned: int = inventory.items.get(x_key, 0)
+				var owned: int = digimon.x_antibody
 				results.append({
 					"type": "x_antibody",
 					"description": "X-Antibody x%d" % needed,

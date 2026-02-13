@@ -81,6 +81,17 @@ const EVOLUTION_TYPE_MAP: Dictionary = {
 	"Mode Change": _Reg.EvolutionType.MODE_CHANGE,
 }
 
+## Maps evolution type string to a filename-safe suffix for unique keys.
+const EVOLUTION_TYPE_SUFFIX_MAP: Dictionary = {
+	"Standard": "standard",
+	"Spirit": "spirit",
+	"Armor": "armor",
+	"Slide": "slide",
+	"X-Antibody": "x_antibody",
+	"Jogress": "jogress",
+	"Mode Change": "mode_change",
+}
+
 const TECHNIQUE_FLAG_MAP: Dictionary = {
 	"contact": _Reg.TechniqueFlag.CONTACT,
 	"sound": _Reg.TechniqueFlag.SOUND,
@@ -411,15 +422,22 @@ func map_evolution(dex_data: Dictionary) -> Resource:
 
 	var from_key: String = dex_data.get("from_game_id", "")
 	var to_key: String = dex_data.get("to_game_id", "")
-	evolution.key = StringName("%s_to_%s" % [from_key, to_key])
-	evolution.from_key = StringName(from_key)
-	evolution.to_key = StringName(to_key)
 
 	# Evolution type
 	var type_str: String = _str_or_empty(dex_data.get("evolution_type"))
 	evolution.evolution_type = EVOLUTION_TYPE_MAP.get(
 		type_str, _Reg.EvolutionType.STANDARD
 	)
+
+	# Key includes type suffix to support duplicate from/to pairs
+	var type_suffix: String = EVOLUTION_TYPE_SUFFIX_MAP.get(
+		type_str, "standard",
+	)
+	evolution.key = StringName(
+		"%s_to_%s_%s" % [from_key, to_key, type_suffix],
+	)
+	evolution.from_key = StringName(from_key)
+	evolution.to_key = StringName(to_key)
 
 	# Requirements (AND logic, stored as-is)
 	var requirements: Variant = dex_data.get("requirements")

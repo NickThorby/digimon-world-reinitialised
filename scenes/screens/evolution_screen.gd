@@ -358,58 +358,30 @@ func _execute_evolution(link: EvolutionLinkData) -> void:
 		return
 
 	var old_data: DigimonData = Atlas.digimon.get(_digimon.key) as DigimonData
-	var new_data: DigimonData = Atlas.digimon.get(link.to_key) as DigimonData
-	if new_data == null:
-		_status_label.text = "Evolution target not found!"
-		return
-
-	# Capture old info for animation
 	var old_key: StringName = _digimon.key
 	var old_name: String = old_data.display_name if old_data else str(old_key)
 
-	# Store old max HP/energy for proportional scaling
-	var old_stats: Dictionary = StatCalculator.calculate_all_stats(old_data, _digimon) \
-		if old_data else {}
-	var old_max_hp: int = old_stats.get(&"hp", 1) as int
-	var old_max_energy: int = old_stats.get(&"energy", 1) as int
+	var inventory: InventoryState = Game.state.inventory
 
-	# Change species
-	_digimon.key = link.to_key
-
-	# Calculate new max HP/energy
-	var new_stats: Dictionary = StatCalculator.calculate_all_stats(new_data, _digimon)
-	var new_max_hp: int = new_stats.get(&"hp", 1) as int
-	var new_max_energy: int = new_stats.get(&"energy", 1) as int
-
-	# Proportional HP/energy scaling
-	if old_max_hp > 0:
-		_digimon.current_hp = maxi(
-			floori(float(_digimon.current_hp) / float(old_max_hp) * float(new_max_hp)),
-			1,
+	# Route by evolution type
+	var result: Dictionary
+	if link.evolution_type == Registry.EvolutionType.SLIDE \
+			or link.evolution_type == Registry.EvolutionType.MODE_CHANGE:
+		result = EvolutionExecutor.execute_slide_or_mode_change(
+			_digimon, link, inventory,
 		)
 	else:
-		_digimon.current_hp = new_max_hp
-	if old_max_energy > 0:
-		_digimon.current_energy = maxi(
-			floori(
-				float(_digimon.current_energy) / float(old_max_energy) * float(new_max_energy)
-			),
-			1,
+		result = EvolutionExecutor.execute_evolution(
+			_digimon, link, inventory,
 		)
-	else:
-		_digimon.current_energy = new_max_energy
 
-	# Add innate techniques from new form
-	var new_innate: Array[StringName] = new_data.get_innate_technique_keys()
-	for tech_key: StringName in new_innate:
-		if tech_key not in _digimon.known_technique_keys:
-			_digimon.known_technique_keys.append(tech_key)
-
-	# Consume required items (spirits, digimentals, x_antibody)
-	_consume_evolution_items(link)
+	if not result.get("success", false):
+		_status_label.text = result.get("error", "Evolution failed!")
+		return
 
 	# Navigate to animation screen
-	var new_name: String = new_data.display_name
+	var new_data: DigimonData = Atlas.digimon.get(link.to_key) as DigimonData
+	var new_name: String = new_data.display_name if new_data else str(link.to_key)
 	Game.screen_context = {
 		"old_digimon_key": old_key,
 		"new_digimon_key": link.to_key,
@@ -422,34 +394,6 @@ func _execute_evolution(link: EvolutionLinkData) -> void:
 		"evolution_return_scene": _return_scene,
 	}
 	SceneManager.change_scene(_EVOLUTION_ANIMATION_PATH)
-
-
-func _consume_evolution_items(link: EvolutionLinkData) -> void:
-	if Game.state == null:
-		return
-	for req: Dictionary in link.requirements:
-		var req_type: String = req.get("type", "")
-		match req_type:
-			"spirit":
-				var item_key: StringName = StringName(req.get("spirit", ""))
-				_remove_item(item_key, 1)
-			"digimental":
-				var item_key: StringName = StringName(req.get("digimental", ""))
-				_remove_item(item_key, 1)
-			"x_antibody":
-				var amount: int = int(req.get("amount", 1))
-				_remove_item(&"x_antibody", amount)
-
-
-func _remove_item(item_key: StringName, amount: int) -> void:
-	if item_key == &"" or Game.state == null:
-		return
-	var current: int = Game.state.inventory.items.get(item_key, 0)
-	var new_qty: int = current - amount
-	if new_qty <= 0:
-		Game.state.inventory.items.erase(item_key)
-	else:
-		Game.state.inventory.items[item_key] = new_qty
 
 
 func _on_back_pressed() -> void:

@@ -226,6 +226,15 @@ static func _apply_out_of_battle_effect(
 				)
 				return digimon.training_points != old_tp
 			return false
+		"gain_xantibody":
+			var amount: int = int(value) if value != "" else 1
+			if amount > 0:
+				digimon.x_antibody += amount
+				return true
+			return false
+		"digimental", "spirit", "modeChange":
+			# Tag effects — identify item type, no runtime action.
+			return true
 	return false
 
 

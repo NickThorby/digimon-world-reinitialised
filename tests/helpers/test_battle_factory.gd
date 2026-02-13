@@ -79,6 +79,7 @@ static func _inject_digimon() -> void:
 		{&"ice": 1.5, &"water": 1.5, &"fire": 0.5},
 		&"test_ability_on_entry",
 	)
+	agumon.level = 4
 	agumon.ability_slot_2_key = &"test_stat_boost"
 	agumon.ability_slot_3_key = &"test_weather_setter"
 	agumon.size_trait = &"medium"
@@ -92,6 +93,7 @@ static func _inject_digimon() -> void:
 		{&"fire": 1.5, &"ice": 0.5, &"earth": 0.5},
 		&"test_ability_on_turn_start",
 	)
+	gabumon.level = 4
 	gabumon.size_trait = &"medium"
 	gabumon.movement_traits = [&"terrestrial"] as Array[StringName]
 	gabumon.type_trait = &"beast"
@@ -103,6 +105,7 @@ static func _inject_digimon() -> void:
 		{&"dark": 0.0, &"light": 0.5},
 		&"test_ability_on_ally_faint",
 	)
+	patamon.level = 4
 	patamon.size_trait = &"small"
 	patamon.movement_traits = [&"aerial"] as Array[StringName]
 	patamon.type_trait = &"holy"
@@ -114,6 +117,7 @@ static func _inject_digimon() -> void:
 		{&"dark": 0.0, &"light": 1.5},
 		&"",
 	)
+	tank.level = 5
 	tank.size_trait = &"large"
 	tank.movement_traits = [&"terrestrial"] as Array[StringName]
 	tank.type_trait = &"undead"
@@ -125,10 +129,35 @@ static func _inject_digimon() -> void:
 		{&"earth": 1.5, &"lightning": 0.5},
 		&"",
 	)
+	speedster.level = 5
 	speedster.size_trait = &"small"
 	speedster.movement_traits = [&"flying"] as Array[StringName]
 	speedster.type_trait = &"insect"
 	Atlas.digimon[&"test_speedster"] = speedster
+
+	var wall: DigimonData = _make_digimon(
+		&"test_wall", "Test Wall", Registry.Attribute.VIRUS,
+		[&"dark"], 130, 60, 60, 120, 40, 120, 20,
+		{&"dark": 0.0, &"light": 1.5},
+		&"",
+	)
+	wall.level = 5
+	wall.size_trait = &"large"
+	wall.movement_traits = [&"terrestrial"] as Array[StringName]
+	wall.type_trait = &"undead"
+	Atlas.digimon[&"test_wall"] = wall
+
+	var sweeper: DigimonData = _make_digimon(
+		&"test_sweeper", "Test Sweeper", Registry.Attribute.DATA,
+		[&"fire"], 60, 50, 130, 40, 130, 40, 100,
+		{&"ice": 1.5, &"fire": 0.5},
+		&"",
+	)
+	sweeper.level = 5
+	sweeper.size_trait = &"medium"
+	sweeper.movement_traits = [&"terrestrial"] as Array[StringName]
+	sweeper.type_trait = &"dragon"
+	Atlas.digimon[&"test_sweeper"] = sweeper
 
 	var ice_mon: DigimonData = _make_digimon(
 		&"test_ice_mon", "Test Ice Mon", Registry.Attribute.DATA,
@@ -1712,6 +1741,27 @@ static func _inject_items() -> void:
 	Atlas.items[&"test_scanner"] = _make_capture_item(
 		&"test_scanner", "Test Scanner",
 	)
+	# Evolution-related items
+	Atlas.items[&"test_digimental_courage"] = _make_key_item(
+		&"test_digimental_courage", "Test Digimental of Courage",
+		[{"brick": "outOfBattleEffect", "effect": "digimental"}],
+	)
+	Atlas.items[&"test_digimental_friendship"] = _make_key_item(
+		&"test_digimental_friendship", "Test Digimental of Friendship",
+		[{"brick": "outOfBattleEffect", "effect": "digimental"}],
+	)
+	Atlas.items[&"test_spirit_item"] = _make_key_item(
+		&"test_spirit_item", "Test Spirit",
+		[{"brick": "outOfBattleEffect", "effect": "spirit"}],
+	)
+	Atlas.items[&"test_mode_item"] = _make_key_item(
+		&"test_mode_item", "Test Mode Item",
+		[{"brick": "outOfBattleEffect", "effect": "modeChange"}],
+	)
+	Atlas.items[&"test_x_antibody_item"] = _make_medicine(
+		&"test_x_antibody_item", "Test X-Antibody",
+		[{"brick": "outOfBattleEffect", "effect": "gain_xantibody", "value": "1"}],
+	)
 
 
 # --- Evolution data ---
@@ -1750,6 +1800,36 @@ static func _inject_evolutions() -> void:
 	)
 	jogress_link.jogress_partner_keys = [&"test_gabumon"]
 	Atlas.evolutions[&"test_evo_jogress"] = jogress_link
+	# Armor: test_agumon → test_speedster (requires digimental)
+	Atlas.evolutions[&"test_evo_armor"] = _make_evolution(
+		&"test_evo_armor", &"test_agumon", &"test_speedster",
+		Registry.EvolutionType.ARMOR,
+		[{"type": "digimental", "item": "test_digimental_courage"}],
+	)
+	# Slide: test_speedster → test_wall (requires different digimental)
+	Atlas.evolutions[&"test_evo_slide"] = _make_evolution(
+		&"test_evo_slide", &"test_speedster", &"test_wall",
+		Registry.EvolutionType.SLIDE,
+		[{"type": "digimental", "item": "test_digimental_friendship"}],
+	)
+	# Mode change: test_tank → test_sweeper (requires mode item)
+	Atlas.evolutions[&"test_evo_mode_change"] = _make_evolution(
+		&"test_evo_mode_change", &"test_tank", &"test_sweeper",
+		Registry.EvolutionType.MODE_CHANGE,
+		[{"type": "mode_change", "item": "test_mode_item"}],
+	)
+	# X-Antibody: test_agumon → test_wall (requires x_antibody >= 1)
+	Atlas.evolutions[&"test_evo_x_antibody"] = _make_evolution(
+		&"test_evo_x_antibody", &"test_agumon", &"test_wall",
+		Registry.EvolutionType.X_ANTIBODY,
+		[{"type": "x_antibody", "amount": 1}],
+	)
+	# Free mode change (no item): test_sweeper → test_speedster
+	Atlas.evolutions[&"test_evo_free_mode_change"] = _make_evolution(
+		&"test_evo_free_mode_change", &"test_sweeper", &"test_speedster",
+		Registry.EvolutionType.MODE_CHANGE,
+		[{"type": "mode_change"}],
+	)
 
 
 static func _make_evolution(
@@ -1821,6 +1901,22 @@ static func _make_capture_item(
 	item.category = Registry.ItemCategory.CAPTURE_SCAN
 	item.is_consumable = true
 	item.is_combat_usable = true
+	return item
+
+
+static func _make_key_item(
+	key: StringName,
+	item_name: String,
+	bricks: Array = [],
+) -> ItemData:
+	var item := ItemData.new()
+	item.key = key
+	item.name = item_name
+	item.category = Registry.ItemCategory.KEY
+	item.is_consumable = false
+	item.is_combat_usable = false
+	for brick: Variant in bricks:
+		item.bricks.append(brick as Dictionary)
 	return item
 
 

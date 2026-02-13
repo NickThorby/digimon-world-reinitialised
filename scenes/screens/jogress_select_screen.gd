@@ -205,81 +205,11 @@ func _on_confirm_pressed() -> void:
 	if _digimon == null or _link == null or Game.state == null:
 		return
 
-	# 1. Store each selected partner's serialised state for de-evolution records
-	for partner_key: StringName in _link.jogress_partner_keys:
-		var candidate: Dictionary = _selected_partners[partner_key] as Dictionary
-		var partner: DigimonState = candidate.get("digimon") as DigimonState
-		if partner != null:
-			_digimon.jogress_partners.append(partner.to_dict())
-
-	# 2. Consume partners — collect removals then execute
-	var party_removals: Array[int] = []
-	for partner_key: StringName in _link.jogress_partner_keys:
-		var candidate: Dictionary = _selected_partners[partner_key] as Dictionary
-		var source: String = candidate.get("source", "") as String
-		if source == "party":
-			party_removals.append(candidate.get("party_index", -1) as int)
-		elif source == "storage":
-			var box: int = candidate.get("box", -1) as int
-			var slot: int = candidate.get("slot", -1) as int
-			Game.state.storage.remove_digimon(box, slot)
-
-	# Remove party members in descending index order to avoid index shifts
-	party_removals.sort()
-	party_removals.reverse()
-	for idx: int in party_removals:
-		if idx >= 0 and idx < Game.state.party.members.size():
-			Game.state.party.members.remove_at(idx)
-
-	# 3. Mutate main Digimon — same logic as evolution_screen._execute_evolution
 	var old_data: DigimonData = Atlas.digimon.get(_digimon.key) as DigimonData
-	var new_data: DigimonData = Atlas.digimon.get(_link.to_key) as DigimonData
-	if new_data == null:
-		_status_label.text = "Evolution target not found!"
-		return
-
 	var old_key: StringName = _digimon.key
 	var old_name: String = old_data.display_name if old_data else str(old_key)
 
-	# Proportional HP/energy scaling
-	var old_stats: Dictionary = StatCalculator.calculate_all_stats(old_data, _digimon) \
-		if old_data else {}
-	var old_max_hp: int = old_stats.get(&"hp", 1) as int
-	var old_max_energy: int = old_stats.get(&"energy", 1) as int
-
-	_digimon.key = _link.to_key
-
-	var new_stats: Dictionary = StatCalculator.calculate_all_stats(new_data, _digimon)
-	var new_max_hp: int = new_stats.get(&"hp", 1) as int
-	var new_max_energy: int = new_stats.get(&"energy", 1) as int
-
-	if old_max_hp > 0:
-		_digimon.current_hp = maxi(
-			floori(float(_digimon.current_hp) / float(old_max_hp) * float(new_max_hp)),
-			1,
-		)
-	else:
-		_digimon.current_hp = new_max_hp
-	if old_max_energy > 0:
-		_digimon.current_energy = maxi(
-			floori(
-				float(_digimon.current_energy) / float(old_max_energy) * float(new_max_energy)
-			),
-			1,
-		)
-	else:
-		_digimon.current_energy = new_max_energy
-
-	# Add innate techniques from new form
-	var new_innate: Array[StringName] = new_data.get_innate_technique_keys()
-	for tech_key: StringName in new_innate:
-		if tech_key not in _digimon.known_technique_keys:
-			_digimon.known_technique_keys.append(tech_key)
-
-	# Consume required items (spirits, digimentals, x_antibody)
-	_consume_evolution_items(_link)
-
-	# 4. Build participant keys for animation
+	# Build participant keys for animation before partners are consumed
 	var participant_keys: Array[StringName] = [old_key]
 	for partner_key: StringName in _link.jogress_partner_keys:
 		var candidate: Dictionary = _selected_partners[partner_key] as Dictionary
@@ -287,8 +217,19 @@ func _on_confirm_pressed() -> void:
 		if partner != null:
 			participant_keys.append(partner.key)
 
-	# 5. Navigate to animation screen
-	var new_name: String = new_data.display_name
+	# Execute jogress via EvolutionExecutor
+	var result: Dictionary = EvolutionExecutor.execute_jogress(
+		_digimon, _link, _selected_partners,
+		Game.state.inventory, Game.state.party, Game.state.storage,
+	)
+
+	if not result.get("success", false):
+		_status_label.text = result.get("error", "Evolution failed!")
+		return
+
+	# Navigate to animation screen
+	var new_data: DigimonData = Atlas.digimon.get(_link.to_key) as DigimonData
+	var new_name: String = new_data.display_name if new_data else str(_link.to_key)
 	Game.screen_context = {
 		"old_digimon_key": old_key,
 		"new_digimon_key": _link.to_key,
@@ -303,34 +244,6 @@ func _on_confirm_pressed() -> void:
 		"participant_keys": participant_keys,
 	}
 	SceneManager.change_scene(_EVOLUTION_ANIMATION_PATH)
-
-
-func _consume_evolution_items(link: EvolutionLinkData) -> void:
-	if Game.state == null:
-		return
-	for req: Dictionary in link.requirements:
-		var req_type: String = req.get("type", "")
-		match req_type:
-			"spirit":
-				var item_key: StringName = StringName(req.get("spirit", ""))
-				_remove_item(item_key, 1)
-			"digimental":
-				var item_key: StringName = StringName(req.get("digimental", ""))
-				_remove_item(item_key, 1)
-			"x_antibody":
-				var amount: int = int(req.get("amount", 1))
-				_remove_item(&"x_antibody", amount)
-
-
-func _remove_item(item_key: StringName, amount: int) -> void:
-	if item_key == &"" or Game.state == null:
-		return
-	var current: int = Game.state.inventory.items.get(item_key, 0)
-	var new_qty: int = current - amount
-	if new_qty <= 0:
-		Game.state.inventory.items.erase(item_key)
-	else:
-		Game.state.inventory.items[item_key] = new_qty
 
 
 func _on_back_pressed() -> void:

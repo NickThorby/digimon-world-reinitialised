@@ -181,10 +181,10 @@ func test_x_antibody_requirement_met() -> void:
 	var link: EvolutionLinkData = _make_link(
 		[{"type": "x_antibody", "amount": 3}] as Array[Dictionary],
 	)
-	var inv: InventoryState = _make_inventory()
-	inv.items[&"x_antibody"] = 5
+	var digimon: DigimonState = _make_digimon()
+	digimon.x_antibody = 5
 	var results: Array[Dictionary] = EvolutionChecker.check_requirements(
-		link, _make_digimon(), inv,
+		link, digimon, _make_inventory(),
 	)
 	assert_true(results[0]["met"] as bool, "5 x_antibody should meet requirement of 3")
 
@@ -193,10 +193,10 @@ func test_x_antibody_requirement_not_met() -> void:
 	var link: EvolutionLinkData = _make_link(
 		[{"type": "x_antibody", "amount": 3}] as Array[Dictionary],
 	)
-	var inv: InventoryState = _make_inventory()
-	inv.items[&"x_antibody"] = 2
+	var digimon: DigimonState = _make_digimon()
+	digimon.x_antibody = 2
 	var results: Array[Dictionary] = EvolutionChecker.check_requirements(
-		link, _make_digimon(), inv,
+		link, digimon, _make_inventory(),
 	)
 	assert_false(results[0]["met"] as bool, "2 x_antibody should not meet requirement of 3")
 
@@ -263,3 +263,114 @@ func test_multiple_requirements_all_met() -> void:
 	assert_eq(results.size(), 2, "Should have 2 requirement results")
 	assert_true(results[0]["met"] as bool, "Level requirement should be met")
 	assert_true(results[1]["met"] as bool, "Stat requirement should be met")
+
+
+# --- X-Antibody checks Digimon field ---
+
+
+func test_x_antibody_checks_digimon_field_met() -> void:
+	var link: EvolutionLinkData = _make_link(
+		[{"type": "x_antibody", "amount": 2}] as Array[Dictionary],
+	)
+	var digimon: DigimonState = _make_digimon()
+	digimon.x_antibody = 3
+	var results: Array[Dictionary] = EvolutionChecker.check_requirements(
+		link, digimon, _make_inventory(),
+	)
+	assert_true(results[0]["met"] as bool,
+		"x_antibody 3 on Digimon should meet requirement of 2")
+
+
+func test_x_antibody_checks_digimon_field_not_met() -> void:
+	var link: EvolutionLinkData = _make_link(
+		[{"type": "x_antibody", "amount": 2}] as Array[Dictionary],
+	)
+	var digimon: DigimonState = _make_digimon()
+	digimon.x_antibody = 1
+	var results: Array[Dictionary] = EvolutionChecker.check_requirements(
+		link, digimon, _make_inventory(),
+	)
+	assert_false(results[0]["met"] as bool,
+		"x_antibody 1 on Digimon should not meet requirement of 2")
+
+
+func test_x_antibody_ignores_inventory() -> void:
+	var link: EvolutionLinkData = _make_link(
+		[{"type": "x_antibody", "amount": 1}] as Array[Dictionary],
+	)
+	var digimon: DigimonState = _make_digimon()
+	digimon.x_antibody = 0
+	var inv: InventoryState = _make_inventory()
+	inv.items[&"x_antibody"] = 99
+	var results: Array[Dictionary] = EvolutionChecker.check_requirements(
+		link, digimon, inv,
+	)
+	assert_false(results[0]["met"] as bool,
+		"x_antibody should check Digimon field, not inventory")
+
+
+# --- Mode change requirement ---
+
+
+func test_mode_change_requirement_met_with_item() -> void:
+	var link: EvolutionLinkData = _make_link(
+		[{"type": "mode_change", "item": "test_mode_item"}] as Array[Dictionary],
+	)
+	var inv: InventoryState = _make_inventory()
+	inv.items[&"test_mode_item"] = 1
+	var results: Array[Dictionary] = EvolutionChecker.check_requirements(
+		link, _make_digimon(), inv,
+	)
+	assert_true(results[0]["met"] as bool,
+		"Mode change should be met when item is owned")
+
+
+func test_mode_change_requirement_not_met() -> void:
+	var link: EvolutionLinkData = _make_link(
+		[{"type": "mode_change", "item": "test_mode_item"}] as Array[Dictionary],
+	)
+	var results: Array[Dictionary] = EvolutionChecker.check_requirements(
+		link, _make_digimon(), _make_inventory(),
+	)
+	assert_false(results[0]["met"] as bool,
+		"Mode change should not be met without item")
+
+
+func test_mode_change_free_always_met() -> void:
+	var link: EvolutionLinkData = _make_link(
+		[{"type": "mode_change"}] as Array[Dictionary],
+	)
+	var results: Array[Dictionary] = EvolutionChecker.check_requirements(
+		link, _make_digimon(), _make_inventory(),
+	)
+	assert_true(results[0]["met"] as bool,
+		"Free mode change (no item) should always be met")
+
+
+# --- Spirit/digimental backward compat (item field) ---
+
+
+func test_spirit_requirement_with_item_field() -> void:
+	var link: EvolutionLinkData = _make_link(
+		[{"type": "spirit", "item": "test_spirit_item"}] as Array[Dictionary],
+	)
+	var inv: InventoryState = _make_inventory()
+	inv.items[&"test_spirit_item"] = 1
+	var results: Array[Dictionary] = EvolutionChecker.check_requirements(
+		link, _make_digimon(), inv,
+	)
+	assert_true(results[0]["met"] as bool,
+		"Spirit with 'item' field should work")
+
+
+func test_digimental_requirement_with_item_field() -> void:
+	var link: EvolutionLinkData = _make_link(
+		[{"type": "digimental", "item": "test_digimental_courage"}] as Array[Dictionary],
+	)
+	var inv: InventoryState = _make_inventory()
+	inv.items[&"test_digimental_courage"] = 1
+	var results: Array[Dictionary] = EvolutionChecker.check_requirements(
+		link, _make_digimon(), inv,
+	)
+	assert_true(results[0]["met"] as bool,
+		"Digimental with 'item' field should work")

@@ -19,18 +19,18 @@ func test_find_evolutions_filters_by_from_key() -> void:
 		var link: EvolutionLinkData = Atlas.evolutions[evo_key] as EvolutionLinkData
 		if link and link.from_key == &"test_agumon":
 			links.append(link)
-	assert_eq(links.size(), 3,
-		"test_agumon should have 3 evolution paths (standard x2 + jogress)")
+	assert_eq(links.size(), 5,
+		"test_agumon should have 5 evolution paths (standard x2 + jogress + armor + x_antibody)")
 
 
 func test_find_evolutions_none_for_no_evos() -> void:
 	var links: Array[EvolutionLinkData] = []
 	for evo_key: StringName in Atlas.evolutions:
 		var link: EvolutionLinkData = Atlas.evolutions[evo_key] as EvolutionLinkData
-		if link and link.from_key == &"test_tank":
+		if link and link.from_key == &"test_wall":
 			links.append(link)
 	assert_eq(links.size(), 0,
-		"test_tank should have no evolution paths")
+		"test_wall should have no evolution paths")
 
 
 # --- Evolve changes key ---

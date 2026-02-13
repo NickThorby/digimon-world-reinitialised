@@ -2,7 +2,7 @@
 extends VBoxContainer
 ## Dock panel UI and import orchestration for the Dex Importer.
 
-const EXPECTED_VERSION: int = 5
+const EXPECTED_VERSION: int = 6
 
 const TECHNIQUE_FOLDER: String = "res://data/technique"
 const ABILITY_FOLDER: String = "res://data/ability"
@@ -433,7 +433,10 @@ func _import_evolutions_data(evolutions_array: Array) -> void:
 			_log_error("Failed to map evolution '%s' -> '%s'" % [from_id, to_id])
 			continue
 
-		var filename: String = "%s_to_%s.tres" % [from_id, to_id]
+		var type_suffix: String = _evolution_type_to_suffix(
+			str(dex_data.get("evolution_type", "Standard")),
+		)
+		var filename: String = "%s_to_%s_%s.tres" % [from_id, to_id, type_suffix]
 		var error: int = _writer.write_resource(resource, EVOLUTION_FOLDER, filename)
 		if error == OK:
 			imported += 1
@@ -522,6 +525,18 @@ func _import_sprites_data(digimon_array: Array) -> void:
 		downloaded += 1
 
 	_log("Sprites: %d downloaded, %d skipped" % [downloaded, skipped])
+
+
+func _evolution_type_to_suffix(type_str: String) -> String:
+	match type_str:
+		"Standard": return "standard"
+		"Spirit": return "spirit"
+		"Armor": return "armor"
+		"Slide": return "slide"
+		"X-Antibody": return "x_antibody"
+		"Jogress": return "jogress"
+		"Mode Change": return "mode_change"
+	return "standard"
 
 
 func _remove_stale_files(folder: String, imported_files: Array[String]) -> void:

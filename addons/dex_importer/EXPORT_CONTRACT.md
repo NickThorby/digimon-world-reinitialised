@@ -1,6 +1,6 @@
 # Export Contract — Dex → Game Data Endpoint
 
-> **Version**: 3
+> **Version**: 6
 > **Purpose**: Defines the JSON shape the game-side importer expects from the dex export endpoint. The dex team implements `GET /export/game` to match this contract exactly.
 
 ---
@@ -17,7 +17,7 @@ Bulk export of the entire game-relevant dataset. No pagination. Single JSON resp
 
 ```jsonc
 {
-  "version": 3,
+  "version": 6,
   "exported_at": "2026-02-08T12:00:00.000Z",
 
   "lookups": {
@@ -302,12 +302,13 @@ Bulk export of the entire game-relevant dataset. No pagination. Single JSON resp
 
 | Type | Fields | Meaning |
 |---|---|---|
-| `level` | `value: int` | Minimum level. |
-| `stat` | `stat: string`, `value: int` | Specific stat threshold. |
+| `level` | `level: int` | Minimum level. |
+| `stat` | `stat: string`, `operator: string`, `value: int` | Specific stat threshold. `operator` is `>=`, `>`, `=`, `<`, `<=`. |
 | `stat_highest_of` | `stat: string`, `among: array[string]` | Stat must be highest. |
-| `spirit` | `item: string` | Requires spirit item. |
-| `digimental` | `item: string` | Requires digimental. |
-| `x_antibody` | — | Requires X-Antibody item. |
+| `spirit` | `item: string` | Requires spirit item (held during evo). Backward compat: `spirit` field also accepted. |
+| `digimental` | `item: string` | Requires digimental (held during evo). Backward compat: `digimental` field also accepted. |
+| `mode_change` | `item: string?` | Requires mode change item. Empty/omitted = free mode change. |
+| `x_antibody` | `amount: int` | Requires X-Antibody level on Digimon (not inventory). |
 | `description` | `text: string` | Freeform requirement. |
 
 ### Locations
@@ -327,7 +328,7 @@ Nested region → sector → zone hierarchy. May be `null` or have empty `region
 
 The game importer validates:
 
-1. **`version`** must equal `3`
+1. **`version`** must equal `6`
 2. **Techniques**: bricks must pass `BRICK_CONTRACT.md` validation. Empty/invalid bricks → technique discarded.
 3. **Abilities**: Same brick validation. Empty/invalid → discarded.
 4. **Items**: Always imported. Gear items mapped to `GearData`; all others to `ItemData`. Saved to category subfolders.
@@ -360,4 +361,4 @@ The importer uses the base URL combined with this path to download item icons.
 
 ---
 
-*Last Updated: 2026-02-09*
+*Last Updated: 2026-02-13*

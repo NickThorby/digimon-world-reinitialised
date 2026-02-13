@@ -80,7 +80,7 @@
 
 ### OutOfBattleEffect
 
-`toggleAbility`, `switchSecretAbility`, `addTv`, `removeTv`, `addIv`, `removeIv`, `changePersonality`, `clearPersonality`, `addTp`
+`toggleAbility`, `switchSecretAbility`, `addTv`, `removeTv`, `addIv`, `removeIv`, `changePersonality`, `clearPersonality`, `addTp`, `gain_xantibody`, `digimental`, `spirit`, `modeChange`
 
 ---
 
@@ -442,7 +442,16 @@
 | `effect` | `String` | Yes | Effect identifier (see OutOfBattleEffect enum) |
 | `value` | `String` | No | Context value. Format depends on effect: stat effects use `"abbrev:amount"` (e.g. `"atk:50"`), personality uses key (e.g. `"brave"`), TP uses amount (e.g. `"50"`) |
 
-*Note: This brick is only processed outside battle by the game's ItemApplicator. The battle engine ignores it. Future effects (e.g. `changeWeather`) may be added.*
+**Additional effects:**
+
+| Effect | Value | Description |
+|---|---|---|
+| `gain_xantibody` | `"amount"` (e.g. `"1"`) | Adds X-Antibody to Digimon (integer). |
+| `digimental` | — | Tag: marks item as a digimental (used by evolution system). |
+| `spirit` | — | Tag: marks item as a spirit (used by evolution system). |
+| `modeChange` | — | Tag: marks item as a mode change enabler (used by evolution system). |
+
+*Note: This brick is only processed outside battle by the game's ItemApplicator. The battle engine ignores it. Tag effects (`digimental`, `spirit`, `modeChange`) return `true` from `apply()` but have no gameplay side effects — they identify the item type for the evolution system.*
 
 ---
 
@@ -537,4 +546,4 @@ The importer converts camelCase identifiers to snake_case:
 
 ---
 
-*Last Updated: 2026-02-12*
+*Last Updated: 2026-02-13*
