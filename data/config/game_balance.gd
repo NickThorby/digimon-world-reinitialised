@@ -101,8 +101,8 @@ extends Resource
 ## "tv_per_step": int, "pass_rate": float }.
 @export var training_courses: Array[Dictionary] = [
 	{"difficulty": "basic", "tp_cost": 1, "tv_per_step": 2, "pass_rate": 0.9},
-	{"difficulty": "intermediate", "tp_cost": 3, "tv_per_step": 5, "pass_rate": 0.6},
-	{"difficulty": "advanced", "tp_cost": 5, "tv_per_step": 10, "pass_rate": 0.3},
+	{"difficulty": "intermediate", "tp_cost": 3, "tv_per_step": 5, "pass_rate": 0.75},
+	{"difficulty": "advanced", "tp_cost": 5, "tv_per_step": 10, "pass_rate": 0.6},
 ]
 ## Global cap for total TVs across all stats.
 @export var max_total_tvs: int = 1000
@@ -112,8 +112,8 @@ extends Resource
 ## "pass_rate": float }.
 @export var hyper_training_courses: Array[Dictionary] = [
 	{"difficulty": "basic", "iv_per_step": 1, "pass_rate": 0.9},
-	{"difficulty": "intermediate", "iv_per_step": 2, "pass_rate": 0.6},
-	{"difficulty": "advanced", "iv_per_step": 3, "pass_rate": 0.3},
+	{"difficulty": "intermediate", "iv_per_step": 2, "pass_rate": 0.75},
+	{"difficulty": "advanced", "iv_per_step": 3, "pass_rate": 0.6},
 ]
 
 # --- Storage ---
