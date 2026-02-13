@@ -1,0 +1,81 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/screens/test_functions_screen.gd" id="1"]
+[ext_resource type="Theme" path="res://ui/theme/game_theme.tres" id="2"]
+
+[node name="TestFunctionsScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.035, 0.035, 0.043, 1)
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme = ExtResource("2")
+theme_override_constants/margin_left = 40
+theme_override_constants/margin_top = 30
+theme_override_constants/margin_right = 40
+theme_override_constants/margin_bottom = 30
+
+[node name="VBox" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+
+[node name="HeaderBar" type="HBoxContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="BackButton" type="Button" parent="MarginContainer/VBox/HeaderBar"]
+layout_mode = 2
+text = "< Back"
+
+[node name="HeaderSpacer" type="Control" parent="MarginContainer/VBox/HeaderBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="TitleLabel" type="Label" parent="MarginContainer/VBox/HeaderBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.024, 0.714, 0.831, 1)
+theme_override_font_sizes/font_size = 24
+text = "Test Functions"
+horizontal_alignment = 1
+
+[node name="HeaderSpacer2" type="Control" parent="MarginContainer/VBox/HeaderBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HSeparator" type="HSeparator" parent="MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="Spacer" type="Control" parent="MarginContainer/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 20)
+
+[node name="CentreWrap" type="CenterContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ButtonGrid" type="GridContainer" parent="MarginContainer/VBox/CentreWrap"]
+layout_mode = 2
+columns = 2
+theme_override_constants/h_separation = 24
+theme_override_constants/v_separation = 24
+
+[node name="HealButton" type="Button" parent="MarginContainer/VBox/CentreWrap/ButtonGrid"]
+layout_mode = 2
+custom_minimum_size = Vector2(220, 70)
+text = "Heal Party"
+
+[node name="GrantBitsButton" type="Button" parent="MarginContainer/VBox/CentreWrap/ButtonGrid"]
+layout_mode = 2
+custom_minimum_size = Vector2(220, 70)
+text = "Grant Bits"

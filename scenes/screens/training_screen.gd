@@ -30,9 +30,6 @@ const _ANIM := "MarginContainer/VBox/AnimationOverlay/AnimationVBox"
 @onready var _type_select_center: CenterContainer = $MarginContainer/VBox/TypeSelectCenter
 @onready var _standard_button: Button = $MarginContainer/VBox/TypeSelectCenter/TypeSelectVBox/StandardButton
 @onready var _hyper_button: Button = $MarginContainer/VBox/TypeSelectCenter/TypeSelectVBox/HyperButton
-@onready var _tab_row: HBoxContainer = $MarginContainer/VBox/TabRow
-@onready var _standard_tab: Button = $MarginContainer/VBox/TabRow/StandardTab
-@onready var _hyper_tab: Button = $MarginContainer/VBox/TabRow/HyperTab
 @onready var _total_tv_label: Label = $MarginContainer/VBox/TotalTVLabel
 @onready var _scroll_container: ScrollContainer = $MarginContainer/VBox/ScrollContainer
 @onready var _stat_rows: VBoxContainer = $MarginContainer/VBox/ScrollContainer/StatRows
@@ -111,7 +108,6 @@ func _show_type_selection() -> void:
 	_title_label.text = "Training"
 	_tp_label.text = "TP: %d" % _digimon.training_points
 	_type_select_center.visible = true
-	_tab_row.visible = false
 	_total_tv_label.visible = false
 	_scroll_container.visible = false
 	_animation_overlay.visible = false
@@ -123,8 +119,8 @@ func _on_type_selected(hyper: bool) -> void:
 	_type_selected = true
 	_type_select_center.visible = false
 	_scroll_container.visible = true
+	_title_label.text = "Hyper Training" if _is_hyper else "Standard Training"
 	_update_header()
-	_configure_tabs()
 	_build_stat_rows()
 
 
@@ -154,22 +150,9 @@ func _update_digimon_info() -> void:
 	_level_label.text = "Lv. %d" % _digimon.level
 
 
-func _configure_tabs() -> void:
-	if _hyper_unlocked:
-		_tab_row.visible = true
-	else:
-		_tab_row.visible = false
-	_hyper_tab.visible = _hyper_unlocked
-	_standard_tab.button_pressed = not _is_hyper
-	_hyper_tab.button_pressed = _is_hyper
-	_title_label.text = "Hyper Training" if _is_hyper else "Standard Training"
-
-
 func _connect_signals() -> void:
 	_standard_button.pressed.connect(_on_type_selected.bind(false))
 	_hyper_button.pressed.connect(_on_type_selected.bind(true))
-	_standard_tab.pressed.connect(_on_standard_tab)
-	_hyper_tab.pressed.connect(_on_hyper_tab)
 	_done_button.pressed.connect(_on_done_pressed)
 
 
@@ -180,23 +163,6 @@ func _on_back_pressed() -> void:
 	Game.screen_context = {"mode": _mode}
 	SceneManager.change_scene(MODE_SCREEN_PATH)
 
-
-func _on_standard_tab() -> void:
-	_is_hyper = false
-	_standard_tab.button_pressed = true
-	_hyper_tab.button_pressed = false
-	_title_label.text = "Standard Training"
-	_build_stat_rows()
-	_update_total_tv_label()
-
-
-func _on_hyper_tab() -> void:
-	_is_hyper = true
-	_standard_tab.button_pressed = false
-	_hyper_tab.button_pressed = true
-	_title_label.text = "Hyper Training"
-	_build_stat_rows()
-	_update_total_tv_label()
 
 
 func _build_stat_rows() -> void:

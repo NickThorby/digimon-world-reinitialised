@@ -12,6 +12,7 @@ const BAG_SCREEN_PATH := "res://scenes/screens/bag_screen.tscn"
 const STORAGE_SCREEN_PATH := "res://scenes/screens/storage_screen.tscn"
 const SHOP_SCREEN_PATH := "res://scenes/screens/shop_screen.tscn"
 const TRAINING_SCREEN_PATH := "res://scenes/screens/training_screen.tscn"
+const TEST_FUNCTIONS_PATH := "res://scenes/screens/test_functions_screen.tscn"
 
 var _mode: Registry.GameMode = Registry.GameMode.TEST
 
@@ -20,7 +21,7 @@ const _GRID := "MarginContainer/VBox/CentreWrap/ButtonGrid"
 
 @onready var _back_button: Button = get_node(_HEADER + "/BackButton")
 @onready var _tamer_label: Label = get_node(_HEADER + "/TamerLabel")
-@onready var _bits_label: Button = get_node(_HEADER + "/BitsLabel")
+@onready var _bits_label: Label = get_node(_HEADER + "/BitsLabel")
 @onready var _party_strip: HBoxContainer = $MarginContainer/VBox/PartyStrip
 @onready var _party_button: Button = get_node(_GRID + "/PartyButton")
 @onready var _bag_button: Button = get_node(_GRID + "/BagButton")
@@ -31,7 +32,7 @@ const _GRID := "MarginContainer/VBox/CentreWrap/ButtonGrid"
 @onready var _shop_button: Button = get_node(_GRID + "/ShopButton")
 @onready var _training_button: Button = get_node(_GRID + "/TrainingButton")
 @onready var _settings_button: Button = get_node(_GRID + "/SettingsButton")
-@onready var _heal_button: Button = get_node(_GRID + "/HealButton")
+@onready var _test_functions_button: Button = get_node(_GRID + "/TestFunctionsButton")
 
 
 func _ready() -> void:
@@ -97,7 +98,7 @@ func _configure_buttons() -> void:
 	_wild_battle_button.visible = is_test
 	_shop_button.visible = is_test
 	_training_button.visible = is_test
-	_heal_button.visible = is_test
+	_test_functions_button.visible = is_test
 
 	# Disabled: Wild Battle (still coming soon)
 	_wild_battle_button.disabled = true
@@ -106,7 +107,6 @@ func _configure_buttons() -> void:
 
 func _connect_signals() -> void:
 	_back_button.pressed.connect(_on_back_pressed)
-	_bits_label.pressed.connect(_on_bits_pressed)
 	_party_button.pressed.connect(_on_party_pressed)
 	_bag_button.pressed.connect(_on_bag_pressed)
 	_storage_button.pressed.connect(_on_storage_pressed)
@@ -115,7 +115,7 @@ func _connect_signals() -> void:
 	_shop_button.pressed.connect(_on_shop_pressed)
 	_training_button.pressed.connect(_on_training_pressed)
 	_settings_button.pressed.connect(_on_settings_pressed)
-	_heal_button.pressed.connect(_on_heal_pressed)
+	_test_functions_button.pressed.connect(_on_test_functions_pressed)
 
 
 func _on_party_pressed() -> void:
@@ -186,41 +186,12 @@ func _on_settings_pressed() -> void:
 	SceneManager.change_scene(SETTINGS_PATH)
 
 
-func _on_heal_pressed() -> void:
-	if Game.state == null or Game.state.party.members.is_empty():
-		return
-	for member: DigimonState in Game.state.party.members:
-		var data: DigimonData = Atlas.digimon.get(member.key) as DigimonData
-		if data == null:
-			continue
-		var stats: Dictionary = StatCalculator.calculate_all_stats(data, member)
-		var personality: PersonalityData = Atlas.personalities.get(
-			member.get_effective_personality_key(),
-		) as PersonalityData
-		member.current_hp = StatCalculator.apply_personality(
-			stats.get(&"hp", 1), &"hp", personality,
-		)
-		member.current_energy = StatCalculator.apply_personality(
-			stats.get(&"energy", 1), &"energy", personality,
-		)
-		member.status_conditions.clear()
-	_build_party_strip()
-
-
-func _on_bits_pressed() -> void:
-	if Game.state == null:
-		return
-	var popup := PopupMenu.new()
-	popup.add_item("+100 Bits", 100)
-	popup.add_item("+1,000 Bits", 1000)
-	popup.add_item("+10,000 Bits", 10000)
-	add_child(popup)
-	popup.id_pressed.connect(func(amount: int) -> void:
-		Game.state.inventory.bits += amount
-		_update_header()
-		popup.queue_free()
-	)
-	popup.popup_centered()
+func _on_test_functions_pressed() -> void:
+	Game.screen_context = {
+		"mode": _mode,
+		"return_scene": MODE_SCREEN_PATH,
+	}
+	SceneManager.change_scene(TEST_FUNCTIONS_PATH)
 
 
 func _on_back_pressed() -> void:
