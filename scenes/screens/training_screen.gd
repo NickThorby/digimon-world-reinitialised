@@ -8,6 +8,9 @@ extends Control
 ## Context inputs (Game.screen_context):
 ##   mode: Registry.GameMode — TEST or STORY
 ##   hyper_unlocked: bool — whether Hyper Training button is visible (default false)
+##   from_training_animation: bool — true when returning from animation screen
+##   is_hyper: bool — training type (when returning from animation)
+##   party_index: int — party member index
 ##
 ## Screen result inputs (Game.screen_result):
 ##   party_index: int — index of party member to train (from party selector)
@@ -16,10 +19,10 @@ extends Control
 ##   None
 
 const MODE_SCREEN_PATH := "res://scenes/screens/mode_screen.tscn"
+const TRAINING_ANIMATION_PATH := "res://scenes/screens/training_animation_screen.tscn"
 
 const _HEADER := "MarginContainer/VBox/HeaderBar"
 const _DIGI := "MarginContainer/VBox/DigimonHeader"
-const _ANIM := "MarginContainer/VBox/AnimationOverlay/AnimationVBox"
 
 @onready var _back_button: Button = get_node(_HEADER + "/BackButton")
 @onready var _title_label: Label = get_node(_HEADER + "/TitleLabel")
@@ -33,12 +36,6 @@ const _ANIM := "MarginContainer/VBox/AnimationOverlay/AnimationVBox"
 @onready var _total_tv_label: Label = $MarginContainer/VBox/TotalTVLabel
 @onready var _scroll_container: ScrollContainer = $MarginContainer/VBox/ScrollContainer
 @onready var _stat_rows: VBoxContainer = $MarginContainer/VBox/ScrollContainer/StatRows
-@onready var _animation_overlay: PanelContainer = $MarginContainer/VBox/AnimationOverlay
-@onready var _step_label_1: Label = get_node(_ANIM + "/StepLabel1")
-@onready var _step_label_2: Label = get_node(_ANIM + "/StepLabel2")
-@onready var _step_label_3: Label = get_node(_ANIM + "/StepLabel3")
-@onready var _result_label: Label = get_node(_ANIM + "/ResultLabel")
-@onready var _done_button: Button = get_node(_ANIM + "/DoneButton")
 
 var _mode: Registry.GameMode = Registry.GameMode.TEST
 var _party_index: int = -1
@@ -47,7 +44,6 @@ var _is_hyper: bool = false
 var _type_selected: bool = false
 var _digimon: DigimonState = null
 var _rng := RandomNumberGenerator.new()
-var _hop_tween: Tween = null
 
 const STAT_KEYS: Array[StringName] = [
 	&"hp", &"energy", &"attack", &"defence",
@@ -89,12 +85,28 @@ func _ready() -> void:
 	_show_type_selection()
 	_connect_signals()
 
+	# When returning from animation screen, skip type selection
+	if _type_selected:
+		_type_select_center.visible = false
+		_scroll_container.visible = true
+		_title_label.text = "Hyper Training" if _is_hyper else "Standard Training"
+		_update_header()
+		_build_stat_rows()
+
 
 func _read_context() -> void:
 	var ctx: Dictionary = Game.screen_context
 	_mode = ctx.get("mode", Registry.GameMode.TEST)
 	var default_hyper: bool = _mode == Registry.GameMode.TEST
 	_hyper_unlocked = ctx.get("hyper_unlocked", default_hyper)
+	_party_index = ctx.get("party_index", -1) as int
+
+	# Returning from animation screen — skip party selector, go straight to stat rows
+	if ctx.get("from_training_animation", false):
+		_is_hyper = ctx.get("is_hyper", false) as bool
+		_type_selected = true
+		Game.screen_result = null
+		return
 
 	# Read party_index from screen_result (set by party selector)
 	if Game.screen_result is Dictionary:
@@ -110,7 +122,6 @@ func _show_type_selection() -> void:
 	_type_select_center.visible = true
 	_total_tv_label.visible = false
 	_scroll_container.visible = false
-	_animation_overlay.visible = false
 	_hyper_button.visible = _hyper_unlocked
 
 
@@ -153,7 +164,6 @@ func _update_digimon_info() -> void:
 func _connect_signals() -> void:
 	_standard_button.pressed.connect(_on_type_selected.bind(false))
 	_hyper_button.pressed.connect(_on_type_selected.bind(true))
-	_done_button.pressed.connect(_on_done_pressed)
 
 
 func _on_back_pressed() -> void:
@@ -239,14 +249,12 @@ func _add_hyper_stat_display(
 	hbox: HBoxContainer, stat_key: StringName, balance: GameBalance,
 ) -> void:
 	var max_iv: int = balance.max_iv if balance else 50
-	var base_iv: int = _digimon.ivs.get(stat_key, 0) as int
-	var hyper_iv: int = _digimon.hyper_trained_ivs.get(stat_key, 0) as int
 	var final_iv: int = _digimon.get_final_iv(stat_key)
 
 	var value_label := Label.new()
-	value_label.custom_minimum_size = Vector2(90, 0)
+	value_label.custom_minimum_size = Vector2(50, 0)
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	value_label.text = "%d + %d = %d" % [base_iv, hyper_iv, final_iv]
+	value_label.text = str(final_iv)
 	value_label.add_theme_font_size_override("font_size", 14)
 	hbox.add_child(value_label)
 
@@ -299,7 +307,6 @@ func _on_train_pressed(stat_key: StringName, difficulty: String) -> void:
 
 	# Deduct TP
 	_digimon.training_points -= tp_cost
-	_tp_label.text = "TP: %d" % _digimon.training_points
 
 	# Run course
 	var result: Dictionary
@@ -308,56 +315,21 @@ func _on_train_pressed(stat_key: StringName, difficulty: String) -> void:
 	else:
 		result = TrainingCalculator.run_course(difficulty, _rng)
 
-	# Show animation
-	_play_training_animation(stat_key, result)
+	# Apply result immediately (animation screen is purely visual)
+	_apply_training_result(stat_key, result)
 
-
-func _play_training_animation(stat_key: StringName, result: Dictionary) -> void:
-	_animation_overlay.visible = true
-	_done_button.visible = false
-	_result_label.text = ""
-
-	var steps: Array = result.get("steps", [])
-	var step_labels: Array[Label] = [_step_label_1, _step_label_2, _step_label_3]
-
-	for i: int in step_labels.size():
-		step_labels[i].text = "Step %d: ..." % (i + 1)
-
-	# Start hop animation
-	_start_hop()
-
-	# Animate steps sequentially
-	var tween := create_tween()
-	for i: int in mini(steps.size(), 3):
-		var passed: bool = steps[i] as bool
-		var label: Label = step_labels[i]
-		tween.tween_interval(0.3)
-		tween.tween_callback(func() -> void:
-			if passed:
-				label.text = "Step %d: Pass!" % (i + 1)
-				label.add_theme_color_override(
-					"font_color", Color(0.3, 0.85, 0.3, 1),
-				)
-			else:
-				label.text = "Step %d: Fail" % (i + 1)
-				label.add_theme_color_override(
-					"font_color", Color(0.85, 0.3, 0.3, 1),
-				)
-		)
-
-	# Show result
-	tween.tween_interval(0.3)
-	tween.tween_callback(func() -> void:
-		_stop_hop()
-		_apply_training_result(stat_key, result)
-		if _is_hyper:
-			var iv_gained: int = result.get("iv_gained", 0)
-			_result_label.text = "IV gained: +%d" % iv_gained
-		else:
-			var tv_gained: int = result.get("tv_gained", 0)
-			_result_label.text = "TV gained: +%d" % tv_gained
-		_done_button.visible = true
-	)
+	# Navigate to animation screen
+	Game.screen_context = {
+		"digimon_key": _digimon.key,
+		"stat_key": stat_key,
+		"is_hyper": _is_hyper,
+		"result": result,
+		"return_scene": "res://scenes/screens/training_screen.tscn",
+		"mode": _mode,
+		"party_index": _party_index,
+		"hyper_unlocked": _hyper_unlocked,
+	}
+	SceneManager.change_scene(TRAINING_ANIMATION_PATH)
 
 
 func _apply_training_result(stat_key: StringName, result: Dictionary) -> void:
@@ -380,25 +352,3 @@ func _apply_training_result(stat_key: StringName, result: Dictionary) -> void:
 		var global_headroom: int = maxi(max_total - current_total, 0)
 		var actual_gain: int = mini(tv_gained, mini(per_stat_headroom, global_headroom))
 		_digimon.tvs[stat_key] = current_tv + actual_gain
-
-
-func _on_done_pressed() -> void:
-	_animation_overlay.visible = false
-	_build_stat_rows()
-	_update_header()
-
-
-func _start_hop() -> void:
-	_stop_hop()
-	_hop_tween = create_tween()
-	_hop_tween.set_loops()
-	_hop_tween.tween_property(_sprite_rect, "position:y",
-		_sprite_rect.position.y - 8.0, 0.15)
-	_hop_tween.tween_property(_sprite_rect, "position:y",
-		_sprite_rect.position.y, 0.15)
-
-
-func _stop_hop() -> void:
-	if _hop_tween != null and _hop_tween.is_valid():
-		_hop_tween.kill()
-		_hop_tween = null
