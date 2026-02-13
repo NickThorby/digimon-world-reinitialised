@@ -84,6 +84,30 @@ var game_mode_labels: Dictionary = {
 	GameMode.STORY: tr("game_mode.story"),
 }
 
+enum Rarity {
+	COMMON,
+	UNCOMMON,
+	RARE,
+	VERY_RARE,
+	LEGENDARY,
+}
+
+var rarity_labels: Dictionary = {
+	Rarity.COMMON: tr("rarity.common"),
+	Rarity.UNCOMMON: tr("rarity.uncommon"),
+	Rarity.RARE: tr("rarity.rare"),
+	Rarity.VERY_RARE: tr("rarity.very_rare"),
+	Rarity.LEGENDARY: tr("rarity.legendary"),
+}
+
+const RARITY_FROM_STRING: Dictionary = {
+	"Common": Rarity.COMMON,
+	"Uncommon": Rarity.UNCOMMON,
+	"Rare": Rarity.RARE,
+	"Very Rare": Rarity.VERY_RARE,
+	"Legendary": Rarity.LEGENDARY,
+}
+
 enum EvolutionLevel {
 	BABY_I = 1,
 	BABY_II = 2,

@@ -60,3 +60,7 @@ hyper_training_courses = [{"difficulty": "basic", "iv_per_step": 1, "pass_rate":
 storage_box_count = 100
 storage_slots_per_box = 50
 save_slot_count = 3
+rarity_weights = {0: 50, 1: 30, 2: 15, 3: 4, 4: 1}
+default_encounter_min_level = 1
+default_encounter_max_level = 5
+default_format_weights = {0: 85, 1: 15}

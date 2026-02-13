@@ -53,14 +53,14 @@ No UI — state classes, field additions, and test reorganisation.
 
 ## Phase 5 — Wild Battle System
 
-- [ ] **5a** Add `Registry.Rarity` enum — `autoload/registry.gd`
-- [ ] **5b** Create `ZoneData` class — `scripts/systems/world/zone_data.gd`
-- [ ] **5c** Add `Atlas.zones` parsing from `locations.json` — `autoload/atlas.gd` | depends on: 5b
-- [ ] **5d** Create `EncounterTableData` resource — `data/encounter/encounter_table_data.gd` | depends on: 5a
-- [ ] **5e** Add GameBalance wild encounter constants — `data/config/game_balance.gd` + `.tres`
-- [ ] **5f** Create `WildBattleFactory` — `scripts/systems/battle/wild_battle_factory.gd` | depends on: 5b, 5e, DigimonFactory, BattleConfig
-- [ ] **5g** Create Wild Battle Test Screen — `scenes/screens/wild_battle_test_screen.tscn` + `.gd` | depends on: 5d, 5f, Mode Screen, Party Screen
-- [ ] **5h** Add "Wild Battle" button to Mode Screen — `scenes/screens/mode_screen.gd` | depends on: 5g
+- [x] **5a** Add `Registry.Rarity` enum — `autoload/registry.gd`
+- [x] **5b** Create `ZoneData` class — `scripts/systems/world/zone_data.gd`
+- [x] **5c** Add `Atlas.zones` parsing from `locations.json` — `autoload/atlas.gd` | depends on: 5b
+- [x] **5d** Create `EncounterTableData` resource — `data/encounter/encounter_table_data.gd` | depends on: 5a
+- [x] **5e** Add GameBalance wild encounter constants — `data/config/game_balance.gd` + `.tres`
+- [x] **5f** Create `WildBattleFactory` — `scripts/systems/battle/wild_battle_factory.gd` | depends on: 5b, 5e, DigimonFactory, BattleConfig
+- [x] **5g** Create Wild Battle Test Screen — `scenes/screens/wild_battle_test_screen.tscn` + `.gd` | depends on: 5d, 5f, Mode Screen, Party Screen
+- [x] **5h** Add "Wild Battle" button to Mode Screen — `scenes/screens/mode_screen.gd` | depends on: 5g
 
 ## Integration Passes
 
@@ -93,8 +93,8 @@ Wire up cross-references after each phase:
 - [x] `tests/unit/test_training_calculator.gd` — RNG, TP deduction, TV cap
 - [x] `tests/unit/test_evolution_checker.gd` — requirement checks, can_evolve
 - [x] `tests/unit/test_inventory_state.gd` — bits rename verification
-- [ ] `tests/unit/test_wild_battle_factory.gd` — species roll, level roll, format roll
-- [ ] `tests/unit/test_zone_data.gd` — JSON parsing, level range fallback
+- [x] `tests/unit/test_wild_battle_factory.gd` — species roll, level roll, format roll
+- [x] `tests/unit/test_zone_data.gd` — JSON parsing, level range fallback
 - [x] `tests/screens/test_format_utils.gd` — format_bits, format_play_time, format_saved_at, build_party_text
 - [x] `tests/screens/test_save_screen_logic.gd` — SaveManager round-trip, metadata, delete, slot isolation
 - [x] `tests/screens/test_party_screen_logic.gd` — swap, take gear/consumable, select filter
@@ -112,4 +112,4 @@ Wire up cross-references after each phase:
 - [x] `tests/screens/test_training_screen_logic.gd` — course execution, TV cap, animation complete
 - [x] `tests/screens/test_evolution_screen_logic.gd` — evolve action, stat recalc, item consumption
 - [x] `tests/screens/test_start_battle_screen.gd` — BattleConfig construction, battle launch, post-battle write-back
-- [ ] `tests/screens/test_wild_battle_test_screen.gd` — encounter table save/load, format weights, roll preview, battle launch
+- [x] `tests/screens/test_wild_battle_test_screen.gd` — encounter table save/load, format weights, roll preview, battle launch

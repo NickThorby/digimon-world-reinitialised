@@ -64,6 +64,9 @@ var _pending_state: DigimonState = null
 var _iv_slider_map: Dictionary = {}
 var _tv_slider_map: Dictionary = {}
 
+## When true, skip the CONFIGURE stage and return species key only.
+var _species_only: bool = false
+
 ## Active filter sets (empty = no filter / show all).
 var _active_levels: Dictionary = {}
 var _active_attributes: Dictionary = {}
@@ -132,13 +135,18 @@ func _ready() -> void:
 	_confirm_button.pressed.connect(_on_confirm)
 	_level_slider.value_changed.connect(_on_level_changed)
 
+	# Check for species-only mode (e.g. wild encounter table)
+	var ctx: Dictionary = Game.picker_context
+	_species_only = ctx.get("species_only", false)
+	if _species_only:
+		_add_button.text = ctx.get("add_button_text", "Add to Encounter Table")
+
 	_build_filter_pills()
 	_populate_species_list()
 	_set_stage(Stage.BROWSE)
 	_clear_preview()
 
 	# Prepopulate if editing an existing Digimon
-	var ctx: Dictionary = Game.picker_context
 	var existing: Variant = ctx.get("existing_state")
 	if existing is DigimonState:
 		_prepopulate(existing as DigimonState)
@@ -549,7 +557,22 @@ func _create_flat_stylebox(colour: Color) -> StyleBoxFlat:
 func _on_add_pressed() -> void:
 	if _selected_key == &"":
 		return
+	if _species_only:
+		_confirm_species_only()
+		return
 	_enter_config_stage()
+
+
+## In species-only mode, return a minimal DigimonState with just the key set.
+## The caller (e.g. WildBattleTestScreen) uses only the key for its encounter table.
+func _confirm_species_only() -> void:
+	var state := DigimonState.new()
+	state.key = _selected_key
+	Game.picker_result = state
+	var return_path: String = Game.picker_context.get(
+		"return_scene", BUILDER_SCENE_PATH
+	)
+	SceneManager.change_scene(return_path)
 
 
 func _enter_config_stage(existing_state: DigimonState = null) -> void:

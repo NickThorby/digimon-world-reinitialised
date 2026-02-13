@@ -13,6 +13,7 @@ const STORAGE_SCREEN_PATH := "res://scenes/screens/storage_screen.tscn"
 const SHOP_SCREEN_PATH := "res://scenes/screens/shop_screen.tscn"
 const TRAINING_SCREEN_PATH := "res://scenes/screens/training_screen.tscn"
 const TEST_FUNCTIONS_PATH := "res://scenes/screens/test_functions_screen.tscn"
+const WILD_BATTLE_SCREEN_PATH := "res://scenes/screens/wild_battle_test_screen.tscn"
 
 var _mode: Registry.GameMode = Registry.GameMode.TEST
 
@@ -100,9 +101,7 @@ func _configure_buttons() -> void:
 	_training_button.visible = is_test
 	_test_functions_button.visible = is_test
 
-	# Disabled: Wild Battle (still coming soon)
-	_wild_battle_button.disabled = true
-	_wild_battle_button.tooltip_text = coming_soon
+	# Wild Battle enabled in TEST mode
 
 
 func _connect_signals() -> void:
@@ -112,6 +111,7 @@ func _connect_signals() -> void:
 	_storage_button.pressed.connect(_on_storage_pressed)
 	_save_button.pressed.connect(_on_save_pressed)
 	_battle_button.pressed.connect(_on_battle_pressed)
+	_wild_battle_button.pressed.connect(_on_wild_battle_pressed)
 	_shop_button.pressed.connect(_on_shop_pressed)
 	_training_button.pressed.connect(_on_training_pressed)
 	_settings_button.pressed.connect(_on_settings_pressed)
@@ -179,6 +179,14 @@ func _on_battle_pressed() -> void:
 		"return_scene": MODE_SCREEN_PATH,
 	}
 	SceneManager.change_scene(START_BATTLE_SCREEN_PATH)
+
+
+func _on_wild_battle_pressed() -> void:
+	Game.screen_context = {
+		"mode": _mode,
+		"return_scene": MODE_SCREEN_PATH,
+	}
+	SceneManager.change_scene(WILD_BATTLE_SCREEN_PATH)
 
 
 func _on_settings_pressed() -> void:

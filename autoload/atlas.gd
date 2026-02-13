@@ -11,6 +11,7 @@ var status_effects: Dictionary[StringName, Resource] = {}
 var personalities: Dictionary[StringName, Resource] = {}
 var tamers: Dictionary[StringName, Resource] = {}
 var shops: Dictionary[StringName, Resource] = {}
+var zones: Dictionary = {}  ## StringName -> ZoneData
 
 
 func _ready() -> void:
@@ -28,6 +29,7 @@ func _load_all() -> void:
 	personalities = _load_resources_from_folder("res://data/personality")
 	tamers = _load_resources_from_folder("res://data/tamer")
 	shops = _load_resources_from_folder("res://data/shop")
+	_load_zones_from_json()
 
 	_print_load_summary()
 
@@ -44,6 +46,7 @@ func _print_load_summary() -> void:
 	print("  Personalities: %d" % personalities.size())
 	print("  Tamers: %d" % tamers.size())
 	print("  Shops: %d" % shops.size())
+	print("  Zones: %d" % zones.size())
 
 
 func _load_resources_from_folder(path: String) -> Dictionary[StringName, Resource]:
@@ -95,3 +98,37 @@ func _load_resources_from_folder_recursive(path: String) -> Dictionary[StringNam
 
 	dir.list_dir_end()
 	return result
+
+
+func _load_zones_from_json() -> void:
+	var path := "res://data/locale/locations.json"
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		push_warning("Atlas: Could not open locations file: %s" % path)
+		return
+
+	var json := JSON.new()
+	var err := json.parse(file.get_as_text())
+	file.close()
+	if err != OK:
+		push_warning("Atlas: Failed to parse locations JSON: %s" % json.get_error_message())
+		return
+
+	var data: Dictionary = json.data as Dictionary
+	if data == null:
+		return
+
+	for region: Variant in data.get("regions", []):
+		if region is not Dictionary:
+			continue
+		var r: Dictionary = region as Dictionary
+		for sector: Variant in r.get("sectors", []):
+			if sector is not Dictionary:
+				continue
+			var s: Dictionary = sector as Dictionary
+			for zone: Variant in s.get("zones", []):
+				if zone is not Dictionary:
+					continue
+				var z: Dictionary = zone as Dictionary
+				var zone_data: ZoneData = ZoneData.parse_from_json(r, s, z)
+				zones[zone_data.key] = zone_data

@@ -1237,7 +1237,8 @@ Title Screen → Save Screen (select) → Mode Screen (hub)
                                          ├→ Battle Builder → Battle → Battle Builder → Mode Screen
                                          ├→ Save Screen (save) → Mode Screen
                                          ├→ Settings → Mode Screen
-                                         └→ [Storage, Wild Battle, Shop, Training — disabled for now]
+                                         ├→ Wild Battle Screen → Battle → Wild Battle Screen → Mode Screen
+                                         └→ [Storage, Shop, Training — disabled for now]
 Title Screen → Settings → Title Screen
 ```
 
@@ -1270,7 +1271,7 @@ Context persists across sub-navigation (e.g. Mode Screen → Battle Builder → 
 - `"save"` — from Mode Screen: shows Save/Delete on occupied, Save on empty
 - `"load"` — shows Load/Delete on occupied, nothing on empty
 
-**Mode Screen** (`scenes/screens/mode_screen.tscn`): Central hub. Shows tamer name, bits, party strip. Button grid: Party, Bag, Save, Battle Builder, Settings (enabled); Storage, Wild Battle, Shop, Training (disabled — Coming Soon). TEST mode shows battle/wild/shop/training buttons; STORY mode hides them.
+**Mode Screen** (`scenes/screens/mode_screen.tscn`): Central hub. Shows tamer name, bits, party strip. Button grid: Party, Bag, Save, Battle Builder, Wild Battle, Settings (enabled); Storage, Shop, Training (disabled — Coming Soon). TEST mode shows battle/wild/shop/training buttons; STORY mode hides them.
 
 **Party Screen** (`scenes/screens/party_screen.tscn`): View/manage active party. DigimonSlotPanels with context menus (Summary, Item, Switch, Evolution). Supports select mode for cross-screen flows (e.g. Bag "Use" picks a target Digimon). Context: `mode`, `select_mode`, `select_filter`, `select_prompt`, `return_scene`. Result: `{"party_index": int, "digimon": DigimonState}` or `null`.
 
@@ -1297,6 +1298,22 @@ Out-of-battle item use is handled by `BagScreen._apply_medicine()`. Interprets h
 - `"full_restore"` — max HP, max energy, clear all statuses
 - `"revive"` — restore fainted Digimon to % of max HP
 
+### Wild Encounter System
+
+**ZoneData** (`scripts/systems/world/zone_data.gd`): RefCounted parsed from `data/locale/locations.json`. Composite key = `snake_case(region)/snake_case(sector)/snake_case(zone)`. Contains `encounter_entries` (array of `{digimon_key, rarity, min_level, max_level}`), zone default level range, and format weights. Loaded into `Atlas.zones`.
+
+**EncounterTableData** (`data/encounter/encounter_table_data.gd`): Saveable Resource version of encounter data for test screen presets. Converts to ZoneData via `to_zone_data()`. Saved/loaded as `.tres` files to `user://encounter_tables/`.
+
+**Registry.Rarity** enum: `COMMON, UNCOMMON, RARE, VERY_RARE, LEGENDARY`. String mapping via `Registry.RARITY_FROM_STRING` for JSON parsing.
+
+**WildBattleFactory** (`scripts/systems/battle/wild_battle_factory.gd`): Pure-static utility. Key methods:
+- `create_encounter(zone, player_party, player_bag, rng) -> BattleConfig` — rolls format, species, and levels
+- `roll_species(entries, rng, balance)` — weighted random by rarity via `GameBalance.rarity_weights`
+- `roll_level(entry, zone, rng)` — uses entry overrides or zone defaults
+- `roll_format(format_weights, rng)` — weighted random from format preset weights
+
+**Wild Battle Test Screen** (`scenes/screens/wild_battle_test_screen.tscn`): Encounter table builder (left panel) + battle settings tabs (right panel: Format weights, Field Effects, Side Presets) + preview panel. Flows: "Roll Encounter" shows preview with Accept/Re-roll/Cancel; "Quick Battle" rolls and launches immediately. Same battle launch pattern as Start Battle Screen (`Game.builder_context`, `Game.battle_config`, `SceneManager.change_scene`).
+
 ---
 
 ## Important Technical Notes
@@ -1313,4 +1330,4 @@ Out-of-battle item use is handled by `BagScreen._apply_medicine()`. Interprets h
 
 ---
 
-*Last Updated: 2026-02-12*
+*Last Updated: 2026-02-13*

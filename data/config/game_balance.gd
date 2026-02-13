@@ -124,3 +124,21 @@ extends Resource
 # --- Save ---
 
 @export var save_slot_count: int = 3
+
+# --- Wild encounters ---
+
+## Weighted chance per rarity tier (keyed by Rarity enum int value).
+@export var rarity_weights: Dictionary = {
+	0: 50,   # COMMON
+	1: 30,   # UNCOMMON
+	2: 15,   # RARE
+	3: 4,    # VERY_RARE
+	4: 1,    # LEGENDARY
+}
+@export var default_encounter_min_level: int = 1
+@export var default_encounter_max_level: int = 5
+## Format preset weights for wild encounters (keyed by FormatPreset int value).
+@export var default_format_weights: Dictionary = {
+	0: 85,   # SINGLES_1V1
+	1: 15,   # DOUBLES_2V2
+}

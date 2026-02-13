@@ -90,6 +90,72 @@ static func create_test_priced_shop() -> ShopData:
 	return shop
 
 
+## Create a test EncounterTableData with the given number of entries.
+static func create_test_encounter_table(entry_count: int = 5) -> EncounterTableData:
+	var table := EncounterTableData.new()
+	table.key = &"test_encounter_table"
+	table.name = "Test Encounter Table"
+	table.default_min_level = 5
+	table.default_max_level = 15
+	table.format_weights = {
+		BattleConfig.FormatPreset.SINGLES_1V1: 85,
+		BattleConfig.FormatPreset.DOUBLES_2V2: 15,
+	}
+
+	var keys: Array[StringName] = [
+		&"test_agumon", &"test_gabumon", &"test_patamon",
+		&"test_tank", &"test_speedster",
+	]
+	var rarities: Array[int] = [
+		Registry.Rarity.COMMON, Registry.Rarity.COMMON,
+		Registry.Rarity.UNCOMMON, Registry.Rarity.RARE,
+		Registry.Rarity.VERY_RARE,
+	]
+	for i: int in mini(entry_count, keys.size()):
+		table.entries.append({
+			"digimon_key": keys[i],
+			"rarity": rarities[i],
+			"min_level": -1,
+			"max_level": -1,
+		})
+	return table
+
+
+## Create a test ZoneData with encounter entries.
+static func create_test_zone_data() -> ZoneData:
+	var zone := ZoneData.new()
+	zone.key = &"test_region/test_sector/test_zone"
+	zone.name = "Test Zone"
+	zone.region_name = "Test Region"
+	zone.sector_name = "Test Sector"
+	zone.default_min_level = 5
+	zone.default_max_level = 15
+	zone.format_weights = {
+		BattleConfig.FormatPreset.SINGLES_1V1: 100,
+	}
+	zone.encounter_entries = [
+		{
+			"digimon_key": &"test_agumon",
+			"rarity": Registry.Rarity.COMMON,
+			"min_level": -1,
+			"max_level": -1,
+		},
+		{
+			"digimon_key": &"test_gabumon",
+			"rarity": Registry.Rarity.UNCOMMON,
+			"min_level": -1,
+			"max_level": -1,
+		},
+		{
+			"digimon_key": &"test_patamon",
+			"rarity": Registry.Rarity.RARE,
+			"min_level": -1,
+			"max_level": -1,
+		},
+	]
+	return zone
+
+
 ## Inject screen test data into Atlas. Delegates to TestBattleFactory.
 static func inject_screen_test_data() -> void:
 	TestBattleFactory.inject_all_test_data()
