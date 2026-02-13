@@ -12,6 +12,7 @@ const _HEADER := "MarginContainer/VBox/HeaderBar"
 @onready var _back_button: Button = get_node(_HEADER + "/BackButton")
 @onready var _title_label: Label = get_node(_HEADER + "/TitleLabel")
 @onready var _slot_list: VBoxContainer = $MarginContainer/VBox/ScrollContainer/SlotList
+@onready var _message_box: PanelContainer = $MarginContainer/VBox/MessageBox
 
 var _mode: Registry.GameMode = Registry.GameMode.TEST
 var _select_mode: bool = false
@@ -21,6 +22,12 @@ var _return_scene: String = ""
 var _cancel_scene: String = ""
 var _swap_from_index: int = -1
 var _panels: Array[DigimonSlotPanel] = []
+var _use_item_mode: bool = false
+var _give_item_mode: bool = false
+var _item_key: StringName = &""
+var _bag_category: int = -1
+var _bag_return_scene: String = ""
+var _is_busy: bool = false
 
 
 func _ready() -> void:
@@ -39,10 +46,21 @@ func _read_context() -> void:
 	_select_prompt = ctx.get("select_prompt", "")
 	_return_scene = ctx.get("return_scene", "")
 	_cancel_scene = ctx.get("cancel_scene", "")
+	_use_item_mode = ctx.get("use_item_mode", false)
+	_give_item_mode = ctx.get("give_item_mode", false)
+	_item_key = StringName(str(ctx.get("item_key", "")))
+	_bag_category = ctx.get("_bag_category", -1) as int
+	_bag_return_scene = ctx.get("_bag_return_scene", "") as String
 
 
 func _update_header() -> void:
-	if _select_mode and _select_prompt != "":
+	if _use_item_mode and _item_key != &"":
+		var item_name: String = _get_item_display_name(_item_key)
+		_title_label.text = "Use %s on which Digimon?" % item_name
+	elif _give_item_mode and _item_key != &"":
+		var item_name: String = _get_item_display_name(_item_key)
+		_title_label.text = "Give %s to which Digimon?" % item_name
+	elif _select_mode and _select_prompt != "":
 		_title_label.text = _select_prompt
 	else:
 		_title_label.text = tr("Party")
@@ -64,6 +82,8 @@ func _build_slot_list() -> void:
 		_slot_list.add_child(empty_label)
 		return
 
+	var show_energy: bool = _use_item_mode and _should_show_energy_bar()
+
 	for i: int in Game.state.party.members.size():
 		var member: DigimonState = Game.state.party.members[i]
 		var panel: DigimonSlotPanel = SLOT_PANEL_SCENE.instantiate() as DigimonSlotPanel
@@ -72,7 +92,11 @@ func _build_slot_list() -> void:
 		panel.set_sprite_flipped(true)
 		panel.setup(i, member)
 
-		if _select_mode and _select_filter.is_valid():
+		if show_energy:
+			panel.set_energy_bar_visible(true)
+
+		# Grey out based on filter in select/use_item modes
+		if (_select_mode or _use_item_mode) and _select_filter.is_valid():
 			var passes: bool = _select_filter.call(member) as bool
 			if not passes:
 				panel.set_greyed_out(true)
@@ -87,8 +111,15 @@ func _connect_signals() -> void:
 
 
 func _on_back_pressed() -> void:
+	if _is_busy:
+		return
+
 	if _swap_from_index >= 0:
 		_cancel_swap()
+		return
+
+	if _use_item_mode or _give_item_mode:
+		_navigate_back_to_bag()
 		return
 
 	if _select_mode:
@@ -106,6 +137,8 @@ func _on_back_pressed() -> void:
 
 
 func _on_slot_clicked(index: int) -> void:
+	if _is_busy:
+		return
 	if Game.state == null:
 		return
 	if index < 0 or index >= Game.state.party.members.size():
@@ -116,6 +149,16 @@ func _on_slot_clicked(index: int) -> void:
 	# Swap mode — complete the swap
 	if _swap_from_index >= 0:
 		_complete_swap(index)
+		return
+
+	# Use item mode
+	if _use_item_mode:
+		_handle_use_item(index, member)
+		return
+
+	# Give item mode
+	if _give_item_mode:
+		_handle_give_item(index, member)
 		return
 
 	# Select mode — return selection
@@ -131,6 +174,163 @@ func _on_slot_clicked(index: int) -> void:
 
 	# Normal mode — show context menu
 	_show_context_menu(index)
+
+
+func _handle_use_item(index: int, member: DigimonState) -> void:
+	# Check filter
+	if _select_filter.is_valid():
+		var passes: bool = _select_filter.call(member) as bool
+		if not passes:
+			return
+
+	_is_busy = true
+
+	var item_data: ItemData = Atlas.items.get(_item_key) as ItemData
+	if item_data == null:
+		_is_busy = false
+		return
+
+	# Snapshot before
+	var before: Dictionary = ItemMessageBuilder.snapshot(member)
+
+	# Get max stats and apply
+	var max_stats: Dictionary = ItemApplicator.get_max_stats(member)
+	var applied: bool = ItemApplicator.apply(
+		item_data, member, max_stats.max_hp, max_stats.max_energy,
+	)
+
+	# Consume from inventory if applied
+	if applied and Game.state:
+		var current_qty: int = Game.state.inventory.items.get(_item_key, 0) as int
+		if current_qty <= 1:
+			Game.state.inventory.items.erase(_item_key)
+		else:
+			Game.state.inventory.items[_item_key] = current_qty - 1
+
+	# Build message
+	var digimon_name: String = _get_digimon_display_name(member)
+	var item_name: String = item_data.name if item_data.name != "" else str(_item_key)
+	var message: String = ItemMessageBuilder.build_message(
+		digimon_name, item_name, before, member, applied,
+	)
+
+	# Animate bars on the clicked panel
+	if index < _panels.size():
+		var panel: DigimonSlotPanel = _panels[index]
+		if member.current_hp != before.get("current_hp", 0):
+			panel.animate_hp_to(member.current_hp)
+		if member.current_energy != before.get("current_energy", 0):
+			panel.animate_energy_to(member.current_energy)
+
+	# Show message
+	_message_box.visible = true
+	await _message_box.show_message(message)
+	_message_box.visible = false
+
+	# Refresh panel display (status, etc.)
+	if index < _panels.size():
+		_panels[index].refresh_display()
+
+	# Check if stack remains and item was applied
+	var remaining: int = 0
+	if Game.state:
+		remaining = Game.state.inventory.items.get(_item_key, 0) as int
+
+	if applied and remaining > 0:
+		# Stay on party screen for repeated use
+		_is_busy = false
+	else:
+		_navigate_back_to_bag()
+
+
+func _handle_give_item(index: int, member: DigimonState) -> void:
+	_is_busy = true
+
+	var item_data: ItemData = Atlas.items.get(_item_key) as ItemData
+	if item_data == null:
+		_is_busy = false
+		return
+
+	var digimon_name: String = _get_digimon_display_name(member)
+	var item_name: String = item_data.name if item_data.name != "" else str(_item_key)
+
+	# Reject if already holding the same item
+	var already_held: bool = false
+	if item_data.is_consumable:
+		already_held = member.equipped_consumable_key == _item_key
+	else:
+		already_held = member.equipped_gear_key == _item_key
+
+	if already_held:
+		_message_box.visible = true
+		await _message_box.show_message(
+			"%s is already holding a %s." % [digimon_name, item_name],
+		)
+		_message_box.visible = false
+		_is_busy = false
+		return
+
+	# Return old item to inventory if slot was occupied
+	if item_data.is_consumable:
+		if member.equipped_consumable_key != &"":
+			_add_item_to_inventory(member.equipped_consumable_key)
+		member.equipped_consumable_key = _item_key
+	else:
+		if member.equipped_gear_key != &"":
+			_add_item_to_inventory(member.equipped_gear_key)
+		member.equipped_gear_key = _item_key
+
+	# Remove item from inventory
+	if Game.state:
+		var current_qty: int = Game.state.inventory.items.get(_item_key, 0) as int
+		if current_qty <= 1:
+			Game.state.inventory.items.erase(_item_key)
+		else:
+			Game.state.inventory.items[_item_key] = current_qty - 1
+
+	# Show message
+	_message_box.visible = true
+	await _message_box.show_message("Gave %s to %s!" % [item_name, digimon_name])
+	_message_box.visible = false
+
+	_navigate_back_to_bag()
+
+
+func _navigate_back_to_bag() -> void:
+	Game.screen_context = {
+		"mode": _mode,
+		"_bag_category": _bag_category,
+		"return_scene": _bag_return_scene,
+	}
+	SceneManager.change_scene(BAG_SCREEN_PATH)
+
+
+func _get_digimon_display_name(member: DigimonState) -> String:
+	if member.nickname != "":
+		return member.nickname
+	var data: DigimonData = Atlas.digimon.get(member.key) as DigimonData
+	if data and data.display_name != "":
+		return data.display_name
+	return str(member.key)
+
+
+func _get_item_display_name(key: StringName) -> String:
+	var item_data: ItemData = Atlas.items.get(key) as ItemData
+	if item_data and item_data.name != "":
+		return item_data.name
+	return str(key)
+
+
+func _should_show_energy_bar() -> bool:
+	var item_data: ItemData = Atlas.items.get(_item_key) as ItemData
+	if item_data == null:
+		return false
+	for brick: Dictionary in item_data.bricks:
+		var target: String = str(brick.get("target", ""))
+		var brick_type: String = str(brick.get("type", ""))
+		if target == "energy" or brick_type == "full_restore":
+			return true
+	return false
 
 
 func _show_context_menu(index: int) -> void:
@@ -342,7 +542,13 @@ func _handle_pending_give() -> void:
 	if item_data == null:
 		return
 
-	# Swap out any existing item of the same slot
+	# Skip if already holding the same item
+	if item_data.is_consumable and member.equipped_consumable_key == item_key:
+		return
+	if not item_data.is_consumable and member.equipped_gear_key == item_key:
+		return
+
+	# Return old item to inventory if slot was occupied
 	if item_data.is_consumable:
 		if member.equipped_consumable_key != &"":
 			_add_item_to_inventory(member.equipped_consumable_key)

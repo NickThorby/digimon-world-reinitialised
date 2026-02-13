@@ -16,6 +16,7 @@ const HP_COLOUR_GREEN := Color(0.133, 0.773, 0.369)
 const HP_COLOUR_YELLOW := Color(0.918, 0.702, 0.031)
 const HP_COLOUR_RED := Color(0.937, 0.267, 0.267)
 const XP_COLOUR := Color(0.024, 0.714, 0.831)
+const ENERGY_COLOUR := Color(0.647, 0.318, 0.878)
 
 @onready var _sprite_rect: TextureRect = $HBox/SpriteRect
 @onready var _name_label: Label = $HBox/InfoVBox/TopRow/NameLabel
@@ -23,6 +24,9 @@ const XP_COLOUR := Color(0.024, 0.714, 0.831)
 @onready var _element_label: Label = $HBox/InfoVBox/ElementLabel
 @onready var _hp_bar: ProgressBar = $HBox/InfoVBox/HPBarRow/HPBar
 @onready var _hp_value_label: Label = $HBox/InfoVBox/HPBarRow/HPValueLabel
+@onready var _energy_bar_row: HBoxContainer = $HBox/InfoVBox/EnergyBarRow
+@onready var _energy_bar: ProgressBar = $HBox/InfoVBox/EnergyBarRow/EnergyBar
+@onready var _energy_value_label: Label = $HBox/InfoVBox/EnergyBarRow/EnergyValueLabel
 @onready var _xp_bar: ProgressBar = $HBox/InfoVBox/XPBarRow/XPBar
 @onready var _status_label: Label = $HBox/InfoVBox/StatusLabel
 @onready var _edit_button: Button = $HBox/ButtonVBox/EditButton
@@ -31,6 +35,8 @@ const XP_COLOUR := Color(0.024, 0.714, 0.831)
 var _index: int = -1
 var _digimon_state: DigimonState = null
 var _button_mode: ButtonMode = ButtonMode.EDIT_REMOVE
+var _hp_tween: Tween = null
+var _energy_tween: Tween = null
 
 
 func setup(index: int, state: DigimonState) -> void:
@@ -76,6 +82,14 @@ func _setup_bar_styles() -> void:
 	hp_fill.corner_radius_bottom_right = 2
 	_hp_bar.add_theme_stylebox_override("fill", hp_fill)
 
+	var energy_fill := StyleBoxFlat.new()
+	energy_fill.bg_color = ENERGY_COLOUR
+	energy_fill.corner_radius_top_left = 2
+	energy_fill.corner_radius_top_right = 2
+	energy_fill.corner_radius_bottom_left = 2
+	energy_fill.corner_radius_bottom_right = 2
+	_energy_bar.add_theme_stylebox_override("fill", energy_fill)
+
 	var xp_fill := StyleBoxFlat.new()
 	xp_fill.bg_color = XP_COLOUR
 	xp_fill.corner_radius_top_left = 2
@@ -118,6 +132,7 @@ func _update_display() -> void:
 	_element_label.text = " / ".join(elements) if elements.size() > 0 else "—"
 
 	_update_hp_bar(data)
+	_update_energy_bar(data)
 	_update_xp_bar(data)
 	_update_status_display()
 
@@ -135,8 +150,31 @@ func _update_hp_bar(data: DigimonData) -> void:
 	_hp_bar.max_value = max_hp
 	_hp_bar.value = current_hp
 	_hp_value_label.text = "%d / %d" % [current_hp, max_hp]
+	_update_hp_colour(current_hp)
 
-	# Colour-code the fill
+
+func _update_energy_bar(data: DigimonData) -> void:
+	var stats: Dictionary = StatCalculator.calculate_all_stats(data, _digimon_state)
+	var personality: PersonalityData = Atlas.personalities.get(
+		_digimon_state.get_effective_personality_key(),
+	) as PersonalityData
+	var max_energy: int = StatCalculator.apply_personality(
+		stats.get(&"energy", 1), &"energy", personality,
+	)
+	var current_energy: int = _digimon_state.current_energy
+
+	_energy_bar.max_value = max_energy
+	_energy_bar.value = current_energy
+	_energy_value_label.text = "%d / %d" % [current_energy, max_energy]
+
+
+func set_energy_bar_visible(show: bool) -> void:
+	if _energy_bar_row:
+		_energy_bar_row.visible = show
+
+
+func _update_hp_colour(current_hp: int) -> void:
+	var max_hp: int = int(_hp_bar.max_value) if _hp_bar.max_value > 0 else 1
 	var ratio: float = float(current_hp) / float(max_hp) if max_hp > 0 else 0.0
 	var fill: StyleBoxFlat = _hp_bar.get_theme_stylebox("fill") as StyleBoxFlat
 	if fill != null:
@@ -146,6 +184,34 @@ func _update_hp_bar(data: DigimonData) -> void:
 			fill.bg_color = HP_COLOUR_YELLOW
 		else:
 			fill.bg_color = HP_COLOUR_RED
+
+
+## Animates the HP bar to a target value over 0.3 seconds.
+func animate_hp_to(target: int) -> void:
+	if _hp_tween and _hp_tween.is_valid():
+		_hp_tween.kill()
+	_hp_tween = create_tween()
+	_hp_tween.tween_property(_hp_bar, "value", float(target), 0.3)
+	_hp_tween.tween_callback(func() -> void:
+		_hp_value_label.text = "%d / %d" % [target, int(_hp_bar.max_value)]
+		_update_hp_colour(target)
+	)
+
+
+## Animates the energy bar to a target value over 0.3 seconds.
+func animate_energy_to(target: int) -> void:
+	if _energy_tween and _energy_tween.is_valid():
+		_energy_tween.kill()
+	_energy_tween = create_tween()
+	_energy_tween.tween_property(_energy_bar, "value", float(target), 0.3)
+	_energy_tween.tween_callback(func() -> void:
+		_energy_value_label.text = "%d / %d" % [target, int(_energy_bar.max_value)]
+	)
+
+
+## Public wrapper to re-run _update_display for the current state.
+func refresh_display() -> void:
+	_update_display()
 
 
 func _update_xp_bar(data: DigimonData) -> void:

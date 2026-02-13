@@ -115,3 +115,155 @@ func test_select_filter_rejects_fainted() -> void:
 	alive.current_hp = 50
 	assert_true(is_alive.call(alive),
 		"Filter should accept an alive Digimon with HP > 0")
+
+
+# --- Give item from bag (mirrors _handle_give_item logic) ---
+
+
+func test_give_gear_from_bag_equips_and_decrements() -> void:
+	var digimon: DigimonState = TestBattleFactory.make_digimon_state(&"test_agumon")
+	var inventory := InventoryState.new()
+	var item_key: StringName = &"test_power_band"
+	inventory.items[item_key] = 5
+
+	var item_data: ItemData = Atlas.items.get(item_key) as ItemData
+	assert_not_null(item_data, "Item should exist in Atlas")
+
+	# Exact logic from _handle_give_item
+	if item_data.is_consumable:
+		if digimon.equipped_consumable_key != &"":
+			var old_key: StringName = digimon.equipped_consumable_key
+			inventory.items[old_key] = int(inventory.items.get(old_key, 0)) + 1
+		digimon.equipped_consumable_key = item_key
+	else:
+		if digimon.equipped_gear_key != &"":
+			var old_key: StringName = digimon.equipped_gear_key
+			inventory.items[old_key] = int(inventory.items.get(old_key, 0)) + 1
+		digimon.equipped_gear_key = item_key
+
+	var current_qty: int = inventory.items.get(item_key, 0) as int
+	if current_qty <= 1:
+		inventory.items.erase(item_key)
+	else:
+		inventory.items[item_key] = current_qty - 1
+
+	assert_eq(digimon.equipped_gear_key, item_key,
+		"Digimon should have the gear equipped")
+	assert_eq(int(inventory.items.get(item_key, 0)), 4,
+		"Inventory should decrease from 5 to 4")
+
+
+func test_give_consumable_from_bag_equips_and_decrements() -> void:
+	var digimon: DigimonState = TestBattleFactory.make_digimon_state(&"test_agumon")
+	var inventory := InventoryState.new()
+	var item_key: StringName = &"test_heal_berry"
+	inventory.items[item_key] = 3
+
+	var item_data: ItemData = Atlas.items.get(item_key) as ItemData
+	assert_not_null(item_data, "Item should exist in Atlas")
+
+	if item_data.is_consumable:
+		if digimon.equipped_consumable_key != &"":
+			var old_key: StringName = digimon.equipped_consumable_key
+			inventory.items[old_key] = int(inventory.items.get(old_key, 0)) + 1
+		digimon.equipped_consumable_key = item_key
+	else:
+		if digimon.equipped_gear_key != &"":
+			var old_key: StringName = digimon.equipped_gear_key
+			inventory.items[old_key] = int(inventory.items.get(old_key, 0)) + 1
+		digimon.equipped_gear_key = item_key
+
+	var current_qty: int = inventory.items.get(item_key, 0) as int
+	if current_qty <= 1:
+		inventory.items.erase(item_key)
+	else:
+		inventory.items[item_key] = current_qty - 1
+
+	assert_eq(digimon.equipped_consumable_key, item_key,
+		"Digimon should have the consumable equipped")
+	assert_eq(int(inventory.items.get(item_key, 0)), 2,
+		"Inventory should decrease from 3 to 2")
+
+
+func test_give_last_item_removes_from_inventory() -> void:
+	var digimon: DigimonState = TestBattleFactory.make_digimon_state(&"test_agumon")
+	var inventory := InventoryState.new()
+	var item_key: StringName = &"test_power_band"
+	inventory.items[item_key] = 1
+
+	var item_data: ItemData = Atlas.items.get(item_key) as ItemData
+	assert_not_null(item_data, "Item should exist in Atlas")
+
+	if item_data.is_consumable:
+		digimon.equipped_consumable_key = item_key
+	else:
+		digimon.equipped_gear_key = item_key
+
+	var current_qty: int = inventory.items.get(item_key, 0) as int
+	if current_qty <= 1:
+		inventory.items.erase(item_key)
+	else:
+		inventory.items[item_key] = current_qty - 1
+
+	assert_false(inventory.items.has(item_key),
+		"Last item should be erased from inventory")
+
+
+func test_give_swaps_existing_gear_back_to_inventory() -> void:
+	var digimon: DigimonState = TestBattleFactory.make_digimon_state(&"test_agumon")
+	digimon.equipped_gear_key = &"test_power_band"
+	var inventory := InventoryState.new()
+	var new_key: StringName = &"test_counter_gem"
+	inventory.items[new_key] = 2
+	inventory.items[&"test_power_band"] = 0
+
+	var item_data: ItemData = Atlas.items.get(new_key) as ItemData
+	assert_not_null(item_data, "Item should exist in Atlas")
+
+	if item_data.is_consumable:
+		if digimon.equipped_consumable_key != &"":
+			var old_key: StringName = digimon.equipped_consumable_key
+			inventory.items[old_key] = int(inventory.items.get(old_key, 0)) + 1
+		digimon.equipped_consumable_key = new_key
+	else:
+		if digimon.equipped_gear_key != &"":
+			var old_key: StringName = digimon.equipped_gear_key
+			inventory.items[old_key] = int(inventory.items.get(old_key, 0)) + 1
+		digimon.equipped_gear_key = new_key
+
+	var current_qty: int = inventory.items.get(new_key, 0) as int
+	if current_qty <= 1:
+		inventory.items.erase(new_key)
+	else:
+		inventory.items[new_key] = current_qty - 1
+
+	assert_eq(digimon.equipped_gear_key, new_key,
+		"New gear should be equipped")
+	assert_eq(int(inventory.items.get(new_key, 0)), 1,
+		"New gear should decrease from 2 to 1")
+	assert_eq(int(inventory.items.get(&"test_power_band", 0)), 1,
+		"Old gear should be returned to inventory")
+
+
+func test_give_same_item_already_equipped_is_rejected() -> void:
+	var digimon: DigimonState = TestBattleFactory.make_digimon_state(&"test_agumon")
+	var inventory := InventoryState.new()
+	var item_key: StringName = &"test_heal_berry"
+	# Digimon already has this berry equipped, and bag has 5 more
+	digimon.equipped_consumable_key = item_key
+	inventory.items[item_key] = 5
+
+	var item_data: ItemData = Atlas.items.get(item_key) as ItemData
+	assert_not_null(item_data, "Item should exist in Atlas")
+
+	# Mirrors _handle_give_item: reject if already holding same item
+	var already_held: bool = false
+	if item_data.is_consumable:
+		already_held = digimon.equipped_consumable_key == item_key
+	else:
+		already_held = digimon.equipped_gear_key == item_key
+
+	assert_true(already_held, "Should detect item is already held")
+	# When already held, give is skipped — inventory unchanged
+	assert_eq(int(inventory.items.get(item_key, 0)), 5,
+		"Inventory should remain at 5 when give is rejected")

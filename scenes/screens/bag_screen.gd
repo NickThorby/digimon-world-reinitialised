@@ -45,7 +45,6 @@ const SELECTED_BG := Color(0.1, 0.1, 0.15, 1)
 
 func _ready() -> void:
 	_read_context()
-	_handle_pending_use()
 	_update_header()
 	_build_tabs()
 	_populate_item_list(_current_category)
@@ -62,27 +61,6 @@ func _read_context() -> void:
 	_select_prompt = ctx.get("select_prompt", "")
 	_return_scene = ctx.get("return_scene", "")
 	_current_category = ctx.get("_bag_category", -1)
-
-
-func _handle_pending_use() -> void:
-	var ctx: Dictionary = Game.screen_context
-	var pending_key: Variant = ctx.get("_bag_pending_use", null)
-	if pending_key == null:
-		return
-
-	# Returning from party select — restore normal bag state
-	_select_mode = false
-	_return_scene = ctx.get("_bag_return_scene", _return_scene) as String
-
-	var result: Variant = Game.screen_result
-	Game.screen_result = null
-	if result == null or result is not Dictionary:
-		return
-
-	var result_dict: Dictionary = result as Dictionary
-	var digimon: Variant = result_dict.get("digimon", null)
-	if digimon is DigimonState:
-		_apply_medicine(StringName(str(pending_key)), digimon as DigimonState)
 
 
 func _update_header() -> void:
@@ -270,8 +248,8 @@ func _update_detail_panel(key: StringName) -> void:
 	_use_button.disabled = not can_use
 
 	_give_button.visible = true
-	_give_button.disabled = true
-	_give_button.tooltip_text = tr("Coming Soon")
+	_give_button.disabled = false
+	_give_button.tooltip_text = ""
 
 	_toss_button.visible = true
 	_toss_button.disabled = false
@@ -280,6 +258,7 @@ func _update_detail_panel(key: StringName) -> void:
 func _connect_signals() -> void:
 	_back_button.pressed.connect(_on_back_pressed)
 	_use_button.pressed.connect(_on_use_pressed)
+	_give_button.pressed.connect(_on_give_pressed)
 	_toss_button.pressed.connect(_on_toss_pressed)
 
 
@@ -306,14 +285,29 @@ func _on_use_pressed() -> void:
 	else:
 		use_filter = func(d: DigimonState) -> bool: return d.current_hp > 0
 
-	# Navigate to Party Screen in select mode, persist Bag state for round-trip
+	# Navigate to Party Screen in use_item_mode
 	Game.screen_context = {
 		"mode": _mode,
-		"return_scene": BAG_SCREEN_PATH,
-		"select_mode": true,
-		"select_prompt": tr("Choose a Digimon"),
+		"use_item_mode": true,
+		"item_key": _selected_item_key,
 		"select_filter": use_filter,
-		"_bag_pending_use": _selected_item_key,
+		"cancel_scene": BAG_SCREEN_PATH,
+		"_bag_category": _current_category,
+		"_bag_return_scene": _return_scene,
+	}
+	SceneManager.change_scene(PARTY_SCREEN_PATH)
+
+
+func _on_give_pressed() -> void:
+	if _selected_item_key == &"":
+		return
+
+	# Navigate to Party Screen in give_item_mode
+	Game.screen_context = {
+		"mode": _mode,
+		"give_item_mode": true,
+		"item_key": _selected_item_key,
+		"cancel_scene": BAG_SCREEN_PATH,
 		"_bag_category": _current_category,
 		"_bag_return_scene": _return_scene,
 	}
@@ -371,20 +365,3 @@ func _update_bits_display() -> void:
 		_bits_label.text = "0 Bits"
 
 
-## Apply item bricks to a DigimonState (out-of-battle) and consume on success.
-func _apply_medicine(item_key: StringName, digimon: DigimonState) -> void:
-	var item_data: ItemData = Atlas.items.get(item_key) as ItemData
-	if item_data == null:
-		return
-
-	var max_stats: Dictionary = ItemApplicator.get_max_stats(digimon)
-	var applied: bool = ItemApplicator.apply(
-		item_data, digimon, max_stats.max_hp, max_stats.max_energy,
-	)
-
-	if applied and Game.state:
-		var current_qty: int = Game.state.inventory.items.get(item_key, 0) as int
-		if current_qty <= 1:
-			Game.state.inventory.items.erase(item_key)
-		else:
-			Game.state.inventory.items[item_key] = current_qty - 1

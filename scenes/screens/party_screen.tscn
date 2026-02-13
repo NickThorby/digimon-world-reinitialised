@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scenes/screens/party_screen.gd" id="1"]
 [ext_resource type="Theme" path="res://ui/theme/game_theme.tres" id="2"]
+[ext_resource type="PackedScene" path="res://ui/battle_hud/battle_message_box.tscn" id="3"]
 
 [node name="PartyScreen" type="Control"]
 layout_mode = 3
@@ -64,3 +65,7 @@ size_flags_vertical = 3
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 12
+
+[node name="MessageBox" parent="MarginContainer/VBox" instance=ExtResource("3")]
+layout_mode = 2
+visible = false

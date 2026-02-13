@@ -57,6 +57,29 @@ theme_override_font_sizes/font_size = 10
 text = ""
 horizontal_alignment = 2
 
+[node name="EnergyBarRow" type="HBoxContainer" parent="HBox/InfoVBox"]
+layout_mode = 2
+visible = false
+
+[node name="EnergyLabel" type="Label" parent="HBox/InfoVBox/EnergyBarRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(20, 0)
+theme_override_font_sizes/font_size = 10
+text = "EN"
+
+[node name="EnergyBar" type="ProgressBar" parent="HBox/InfoVBox/EnergyBarRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 8)
+show_percentage = false
+
+[node name="EnergyValueLabel" type="Label" parent="HBox/InfoVBox/EnergyBarRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(50, 0)
+theme_override_font_sizes/font_size = 10
+text = ""
+horizontal_alignment = 2
+
 [node name="XPBarRow" type="HBoxContainer" parent="HBox/InfoVBox"]
 layout_mode = 2
 

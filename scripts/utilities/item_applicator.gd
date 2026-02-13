@@ -55,6 +55,10 @@ static func _apply_healing(
 	var amount: int = int(brick.get("amount", 0))
 	var percent: float = float(brick.get("percent", 0.0))
 
+	var old_hp: int = digimon.current_hp
+	var old_energy: int = digimon.current_energy
+	var old_status_count: int = digimon.status_conditions.size()
+
 	match type:
 		"fixed":
 			if target == "energy":
@@ -63,7 +67,7 @@ static func _apply_healing(
 				)
 			else:
 				digimon.current_hp = mini(digimon.current_hp + amount, max_hp)
-			return true
+			return digimon.current_hp != old_hp or digimon.current_energy != old_energy
 		"percentage":
 			if target == "energy":
 				var heal: int = floori(max_energy * percent / 100.0)
@@ -73,9 +77,10 @@ static func _apply_healing(
 			else:
 				var heal: int = floori(max_hp * percent / 100.0)
 				digimon.current_hp = mini(digimon.current_hp + heal, max_hp)
-			# Also cure statuses if present
 			_cure_statuses(brick, digimon)
-			return true
+			return digimon.current_hp != old_hp \
+				or digimon.current_energy != old_energy \
+				or digimon.status_conditions.size() != old_status_count
 		"status":
 			if amount > 0:
 				digimon.current_hp = mini(digimon.current_hp + amount, max_hp)
@@ -83,12 +88,15 @@ static func _apply_healing(
 				var heal: int = floori(max_hp * percent / 100.0)
 				digimon.current_hp = mini(digimon.current_hp + heal, max_hp)
 			_cure_statuses(brick, digimon)
-			return true
+			return digimon.current_hp != old_hp \
+				or digimon.status_conditions.size() != old_status_count
 		"full_restore":
 			digimon.current_hp = max_hp
 			digimon.current_energy = max_energy
 			digimon.status_conditions.clear()
-			return true
+			return digimon.current_hp != old_hp \
+				or digimon.current_energy != old_energy \
+				or old_status_count > 0
 		"revive":
 			if digimon.current_hp <= 0:
 				if percent > 0.0:
@@ -105,13 +113,13 @@ static func _apply_healing(
 			digimon.current_energy = mini(
 				digimon.current_energy + amount, max_energy,
 			)
-			return true
+			return digimon.current_energy != old_energy
 		"energy_percentage":
 			var heal: int = floori(max_energy * percent / 100.0)
 			digimon.current_energy = mini(
 				digimon.current_energy + heal, max_energy,
 			)
-			return true
+			return digimon.current_energy != old_energy
 	return false
 
 
@@ -173,18 +181,20 @@ static func _apply_out_of_battle_effect(
 			var current: int = digimon.tvs.get(stat_key, 0) as int
 			var current_total: int = digimon.get_total_tvs()
 			var headroom: int = maxi(max_total - current_total, 0)
-			digimon.tvs[stat_key] = mini(
+			var new_val: int = mini(
 				current + parsed.amount, mini(max_tv, current + headroom)
 			)
-			return true
+			digimon.tvs[stat_key] = new_val
+			return new_val != current
 		"removeTv":
 			var parsed: Dictionary = _parse_stat_value(value)
 			if parsed.is_empty():
 				return false
 			var stat_key: StringName = parsed.stat_key
 			var current: int = digimon.tvs.get(stat_key, 0) as int
-			digimon.tvs[stat_key] = maxi(current - parsed.amount, 0)
-			return true
+			var new_val: int = maxi(current - parsed.amount, 0)
+			digimon.tvs[stat_key] = new_val
+			return new_val != current
 		"addIv":
 			var parsed: Dictionary = _parse_stat_value(value)
 			if parsed.is_empty():
@@ -195,16 +205,18 @@ static func _apply_out_of_battle_effect(
 			var max_iv: int = balance.max_iv if balance else 50
 			var stat_key: StringName = parsed.stat_key
 			var current: int = digimon.ivs.get(stat_key, 0) as int
-			digimon.ivs[stat_key] = mini(current + parsed.amount, max_iv)
-			return true
+			var new_val: int = mini(current + parsed.amount, max_iv)
+			digimon.ivs[stat_key] = new_val
+			return new_val != current
 		"removeIv":
 			var parsed: Dictionary = _parse_stat_value(value)
 			if parsed.is_empty():
 				return false
 			var stat_key: StringName = parsed.stat_key
 			var current: int = digimon.ivs.get(stat_key, 0) as int
-			digimon.ivs[stat_key] = maxi(current - parsed.amount, 0)
-			return true
+			var new_val: int = maxi(current - parsed.amount, 0)
+			digimon.ivs[stat_key] = new_val
+			return new_val != current
 		"changePersonality":
 			if value != "" and Atlas.personalities.has(StringName(value)):
 				digimon.personality_override_key = StringName(value)
@@ -218,8 +230,15 @@ static func _apply_out_of_battle_effect(
 		"addTp":
 			var tp: int = int(value) if value != "" else 0
 			if tp > 0:
-				digimon.training_points += tp
-				return true
+				var balance: GameBalance = load(
+					"res://data/config/game_balance.tres"
+				) as GameBalance
+				var max_tp: int = balance.max_training_points if balance else 999
+				var old_tp: int = digimon.training_points
+				digimon.training_points = mini(
+					digimon.training_points + tp, max_tp,
+				)
+				return digimon.training_points != old_tp
 			return false
 	return false
 
