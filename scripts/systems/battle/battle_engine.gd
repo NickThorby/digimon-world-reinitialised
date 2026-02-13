@@ -1539,16 +1539,15 @@ func _resolve_item(action: BattleAction) -> Array[Dictionary]:
 		battle_message.emit("Unknown item!")
 		return [{"handled": false, "reason": "unknown_item"}]
 
-	# Consume from bag
-	side.bag.remove_item(action.item_key)
-
-	# Route by category
+	# Route by category — each resolver handles its own consumption
 	match item.category:
 		Registry.ItemCategory.MEDICINE:
 			return _resolve_medicine(action, item, side, user)
 		Registry.ItemCategory.CAPTURE_SCAN:
+			side.bag.remove_item(action.item_key)
 			return _resolve_capture_item(action, item)
 		_:
+			side.bag.remove_item(action.item_key)
 			battle_message.emit(
 				"%s used %s!" % [_get_digimon_name(user), item.name],
 			)
@@ -1589,6 +1588,7 @@ func _resolve_medicine(
 
 		# Handle revive on active fainted Digimon
 		if item.is_revive and target.is_fainted:
+			side.bag.remove_item(action.item_key)
 			target.is_fainted = false
 			for brick: Dictionary in item.bricks:
 				var result: Dictionary = BrickExecutor.execute_brick(
@@ -1605,6 +1605,28 @@ func _resolve_medicine(
 			)
 			_process_item_result(result, target)
 			all_results.append(result)
+
+		# Check if any brick had a real effect
+		var had_effect: bool = false
+		for r: Dictionary in all_results:
+			if int(r.get("healing", 0)) > 0:
+				had_effect = true
+				break
+			if int(r.get("energy_restored", 0)) > 0:
+				had_effect = true
+				break
+			var cured: Variant = r.get("statuses_cured")
+			if cured is Array and not (cured as Array).is_empty():
+				had_effect = true
+				break
+			var sc_changes: Variant = r.get("stat_changes")
+			if sc_changes is Array and not (sc_changes as Array).is_empty():
+				had_effect = true
+				break
+		if not had_effect:
+			battle_message.emit("It won't have any effect!")
+			return [{"handled": false, "reason": "no_effect"}]
+		side.bag.remove_item(action.item_key)
 	else:
 		# Target is a reserve DigimonState
 		var reserve: DigimonState = entry.get("digimon_state") as DigimonState
@@ -1613,6 +1635,7 @@ func _resolve_medicine(
 
 		if item.is_revive and reserve.current_hp <= 0:
 			# Apply healing bricks directly to reserve DigimonState
+			side.bag.remove_item(action.item_key)
 			var data: DigimonData = Atlas.digimon.get(
 				reserve.key,
 			) as DigimonData
@@ -1660,6 +1683,17 @@ func _resolve_medicine(
 				reserve.key,
 			) as DigimonData
 			var max_hp: int = _estimate_max_hp(reserve, data)
+
+			# Check if HP is already full
+			if reserve.current_hp >= max_hp:
+				battle_message.emit(
+					"It won't have any effect on %s!" % _get_reserve_name(
+						reserve,
+					),
+				)
+				return [{"handled": false, "reason": "no_effect"}]
+
+			side.bag.remove_item(action.item_key)
 			for brick: Dictionary in item.bricks:
 				var brick_type: String = brick.get("brick", "")
 				if brick_type == "healing":
@@ -1686,6 +1720,10 @@ func _resolve_medicine(
 							all_results.append({
 								"handled": true, "healing": actual,
 							})
+		else:
+			# Revive on alive or non-revive on fainted — no effect
+			battle_message.emit("It won't have any effect!")
+			return [{"handled": false, "reason": "no_effect"}]
 
 	return all_results
 

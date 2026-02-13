@@ -28,6 +28,7 @@ var _item_key: StringName = &""
 var _bag_category: int = -1
 var _bag_return_scene: String = ""
 var _is_busy: bool = false
+var _pending_give_message: String = ""
 
 
 func _ready() -> void:
@@ -36,6 +37,8 @@ func _ready() -> void:
 	_update_header()
 	_build_slot_list()
 	_connect_signals()
+	if _pending_give_message != "":
+		_show_deferred_message(_pending_give_message)
 
 
 func _read_context() -> void:
@@ -236,8 +239,8 @@ func _handle_use_item(index: int, member: DigimonState) -> void:
 	if Game.state:
 		remaining = Game.state.inventory.items.get(_item_key, 0) as int
 
-	if applied and remaining > 0:
-		# Stay on party screen for repeated use
+	if remaining > 0:
+		# Stay on party screen for repeated use (or if item had no effect)
 		_is_busy = false
 	else:
 		_navigate_back_to_bag()
@@ -246,54 +249,35 @@ func _handle_use_item(index: int, member: DigimonState) -> void:
 func _handle_give_item(index: int, member: DigimonState) -> void:
 	_is_busy = true
 
-	var item_data: ItemData = Atlas.items.get(_item_key) as ItemData
-	if item_data == null:
+	if Game.state == null:
 		_is_busy = false
 		return
 
+	var result: Dictionary = ItemGiveHandler.give_item(
+		member, _item_key, Game.state.inventory,
+	)
 	var digimon_name: String = _get_digimon_display_name(member)
-	var item_name: String = item_data.name if item_data.name != "" else str(_item_key)
+	var item_name: String = _get_item_display_name(_item_key)
 
-	# Reject if already holding the same item
-	var already_held: bool = false
-	if item_data.is_consumable:
-		already_held = member.equipped_consumable_key == _item_key
-	else:
-		already_held = member.equipped_gear_key == _item_key
-
-	if already_held:
-		_message_box.visible = true
-		await _message_box.show_message(
-			"%s is already holding a %s." % [digimon_name, item_name],
-		)
-		_message_box.visible = false
-		_is_busy = false
-		return
-
-	# Return old item to inventory if slot was occupied
-	if item_data.is_consumable:
-		if member.equipped_consumable_key != &"":
-			_add_item_to_inventory(member.equipped_consumable_key)
-		member.equipped_consumable_key = _item_key
-	else:
-		if member.equipped_gear_key != &"":
-			_add_item_to_inventory(member.equipped_gear_key)
-		member.equipped_gear_key = _item_key
-
-	# Remove item from inventory
-	if Game.state:
-		var current_qty: int = Game.state.inventory.items.get(_item_key, 0) as int
-		if current_qty <= 1:
-			Game.state.inventory.items.erase(_item_key)
-		else:
-			Game.state.inventory.items[_item_key] = current_qty - 1
-
-	# Show message
-	_message_box.visible = true
-	await _message_box.show_message("Gave %s to %s!" % [item_name, digimon_name])
-	_message_box.visible = false
-
-	_navigate_back_to_bag()
+	match result.result:
+		ItemGiveHandler.GiveResult.INVALID:
+			_is_busy = false
+			return
+		ItemGiveHandler.GiveResult.ALREADY_HELD:
+			_message_box.visible = true
+			await _message_box.show_message(
+				"%s is already holding a %s." % [digimon_name, item_name],
+			)
+			_message_box.visible = false
+			_is_busy = false
+			return
+		_:
+			_message_box.visible = true
+			await _message_box.show_message(
+				"Gave %s to %s!" % [item_name, digimon_name],
+			)
+			_message_box.visible = false
+			_navigate_back_to_bag()
 
 
 func _navigate_back_to_bag() -> void:
@@ -319,6 +303,12 @@ func _get_item_display_name(key: StringName) -> String:
 	if item_data and item_data.name != "":
 		return item_data.name
 	return str(key)
+
+
+func _show_deferred_message(message: String) -> void:
+	_message_box.visible = true
+	await _message_box.show_message(message)
+	_message_box.visible = false
 
 
 func _should_show_energy_bar() -> bool:
@@ -538,32 +528,16 @@ func _handle_pending_give() -> void:
 		return
 
 	var member: DigimonState = Game.state.party.members[give_to_index]
-	var item_data: ItemData = Atlas.items.get(item_key) as ItemData
-	if item_data == null:
-		return
+	var give_result: Dictionary = ItemGiveHandler.give_item(
+		member, item_key, Game.state.inventory,
+	)
 
-	# Skip if already holding the same item
-	if item_data.is_consumable and member.equipped_consumable_key == item_key:
-		return
-	if not item_data.is_consumable and member.equipped_gear_key == item_key:
-		return
-
-	# Return old item to inventory if slot was occupied
-	if item_data.is_consumable:
-		if member.equipped_consumable_key != &"":
-			_add_item_to_inventory(member.equipped_consumable_key)
-		member.equipped_consumable_key = item_key
-	else:
-		if member.equipped_gear_key != &"":
-			_add_item_to_inventory(member.equipped_gear_key)
-		member.equipped_gear_key = item_key
-
-	# Remove item from inventory
-	var current_qty: int = Game.state.inventory.items.get(item_key, 0) as int
-	if current_qty <= 1:
-		Game.state.inventory.items.erase(item_key)
-	else:
-		Game.state.inventory.items[item_key] = current_qty - 1
+	if give_result.result == ItemGiveHandler.GiveResult.ALREADY_HELD:
+		var digimon_name: String = _get_digimon_display_name(member)
+		var item_name: String = _get_item_display_name(item_key)
+		_pending_give_message = "%s is already holding a %s." % [
+			digimon_name, item_name,
+		]
 
 
 func _navigate_to_give_item(index: int) -> void:

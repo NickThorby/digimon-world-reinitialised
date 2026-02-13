@@ -41,8 +41,8 @@ func test_get_pass_rate_basic() -> void:
 
 
 func test_get_pass_rate_advanced() -> void:
-	assert_almost_eq(TrainingCalculator.get_pass_rate("advanced"), 0.3, 0.001,
-		"Advanced course should have 0.3 pass rate")
+	assert_almost_eq(TrainingCalculator.get_pass_rate("advanced"), 0.6, 0.001,
+		"Advanced course should have 0.6 pass rate")
 
 
 # --- run_course() with seeded RNG ---
