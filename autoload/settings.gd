@@ -147,6 +147,36 @@ func _load() -> void:
 	) as AdvanceMode
 
 
+func get_evolving_word() -> String:
+	if display_preference == DisplayPreference.DUB:
+		return "Digivolving"
+	return "Evolving"
+
+
+func get_evolved_word() -> String:
+	if display_preference == DisplayPreference.DUB:
+		return "digivolved"
+	return "evolved"
+
+
+func get_evolution_noun() -> String:
+	if display_preference == DisplayPreference.DUB:
+		return "Digivolution"
+	return "Evolution"
+
+
+func get_evolve_imperative() -> String:
+	if display_preference == DisplayPreference.DUB:
+		return "Digivolve!"
+	return "Evolve!"
+
+
+func get_evolutions_plural() -> String:
+	if display_preference == DisplayPreference.DUB:
+		return "Digivolutions"
+	return "Evolutions"
+
+
 func _save() -> void:
 	var config := ConfigFile.new()
 	config.set_value(_DISPLAY_SECTION, "display_preference", display_preference)

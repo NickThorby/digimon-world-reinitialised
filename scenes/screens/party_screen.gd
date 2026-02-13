@@ -358,7 +358,7 @@ func _show_context_menu(index: int) -> void:
 	popup.add_separator()
 	popup.add_item(tr("Switch"), 2)
 	popup.add_separator()
-	popup.add_item(tr("Evolution"), 3)
+	popup.add_item(Settings.get_evolution_noun(), 3)
 
 	add_child(popup)
 

@@ -9,6 +9,7 @@ extends Control
 ##   storage_slot: int — slot index (-1 if from party)
 ##   mode: Registry.GameMode — TEST or STORY
 ##   return_scene: String — scene to navigate back to
+##   from_evolution_animation: bool — true when returning from animation screen
 ##
 ## Context outputs (Game.screen_result):
 ##   None
@@ -17,6 +18,7 @@ const _HEADER := "MarginContainer/VBox/HeaderBar"
 const _LEFT := "MarginContainer/VBox/ContentHBox/CurrentPanel"
 const _CENTRE := "MarginContainer/VBox/ContentHBox/EvolutionListPanel"
 const _RIGHT := "MarginContainer/VBox/ContentHBox/PreviewPanel"
+const _EVOLUTION_ANIMATION_PATH := "res://scenes/screens/evolution_animation_screen.tscn"
 
 @onready var _back_button: Button = get_node(_HEADER + "/BackButton")
 @onready var _title_label: Label = get_node(_HEADER + "/TitleLabel")
@@ -31,6 +33,7 @@ const _RIGHT := "MarginContainer/VBox/ContentHBox/PreviewPanel"
 @onready var _preview_sprite: TextureRect = get_node(_RIGHT + "/PreviewSpriteRect")
 @onready var _preview_name: Label = get_node(_RIGHT + "/PreviewNameLabel")
 @onready var _preview_stats: VBoxContainer = get_node(_RIGHT + "/PreviewStatsVBox")
+@onready var _evolve_button: Button = get_node(_RIGHT + "/EvolveButton")
 @onready var _force_evolve_button: Button = $MarginContainer/VBox/BottomBar/ForceEvolveButton
 @onready var _status_label: Label = $MarginContainer/VBox/BottomBar/StatusLabel
 
@@ -60,6 +63,7 @@ const STAT_DISPLAY_NAMES: Dictionary = {
 
 
 func _ready() -> void:
+	MusicManager.play("res://assets/audio/music/07. Save Screen.mp3")
 	_read_context()
 	_resolve_digimon()
 
@@ -67,6 +71,7 @@ func _ready() -> void:
 		_status_label.text = "No Digimon selected"
 		return
 
+	_title_label.text = Settings.get_evolution_noun()
 	_update_current_panel()
 	_find_evolutions()
 	_build_evolution_cards()
@@ -96,10 +101,12 @@ func _resolve_digimon() -> void:
 func _connect_signals() -> void:
 	_back_button.pressed.connect(_on_back_pressed)
 	_force_evolve_button.pressed.connect(_on_force_evolve)
+	_evolve_button.pressed.connect(_on_evolve_button_pressed)
 
 
 func _configure_force_button() -> void:
 	_force_evolve_button.visible = (_mode == Registry.GameMode.TEST)
+	_force_evolve_button.text = "Force " + Settings.get_evolve_imperative()
 
 
 # --- Current Digimon panel ---
@@ -150,11 +157,13 @@ func _build_evolution_cards() -> void:
 	for child: Node in _evo_cards.get_children():
 		child.queue_free()
 
-	_list_header.text = "Available Evolutions (%d)" % _evolution_links.size()
+	_list_header.text = "Available %s (%d)" % [
+		Settings.get_evolutions_plural(), _evolution_links.size(),
+	]
 
 	if _evolution_links.is_empty():
 		var label := Label.new()
-		label.text = "No evolutions available"
+		label.text = "No %s available" % Settings.get_evolutions_plural().to_lower()
 		label.add_theme_color_override(
 			"font_color", Color(0.443, 0.443, 0.478, 1),
 		)
@@ -174,6 +183,8 @@ func _create_evolution_card(
 ) -> VBoxContainer:
 	var card := VBoxContainer.new()
 	card.add_theme_constant_override("separation", 4)
+	card.mouse_filter = Control.MOUSE_FILTER_STOP
+	card.gui_input.connect(_on_card_clicked.bind(link))
 
 	var target_data: DigimonData = Atlas.digimon.get(link.to_key) as DigimonData
 	var target_name: String = target_data.display_name if target_data else str(link.to_key)
@@ -217,25 +228,6 @@ func _create_evolution_card(
 			)
 		card.add_child(req_label)
 
-	# Button row
-	var btn_row := HBoxContainer.new()
-	btn_row.add_theme_constant_override("separation", 8)
-
-	var evolve_btn := Button.new()
-	evolve_btn.text = "Evolve!"
-	evolve_btn.custom_minimum_size = Vector2(100, 32)
-	evolve_btn.disabled = not can_evolve
-	evolve_btn.pressed.connect(_on_evolve_pressed.bind(link))
-	btn_row.add_child(evolve_btn)
-
-	var preview_btn := Button.new()
-	preview_btn.text = "Preview"
-	preview_btn.custom_minimum_size = Vector2(80, 32)
-	preview_btn.pressed.connect(_on_preview_pressed.bind(link))
-	btn_row.add_child(preview_btn)
-
-	card.add_child(btn_row)
-
 	# Dim unmet cards
 	if not can_evolve:
 		card.modulate = Color(1, 1, 1, 0.6)
@@ -247,6 +239,15 @@ func _create_evolution_card(
 	return card
 
 
+func _on_card_clicked(event: InputEvent, link: EvolutionLinkData) -> void:
+	if event is not InputEventMouseButton:
+		return
+	var mb: InputEventMouseButton = event as InputEventMouseButton
+	if not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
+		return
+	_on_preview_pressed(link)
+
+
 # --- Preview ---
 
 
@@ -256,6 +257,7 @@ func _clear_preview() -> void:
 	for child: Node in _preview_stats.get_children():
 		child.queue_free()
 	_selected_link = null
+	_evolve_button.visible = false
 
 
 func _on_preview_pressed(link: EvolutionLinkData) -> void:
@@ -278,12 +280,20 @@ func _on_preview_pressed(link: EvolutionLinkData) -> void:
 	projected_state.hyper_trained_ivs = _digimon.hyper_trained_ivs.duplicate()
 	_build_stat_display(_preview_stats, target_data, projected_state)
 
+	# Show evolve button
+	var inventory: InventoryState = Game.state.inventory if Game.state else InventoryState.new()
+	var can_evo: bool = EvolutionChecker.can_evolve(link, _digimon, inventory)
+	_evolve_button.text = Settings.get_evolve_imperative()
+	_evolve_button.disabled = not can_evo
+	_evolve_button.visible = true
+
 
 # --- Evolve ---
 
 
-func _on_evolve_pressed(link: EvolutionLinkData) -> void:
-	_execute_evolution(link)
+func _on_evolve_button_pressed() -> void:
+	if _selected_link != null:
+		_execute_evolution(_selected_link)
 
 
 func _on_force_evolve() -> void:
@@ -302,6 +312,10 @@ func _execute_evolution(link: EvolutionLinkData) -> void:
 	if new_data == null:
 		_status_label.text = "Evolution target not found!"
 		return
+
+	# Capture old info for animation
+	var old_key: StringName = _digimon.key
+	var old_name: String = old_data.display_name if old_data else str(old_key)
 
 	# Store old max HP/energy for proportional scaling
 	var old_stats: Dictionary = StatCalculator.calculate_all_stats(old_data, _digimon) \
@@ -344,12 +358,20 @@ func _execute_evolution(link: EvolutionLinkData) -> void:
 	# Consume required items (spirits, digimentals, x_antibody)
 	_consume_evolution_items(link)
 
-	# Refresh UI
-	_update_current_panel()
-	_find_evolutions()
-	_build_evolution_cards()
-	_clear_preview()
-	_status_label.text = "Evolution complete!"
+	# Navigate to animation screen
+	var new_name: String = new_data.display_name
+	Game.screen_context = {
+		"old_digimon_key": old_key,
+		"new_digimon_key": link.to_key,
+		"old_name": old_name,
+		"new_name": new_name,
+		"mode": _mode,
+		"party_index": _party_index,
+		"storage_box": _storage_box,
+		"storage_slot": _storage_slot,
+		"evolution_return_scene": _return_scene,
+	}
+	SceneManager.change_scene(_EVOLUTION_ANIMATION_PATH)
 
 
 func _consume_evolution_items(link: EvolutionLinkData) -> void:
