@@ -206,6 +206,28 @@ custom_minimum_size = Vector2(40, 0)
 text = "5"
 horizontal_alignment = 2
 
+[node name="TPRow" type="HBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/ConfigPanel"]
+layout_mode = 2
+
+[node name="TPLabel" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/TPRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(100, 0)
+text = "TP:"
+
+[node name="TPSlider" type="HSlider" parent="MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/TPRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 999.0
+step = 1.0
+value = 0.0
+
+[node name="TPValue" type="Label" parent="MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/TPRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(40, 0)
+text = "0"
+horizontal_alignment = 2
+
 [node name="AbilitySection" type="VBoxContainer" parent="MarginContainer/VBox/HSplit/RightPanel/ConfigPanel"]
 layout_mode = 2
 

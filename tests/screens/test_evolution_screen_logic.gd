@@ -27,10 +27,10 @@ func test_find_evolutions_none_for_no_evos() -> void:
 	var links: Array[EvolutionLinkData] = []
 	for evo_key: StringName in Atlas.evolutions:
 		var link: EvolutionLinkData = Atlas.evolutions[evo_key] as EvolutionLinkData
-		if link and link.from_key == &"test_wall":
+		if link and link.from_key == &"test_ice_mon":
 			links.append(link)
 	assert_eq(links.size(), 0,
-		"test_wall should have no evolution paths")
+		"test_ice_mon should have no evolution paths")
 
 
 # --- Evolve changes key ---

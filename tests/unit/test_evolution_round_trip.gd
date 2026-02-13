@@ -237,6 +237,53 @@ func test_jogress_round_trip_restores_partner() -> void:
 	)
 
 
+# --- Jogress then slide preserves partners ---
+
+
+func test_jogress_then_slide_then_de_evo_restores_partner() -> void:
+	var main: DigimonState = TestBattleFactory.make_digimon_state(&"test_agumon", 25)
+	var partner: DigimonState = TestBattleFactory.make_digimon_state(&"test_gabumon", 25)
+	var inv: InventoryState = _make_inventory()
+	var party: PartyState = _make_party([main, partner])
+	var storage: StorageState = _make_storage()
+
+	# Jogress: agumon + gabumon → wall
+	var jogress_link: EvolutionLinkData = _get_link(&"test_evo_jogress")
+	var selected: Dictionary = {
+		&"test_gabumon": {"digimon": partner, "source": "party", "party_index": 1},
+	}
+	EvolutionExecutor.execute_jogress(
+		main, jogress_link, selected, inv, party, storage,
+	)
+	assert_eq(main.key, &"test_wall", "Should be wall after jogress")
+	assert_eq(party.members.size(), 1, "Partner should be absorbed")
+
+	# Slide: wall → sweeper (free slide, replaces history entry)
+	var slide_link: EvolutionLinkData = _get_link(&"test_evo_free_slide")
+	EvolutionExecutor.execute_slide_or_mode_change(main, slide_link, inv)
+	assert_eq(main.key, &"test_sweeper", "Should be sweeper after slide")
+	assert_eq(
+		main.evolution_history.size(), 1,
+		"History should still have 1 entry (slide replaces)",
+	)
+
+	# De-evolve — partner should be restored despite the slide
+	var result: Dictionary = EvolutionExecutor.execute_de_digivolution(
+		main, inv, party, storage,
+	)
+	assert_true(result["success"] as bool, "De-evolution should succeed")
+	assert_eq(main.key, &"test_agumon", "Should revert to agumon")
+	assert_eq(
+		party.members.size(), 2,
+		"Jogress partner should be restored to party",
+	)
+	var restored: DigimonState = party.members[1]
+	assert_eq(
+		restored.key, &"test_gabumon",
+		"Restored partner should be gabumon",
+	)
+
+
 # --- X-Antibody round trip ---
 
 

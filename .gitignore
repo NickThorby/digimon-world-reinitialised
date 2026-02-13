@@ -24,7 +24,10 @@ data/item/gear/*.tres
 data/item/key/*.tres
 data/item/quest/*.tres
 data/item/card/*.tres
+data/item/evolution/*.tres
 data/evolution/*.tres
 data/locale/locations.json
 assets/sprites/digimon/*.png
+assets/sprites/digimon/*.png.import
 assets/icons/items/*.png
+assets/icons/items/*.png.import

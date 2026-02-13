@@ -241,11 +241,29 @@ func test_can_evolve_one_unmet() -> void:
 	)
 
 
-func test_can_evolve_empty_requirements_returns_false() -> void:
+func test_can_evolve_empty_requirements_standard_returns_false() -> void:
 	var link: EvolutionLinkData = _make_link([] as Array[Dictionary])
 	assert_false(
 		EvolutionChecker.can_evolve(link, _make_digimon(50), _make_inventory()),
-		"Empty requirements should return false (nothing to satisfy)",
+		"Standard evo with empty requirements should return false",
+	)
+
+
+func test_can_evolve_empty_requirements_slide_returns_true() -> void:
+	var link: EvolutionLinkData = _make_link([] as Array[Dictionary])
+	link.evolution_type = Registry.EvolutionType.SLIDE
+	assert_true(
+		EvolutionChecker.can_evolve(link, _make_digimon(50), _make_inventory()),
+		"Slide with empty requirements should return true (free evolution)",
+	)
+
+
+func test_can_evolve_empty_requirements_mode_change_returns_true() -> void:
+	var link: EvolutionLinkData = _make_link([] as Array[Dictionary])
+	link.evolution_type = Registry.EvolutionType.MODE_CHANGE
+	assert_true(
+		EvolutionChecker.can_evolve(link, _make_digimon(50), _make_inventory()),
+		"Mode change with empty requirements should return true (free evolution)",
 	)
 
 

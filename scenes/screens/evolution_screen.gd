@@ -147,8 +147,15 @@ func _find_evolutions() -> void:
 	_evolution_links.clear()
 	for evo_key: StringName in Atlas.evolutions:
 		var link: EvolutionLinkData = Atlas.evolutions[evo_key] as EvolutionLinkData
-		if link and link.from_key == _digimon.key:
-			_evolution_links.append(link)
+		if link == null or link.from_key != _digimon.key:
+			continue
+		# Hide non-slide/mode-change links that have no requirements and no
+		# jogress partners — these are incomplete data entries.
+		if link.requirements.is_empty() and link.jogress_partner_keys.is_empty():
+			if link.evolution_type != Registry.EvolutionType.SLIDE \
+					and link.evolution_type != Registry.EvolutionType.MODE_CHANGE:
+				continue
+		_evolution_links.append(link)
 
 
 # --- Build cards ---

@@ -134,8 +134,12 @@ static func can_evolve(
 	storage: StorageState = null,
 ) -> bool:
 	var results: Array[Dictionary] = check_requirements(link, digimon, inventory)
+	# Empty requirements are only valid for slide/mode change (free evolutions).
+	# Other types with no requirements are considered invalid data.
 	if results.is_empty() and link.jogress_partner_keys.is_empty():
-		return false
+		if link.evolution_type != Registry.EvolutionType.SLIDE \
+				and link.evolution_type != Registry.EvolutionType.MODE_CHANGE:
+			return false
 	for result: Dictionary in results:
 		if not result.get("met", false):
 			return false

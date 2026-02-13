@@ -30,6 +30,8 @@ enum Stage { BROWSE, CONFIGURE }
 @onready var _config_title: Label = $MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigTitle
 @onready var _level_slider: HSlider = $MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/LevelRow/LevelSlider
 @onready var _level_value_label: Label = $MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/LevelRow/LevelValue
+@onready var _tp_slider: HSlider = $MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/TPRow/TPSlider
+@onready var _tp_value_label: Label = $MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/TPRow/TPValue
 @onready var _ability_buttons: VBoxContainer = $MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/AbilitySection/AbilityButtons
 @onready var _iv_sliders: VBoxContainer = $MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigScroll/ScrollVBox/IVSection/IVSliders
 @onready var _tv_sliders: VBoxContainer = $MarginContainer/VBox/HSplit/RightPanel/ConfigPanel/ConfigScroll/ScrollVBox/TVSection/TVSliders
@@ -56,6 +58,7 @@ var _max_iv: int = 50
 var _max_tv: int = 500
 var _max_total_tvs: int = 1000
 var _max_level: int = 100
+var _max_tp: int = 999
 
 ## Pending state created by DigimonFactory, modified by config sliders.
 var _pending_state: DigimonState = null
@@ -118,6 +121,7 @@ func _ready() -> void:
 		_max_iv = balance.max_iv
 		_max_tv = balance.max_tv
 		_max_total_tvs = balance.max_total_tvs
+		_max_tp = balance.max_training_points
 
 	_technique_label.text = "Techniques (select up to %d)" % _max_equipped
 
@@ -125,6 +129,11 @@ func _ready() -> void:
 	_level_slider.max_value = _max_level
 	_level_slider.step = 1
 	_level_slider.value = 5
+
+	_tp_slider.min_value = 0
+	_tp_slider.max_value = _max_tp
+	_tp_slider.step = 1
+	_tp_slider.value = 0
 
 	_search_field.text_changed.connect(_on_search_changed)
 	_species_list.item_selected.connect(_on_species_selected)
@@ -134,6 +143,7 @@ func _ready() -> void:
 	_back_config_button.pressed.connect(_on_back_pressed)
 	_confirm_button.pressed.connect(_on_confirm)
 	_level_slider.value_changed.connect(_on_level_changed)
+	_tp_slider.value_changed.connect(_on_tp_changed)
 
 	# Check for species-only mode (e.g. wild encounter table)
 	var ctx: Dictionary = Game.picker_context
@@ -592,6 +602,10 @@ func _enter_config_stage(existing_state: DigimonState = null) -> void:
 		if _pending_state == null:
 			return
 
+	# Set TP slider from pending state
+	_tp_slider.value = _pending_state.training_points
+	_tp_value_label.text = str(_pending_state.training_points)
+
 	# Populate ability buttons
 	_selected_ability_slot = existing_state.active_ability_slot if existing_state else 1
 	_populate_abilities(data)
@@ -854,6 +868,10 @@ func _on_level_changed(value: float) -> void:
 		_populate_techniques()
 
 
+func _on_tp_changed(value: float) -> void:
+	_tp_value_label.text = str(int(value))
+
+
 # --- Config Stage Buttons ---
 
 
@@ -921,6 +939,9 @@ func _on_confirm() -> void:
 
 	# Set ability slot
 	_pending_state.active_ability_slot = _selected_ability_slot
+
+	# Set training points from slider
+	_pending_state.training_points = int(_tp_slider.value)
 
 	# Set equipped gear from dropdowns
 	var eq_idx: int = _equipable_gear_option.selected

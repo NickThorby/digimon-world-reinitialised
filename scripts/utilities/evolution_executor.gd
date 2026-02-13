@@ -144,9 +144,13 @@ static func execute_slide_or_mode_change(
 		entry["from_key"] = old_key
 		digimon.evolution_history.append(entry)
 	else:
-		# Keep the original from_key (previous tier), update to_key/type/item
+		# Keep the original from_key and jogress_partners (previous tier),
+		# update to_key/type/item
 		var last: Dictionary = digimon.evolution_history.back()
 		entry["from_key"] = last.get("from_key", old_key)
+		var partners: Array = last.get("jogress_partners", [])
+		if not partners.is_empty():
+			entry["jogress_partners"] = partners
 		digimon.evolution_history[digimon.evolution_history.size() - 1] = entry
 
 	return {"success": true, "error": ""}

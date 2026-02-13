@@ -1831,6 +1831,12 @@ static func _inject_evolutions() -> void:
 		Registry.EvolutionType.MODE_CHANGE,
 		[{"type": "mode_change"}],
 	)
+	# Free slide: test_wall → test_sweeper (no requirements)
+	Atlas.evolutions[&"test_evo_free_slide"] = _make_evolution(
+		&"test_evo_free_slide", &"test_wall", &"test_sweeper",
+		Registry.EvolutionType.SLIDE,
+		[],
+	)
 
 
 static func _make_evolution(
