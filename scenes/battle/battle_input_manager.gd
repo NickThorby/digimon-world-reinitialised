@@ -491,15 +491,18 @@ func _on_item_chosen(item_key: StringName) -> void:
 	if item == null:
 		return
 
-	match item.category:
-		Registry.ItemCategory.MEDICINE:
-			# Show party target menu
-			var side: SideState = _battle.sides[_current_input_side]
-			var roster: Array[Dictionary] = _build_roster(side)
-			_item_target_menu.populate(roster, item.is_revive)
-			_hide_all_menus.call()
-			_item_target_menu.visible = true
+	# Combat-usable items (medicine or gear like berries) → target selection
+	if item.category == Registry.ItemCategory.MEDICINE \
+			or (item.is_combat_usable \
+			and item.category != Registry.ItemCategory.CAPTURE_SCAN):
+		var side: SideState = _battle.sides[_current_input_side]
+		var roster: Array[Dictionary] = _build_roster(side)
+		_item_target_menu.populate(roster, item.is_revive)
+		_hide_all_menus.call()
+		_item_target_menu.visible = true
+		return
 
+	match item.category:
 		Registry.ItemCategory.CAPTURE_SCAN:
 			# Foe target selection via field sprites
 			var user: BattleDigimonState = _battle.get_digimon_at(

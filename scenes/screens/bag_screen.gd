@@ -243,7 +243,7 @@ func _update_detail_panel(key: StringName) -> void:
 	_sell_price_label.text = "Sell: %d" % item_data.sell_price if item_data.sell_price > 0 else ""
 
 	# Action buttons
-	var can_use: bool = item_data.is_consumable and item_data.bricks.size() > 0
+	var can_use: bool = item_data.is_consumable and _has_applicable_bricks(item_data)
 	_use_button.visible = true
 	_use_button.disabled = not can_use
 
@@ -253,6 +253,14 @@ func _update_detail_panel(key: StringName) -> void:
 
 	_toss_button.visible = true
 	_toss_button.disabled = false
+
+
+static func _has_applicable_bricks(item: ItemData) -> bool:
+	for brick: Dictionary in item.bricks:
+		var brick_type: String = str(brick.get("brick", ""))
+		if brick_type in ["healing", "outOfBattleEffect"]:
+			return true
+	return false
 
 
 func _connect_signals() -> void:

@@ -1540,6 +1540,12 @@ func _resolve_item(action: BattleAction) -> Array[Dictionary]:
 		return [{"handled": false, "reason": "unknown_item"}]
 
 	# Route by category — each resolver handles its own consumption
+	# Combat-usable gear (e.g. berries) uses the medicine path for its healing bricks
+	if item.is_combat_usable \
+			and item.category != Registry.ItemCategory.MEDICINE \
+			and item.category != Registry.ItemCategory.CAPTURE_SCAN:
+		return _resolve_medicine(action, item, side, user)
+
 	match item.category:
 		Registry.ItemCategory.MEDICINE:
 			return _resolve_medicine(action, item, side, user)
