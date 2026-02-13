@@ -71,6 +71,9 @@ var scan_data: float = 0.0
 ## Status conditions that persist outside battle. Each: { "key": StringName, ... }
 var status_conditions: Array[Dictionary] = []
 
+## Serialised state of Digimon consumed via Jogress evolution, for potential de-evolution.
+var jogress_partners: Array[Dictionary] = []
+
 ## Combined 16-char hex identifier for internal tracking (display_id + secret_id).
 var unique_id: StringName:
 	get:
@@ -102,6 +105,7 @@ func to_dict() -> Dictionary:
 		"training_points": training_points,
 		"scan_data": scan_data,
 		"status_conditions": status_conditions.duplicate(true),
+		"jogress_partners": jogress_partners.duplicate(true),
 	}
 
 
@@ -142,5 +146,8 @@ static func from_dict(data: Dictionary) -> DigimonState:
 
 	for status_dict: Dictionary in data.get("status_conditions", []):
 		state.status_conditions.append(status_dict)
+
+	for partner_dict: Dictionary in data.get("jogress_partners", []):
+		state.jogress_partners.append(partner_dict)
 
 	return state

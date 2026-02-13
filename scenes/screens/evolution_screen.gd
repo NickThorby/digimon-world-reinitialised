@@ -19,6 +19,7 @@ const _LEFT := "MarginContainer/VBox/ContentHBox/CurrentPanel"
 const _CENTRE := "MarginContainer/VBox/ContentHBox/EvolutionListPanel"
 const _RIGHT := "MarginContainer/VBox/ContentHBox/PreviewPanel"
 const _EVOLUTION_ANIMATION_PATH := "res://scenes/screens/evolution_animation_screen.tscn"
+const _JOGRESS_SELECT_PATH := "res://scenes/screens/jogress_select_screen.tscn"
 
 @onready var _back_button: Button = get_node(_HEADER + "/BackButton")
 @onready var _title_label: Label = get_node(_HEADER + "/TitleLabel")
@@ -210,7 +211,11 @@ func _create_evolution_card(
 	var reqs: Array[Dictionary] = EvolutionChecker.check_requirements(
 		link, _digimon, inventory,
 	)
-	var can_evolve: bool = EvolutionChecker.can_evolve(link, _digimon, inventory)
+	var party: PartyState = Game.state.party if Game.state else null
+	var storage: StorageState = Game.state.storage if Game.state else null
+	var can_evolve: bool = EvolutionChecker.can_evolve(
+		link, _digimon, inventory, party, storage,
+	)
 
 	for req: Dictionary in reqs:
 		var req_label := Label.new()
@@ -227,6 +232,27 @@ func _create_evolution_card(
 				"font_color", Color(0.85, 0.3, 0.3, 1),
 			)
 		card.add_child(req_label)
+
+	# Jogress partner requirements
+	if not link.jogress_partner_keys.is_empty() and party != null and storage != null:
+		var partner_reqs: Array[Dictionary] = EvolutionChecker.check_jogress_partners(
+			link, _digimon, party, storage,
+		)
+		for pr: Dictionary in partner_reqs:
+			var pr_label := Label.new()
+			var pr_met: bool = pr.get("met", false)
+			var pr_icon: String = "[OK]" if pr_met else "[X]"
+			pr_label.text = "%s %s" % [pr_icon, pr.get("description", "")]
+			pr_label.add_theme_font_size_override("font_size", 13)
+			if pr_met:
+				pr_label.add_theme_color_override(
+					"font_color", Color(0.3, 0.85, 0.3, 1),
+				)
+			else:
+				pr_label.add_theme_color_override(
+					"font_color", Color(0.85, 0.3, 0.3, 1),
+				)
+			card.add_child(pr_label)
 
 	# Dim unmet cards
 	if not can_evolve:
@@ -282,7 +308,9 @@ func _on_preview_pressed(link: EvolutionLinkData) -> void:
 
 	# Show evolve button
 	var inventory: InventoryState = Game.state.inventory if Game.state else InventoryState.new()
-	var can_evo: bool = EvolutionChecker.can_evolve(link, _digimon, inventory)
+	var p: PartyState = Game.state.party if Game.state else null
+	var s: StorageState = Game.state.storage if Game.state else null
+	var can_evo: bool = EvolutionChecker.can_evolve(link, _digimon, inventory, p, s)
 	_evolve_button.text = Settings.get_evolve_imperative()
 	_evolve_button.disabled = not can_evo
 	_evolve_button.visible = true
@@ -292,15 +320,37 @@ func _on_preview_pressed(link: EvolutionLinkData) -> void:
 
 
 func _on_evolve_button_pressed() -> void:
-	if _selected_link != null:
+	if _selected_link == null:
+		return
+	if _selected_link.evolution_type == Registry.EvolutionType.JOGRESS:
+		_navigate_to_jogress_select(_selected_link)
+	else:
 		_execute_evolution(_selected_link)
 
 
 func _on_force_evolve() -> void:
-	if _selected_link != null:
-		_execute_evolution(_selected_link)
-	elif not _evolution_links.is_empty():
-		_execute_evolution(_evolution_links[0])
+	var link: EvolutionLinkData = _selected_link
+	if link == null and not _evolution_links.is_empty():
+		link = _evolution_links[0]
+	if link == null:
+		return
+	if link.evolution_type == Registry.EvolutionType.JOGRESS:
+		_navigate_to_jogress_select(link)
+	else:
+		_execute_evolution(link)
+
+
+func _navigate_to_jogress_select(link: EvolutionLinkData) -> void:
+	Game.screen_context = {
+		"link_key": link.key,
+		"digimon_unique_id": _digimon.unique_id,
+		"party_index": _party_index,
+		"storage_box": _storage_box,
+		"storage_slot": _storage_slot,
+		"mode": _mode,
+		"return_scene": _return_scene,
+	}
+	SceneManager.change_scene(_JOGRESS_SELECT_PATH)
 
 
 func _execute_evolution(link: EvolutionLinkData) -> void:

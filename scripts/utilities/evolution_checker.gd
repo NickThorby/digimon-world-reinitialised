@@ -88,18 +88,139 @@ static func check_requirements(
 
 
 ## Convenience: returns true if all requirements are met.
+## Pass party and storage to enable jogress partner validation.
 static func can_evolve(
 	link: EvolutionLinkData,
 	digimon: DigimonState,
 	inventory: InventoryState,
+	party: PartyState = null,
+	storage: StorageState = null,
 ) -> bool:
 	var results: Array[Dictionary] = check_requirements(link, digimon, inventory)
-	if results.is_empty():
+	if results.is_empty() and link.jogress_partner_keys.is_empty():
 		return false
 	for result: Dictionary in results:
 		if not result.get("met", false):
 			return false
+	# Jogress partner check
+	if not link.jogress_partner_keys.is_empty():
+		if party == null or storage == null:
+			return false
+		var partner_results: Array[Dictionary] = check_jogress_partners(
+			link, digimon, party, storage,
+		)
+		for pr: Dictionary in partner_results:
+			if not pr.get("met", false):
+				return false
 	return true
+
+
+## Check jogress partner availability for an evolution link.
+## Returns requirement-style dicts: { "type", "description", "met" }.
+static func check_jogress_partners(
+	link: EvolutionLinkData,
+	digimon: DigimonState,
+	party: PartyState,
+	storage: StorageState,
+) -> Array[Dictionary]:
+	var results: Array[Dictionary] = []
+	var level_req: int = _get_level_requirement(link)
+
+	for partner_key: StringName in link.jogress_partner_keys:
+		var partner_data: DigimonData = Atlas.digimon.get(partner_key) as DigimonData
+		var display_name: String = partner_data.display_name if partner_data else str(partner_key)
+		var candidates: Array[Dictionary] = _find_candidates_for_key(
+			partner_key, digimon, party, storage, level_req,
+		)
+		var description: String = "Partner: %s" % display_name
+		if level_req > 0:
+			description = "Partner: %s (Lv. %d+)" % [display_name, level_req]
+		results.append({
+			"type": "jogress_partner",
+			"description": description,
+			"met": not candidates.is_empty(),
+		})
+
+	return results
+
+
+## Find all eligible jogress partner candidates grouped by partner key.
+## Returns Dictionary mapping partner_key → Array[Dictionary] of candidate locations.
+## Each candidate: { "source", "party_index", "box", "slot", "digimon" }.
+static func find_jogress_candidates(
+	link: EvolutionLinkData,
+	digimon: DigimonState,
+	party: PartyState,
+	storage: StorageState,
+) -> Dictionary:
+	var result: Dictionary = {}
+	var level_req: int = _get_level_requirement(link)
+	for partner_key: StringName in link.jogress_partner_keys:
+		result[partner_key] = _find_candidates_for_key(
+			partner_key, digimon, party, storage, level_req,
+		)
+	return result
+
+
+## Extract the level requirement from a link's requirements array, or 0 if none.
+static func _get_level_requirement(link: EvolutionLinkData) -> int:
+	for req: Dictionary in link.requirements:
+		if req.get("type", "") == "level":
+			return int(req.get("level", 0))
+	return 0
+
+
+## Scan party and storage for Digimon matching partner_key, excluding main Digimon.
+static func _find_candidates_for_key(
+	partner_key: StringName,
+	main_digimon: DigimonState,
+	party: PartyState,
+	storage: StorageState,
+	level_req: int,
+) -> Array[Dictionary]:
+	var candidates: Array[Dictionary] = []
+
+	# Scan party
+	for i: int in party.members.size():
+		var member: DigimonState = party.members[i]
+		if member == null:
+			continue
+		if member.unique_id == main_digimon.unique_id:
+			continue
+		if member.key != partner_key:
+			continue
+		if level_req > 0 and member.level < level_req:
+			continue
+		candidates.append({
+			"source": "party",
+			"party_index": i,
+			"box": -1,
+			"slot": -1,
+			"digimon": member,
+		})
+
+	# Scan storage
+	for box_idx: int in storage.boxes.size():
+		var slots: Array = storage.boxes[box_idx]["slots"]
+		for slot_idx: int in slots.size():
+			var stored: DigimonState = slots[slot_idx] as DigimonState
+			if stored == null:
+				continue
+			if stored.unique_id == main_digimon.unique_id:
+				continue
+			if stored.key != partner_key:
+				continue
+			if level_req > 0 and stored.level < level_req:
+				continue
+			candidates.append({
+				"source": "storage",
+				"party_index": -1,
+				"box": box_idx,
+				"slot": slot_idx,
+				"digimon": stored,
+			})
+
+	return candidates
 
 
 ## Check a single stat requirement (e.g. { "type": "stat", "stat": "atk", "operator": ">=", "value": 100 }).

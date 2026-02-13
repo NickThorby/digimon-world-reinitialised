@@ -1742,6 +1742,14 @@ static func _inject_evolutions() -> void:
 		Registry.EvolutionType.SPIRIT,
 		[{"type": "spirit", "spirit": "test_spirit_item"}],
 	)
+	# Jogress: test_agumon + partner test_gabumon → test_wall (level 20)
+	var jogress_link: EvolutionLinkData = _make_evolution(
+		&"test_evo_jogress", &"test_agumon", &"test_wall",
+		Registry.EvolutionType.JOGRESS,
+		[{"type": "level", "level": 20}],
+	)
+	jogress_link.jogress_partner_keys = [&"test_gabumon"]
+	Atlas.evolutions[&"test_evo_jogress"] = jogress_link
 
 
 static func _make_evolution(
