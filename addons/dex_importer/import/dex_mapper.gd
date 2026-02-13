@@ -475,6 +475,7 @@ const ITEM_CATEGORY_MAP: Dictionary = {
 	"Key": _Reg.ItemCategory.KEY,
 	"Quest": _Reg.ItemCategory.QUEST,
 	"Card": _Reg.ItemCategory.CARD,
+	"Evolution": _Reg.ItemCategory.EVOLUTION,
 }
 
 const GEAR_SLOT_MAP: Dictionary = {

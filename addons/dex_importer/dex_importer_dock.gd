@@ -22,6 +22,7 @@ const ITEM_SUBFOLDER_MAP: Dictionary = {
 	"Key": "key",
 	"Quest": "quest",
 	"Card": "card",
+	"Evolution": "evolution",
 }
 
 var _client: RefCounted
@@ -320,11 +321,14 @@ func _import_items_data(items_array: Array) -> void:
 		else:
 			_log_error("Failed to write item '%s': error %d" % [game_id, error])
 
-	# Remove stale files per subfolder
-	for subfolder: String in imported_by_subfolder:
+	# Remove stale files per subfolder (including subfolders with zero imports)
+	for subfolder: String in ITEM_SUBFOLDER_MAP.values():
 		var folder: String = ITEM_FOLDER + "/" + subfolder
+		if not DirAccess.dir_exists_absolute(folder):
+			continue
 		var files: Array[String] = []
-		files.assign(imported_by_subfolder[subfolder] as Array)
+		if imported_by_subfolder.has(subfolder):
+			files.assign(imported_by_subfolder[subfolder] as Array)
 		_remove_stale_files(folder, files)
 
 	_log("Items: %d imported, %d discarded" % [imported, discarded])

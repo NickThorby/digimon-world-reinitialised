@@ -571,6 +571,7 @@ enum ItemCategory {
 	KEY,
 	QUEST,
 	CARD,
+	EVOLUTION,
 }
 
 var item_category_labels: Dictionary = {
@@ -582,6 +583,7 @@ var item_category_labels: Dictionary = {
 	ItemCategory.KEY: tr("item_category.key"),
 	ItemCategory.QUEST: tr("item_category.quest"),
 	ItemCategory.CARD: tr("item_category.card"),
+	ItemCategory.EVOLUTION: tr("item_category.evolution"),
 }
 
 enum GearSlot {

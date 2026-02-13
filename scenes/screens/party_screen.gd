@@ -5,6 +5,7 @@ const PARTY_SCREEN_PATH := "res://scenes/screens/party_screen.tscn"
 const SUMMARY_SCREEN_PATH := "res://scenes/screens/summary_screen.tscn"
 const BAG_SCREEN_PATH := "res://scenes/screens/bag_screen.tscn"
 const EVOLUTION_SCREEN_PATH := "res://scenes/screens/evolution_screen.tscn"
+const EVOLUTION_ANIMATION_PATH := "res://scenes/screens/evolution_animation_screen.tscn"
 const SLOT_PANEL_SCENE := preload("res://ui/components/digimon_slot_panel.tscn")
 
 const _HEADER := "MarginContainer/VBox/HeaderBar"
@@ -359,6 +360,8 @@ func _show_context_menu(index: int) -> void:
 	popup.add_item(tr("Switch"), 2)
 	popup.add_separator()
 	popup.add_item(Settings.get_evolution_noun(), 3)
+	if member.evolution_history.size() > 0:
+		popup.add_item(Settings.get_de_evolution_noun(), 4)
 
 	add_child(popup)
 
@@ -391,6 +394,8 @@ func _on_context_menu_selected(index: int, id: int) -> void:
 			_start_swap(index)
 		3:  # Evolution
 			_navigate_to_evolution(index)
+		4:  # De-evolution
+			_execute_de_digivolution(index)
 
 
 func _on_item_submenu_selected(index: int, id: int) -> void:
@@ -509,6 +514,52 @@ func _navigate_to_evolution(index: int) -> void:
 		"return_scene": PARTY_SCREEN_PATH,
 	}
 	SceneManager.change_scene(EVOLUTION_SCREEN_PATH)
+
+
+func _execute_de_digivolution(index: int) -> void:
+	if Game.state == null:
+		return
+	if index < 0 or index >= Game.state.party.members.size():
+		return
+
+	var digimon: DigimonState = Game.state.party.members[index]
+	if digimon.evolution_history.is_empty():
+		return
+
+	_is_busy = true
+
+	# Capture old form info before mutation
+	var old_key: StringName = digimon.key
+	var old_name: String = _get_digimon_display_name(digimon)
+
+	var result: Dictionary = EvolutionExecutor.execute_de_digivolution(
+		digimon, Game.state.inventory, Game.state.party, Game.state.storage,
+	)
+
+	if not result.get("success", false):
+		_message_box.visible = true
+		await _message_box.show_message(
+			result.get("error", "De-evolution failed!"),
+		)
+		_message_box.visible = false
+		_is_busy = false
+		return
+
+	# Navigate to animation screen (old = evolved form, new = reverted form)
+	var new_data: DigimonData = Atlas.digimon.get(digimon.key) as DigimonData
+	var new_name: String = new_data.display_name if new_data else str(digimon.key)
+	Game.screen_context = {
+		"old_digimon_key": old_key,
+		"new_digimon_key": digimon.key,
+		"old_name": old_name,
+		"new_name": new_name,
+		"mode": _mode,
+		"party_index": index,
+		"storage_box": -1,
+		"storage_slot": -1,
+		"evolution_return_scene": PARTY_SCREEN_PATH,
+	}
+	SceneManager.change_scene(EVOLUTION_ANIMATION_PATH)
 
 
 func _handle_pending_give() -> void:

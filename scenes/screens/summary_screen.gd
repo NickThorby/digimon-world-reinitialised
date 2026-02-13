@@ -326,6 +326,12 @@ func _build_info_page() -> void:
 	_info_vbox.add_child(items_sep)
 	_build_held_items_section(_info_vbox)
 
+	# --- Evolution History section ---
+	if _digimon.evolution_history.size() > 0:
+		var history_sep := HSeparator.new()
+		_info_vbox.add_child(history_sep)
+		_build_evolution_history_section(_info_vbox)
+
 
 func _build_ability_section(parent: VBoxContainer) -> void:
 	var ability_header := Label.new()
@@ -847,6 +853,71 @@ func _build_item_slot(
 			meta_label.add_theme_font_size_override("font_size", 11)
 			meta_label.add_theme_color_override("font_color", MUTED)
 			parent.add_child(meta_label)
+
+
+func _build_evolution_history_section(parent: VBoxContainer) -> void:
+	var header := Label.new()
+	header.text = tr("Evolution History")
+	header.add_theme_font_size_override("font_size", 18)
+	header.add_theme_color_override("font_color", CYAN)
+	parent.add_child(header)
+
+	for entry: Dictionary in _digimon.evolution_history:
+		var from_key: StringName = StringName(entry.get("from_key", ""))
+		var to_key: StringName = StringName(entry.get("to_key", ""))
+		var evo_type: int = entry.get("evolution_type", 0) as int
+
+		# Look up display names
+		var from_data: DigimonData = Atlas.digimon.get(from_key) as DigimonData
+		var to_data: DigimonData = Atlas.digimon.get(to_key) as DigimonData
+		var from_name: String = from_data.display_name if from_data else str(from_key)
+		var to_name: String = to_data.display_name if to_data else str(to_key)
+
+		# Row: "FromName → ToName"
+		var row_label := Label.new()
+		row_label.text = "%s → %s" % [from_name, to_name]
+		row_label.add_theme_font_size_override("font_size", 14)
+		parent.add_child(row_label)
+
+		# Evolution type label
+		var type_text: String = str(
+			Registry.evolution_type_labels.get(evo_type, "Standard")
+		)
+		var type_label := Label.new()
+		type_label.text = type_text
+		type_label.add_theme_font_size_override("font_size", 12)
+		type_label.add_theme_color_override("font_color", MUTED)
+		parent.add_child(type_label)
+
+		# Item used (if any)
+		var item_key: StringName = StringName(entry.get("evolution_item_key", ""))
+		if item_key != &"":
+			var item_data: ItemData = Atlas.items.get(item_key) as ItemData
+			var item_name: String = item_data.name if item_data else str(item_key)
+			var item_label := Label.new()
+			item_label.text = "Item: %s" % item_name
+			item_label.add_theme_font_size_override("font_size", 12)
+			item_label.add_theme_color_override("font_color", MUTED)
+			parent.add_child(item_label)
+
+		# Jogress partners (if any)
+		var partners: Array = entry.get("jogress_partners", [])
+		if partners.size() > 0:
+			var partner_names: Array[String] = []
+			for partner_dict: Variant in partners:
+				if partner_dict is not Dictionary:
+					continue
+				var pkey: StringName = StringName(
+					(partner_dict as Dictionary).get("key", "")
+				)
+				var pdata: DigimonData = Atlas.digimon.get(pkey) as DigimonData
+				partner_names.append(pdata.display_name if pdata else str(pkey))
+			if partner_names.size() > 0:
+				var partner_label := Label.new()
+				partner_label.text = "Partners: %s" % ", ".join(partner_names)
+				partner_label.add_theme_font_size_override("font_size", 12)
+				partner_label.add_theme_color_override("font_color", MUTED)
+				parent.add_child(partner_label)
 
 
 func _on_remove_held_item(is_consumable: bool) -> void:

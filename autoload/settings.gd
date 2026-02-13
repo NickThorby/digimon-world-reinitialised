@@ -177,6 +177,24 @@ func get_evolutions_plural() -> String:
 	return "Evolutions"
 
 
+func get_de_evolution_noun() -> String:
+	if display_preference == DisplayPreference.DUB:
+		return "Dedigivolution"
+	return "Devolution"
+
+
+func get_de_evolve_imperative() -> String:
+	if display_preference == DisplayPreference.DUB:
+		return "Dedigivolve!"
+	return "Devolve!"
+
+
+func get_de_evolved_word() -> String:
+	if display_preference == DisplayPreference.DUB:
+		return "dedigivolved"
+	return "devolved"
+
+
 func _save() -> void:
 	var config := ConfigFile.new()
 	config.set_value(_DISPLAY_SECTION, "display_preference", display_preference)
