@@ -1607,7 +1607,7 @@ static func _inject_items() -> void:
 	# Medicine: fixed energy restore
 	Atlas.items[&"test_energy_drink"] = _make_medicine(
 		&"test_energy_drink", "Test Energy Drink",
-		[{"brick": "healing", "type": "fixed", "amount": 30, "target": "energy"}],
+		[{"brick": "healing", "type": "energy_fixed", "amount": 30}],
 	)
 	# Medicine: cure burned status
 	Atlas.items[&"test_burn_heal"] = _make_medicine(

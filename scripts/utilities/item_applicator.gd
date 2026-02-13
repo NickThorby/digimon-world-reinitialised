@@ -51,7 +51,6 @@ static func _apply_healing(
 	max_energy: int,
 ) -> bool:
 	var type: String = str(brick.get("type", ""))
-	var target: String = str(brick.get("target", ""))
 	var amount: int = int(brick.get("amount", 0))
 	var percent: float = float(brick.get("percent", 0.0))
 
@@ -61,25 +60,13 @@ static func _apply_healing(
 
 	match type:
 		"fixed":
-			if target == "energy":
-				digimon.current_energy = mini(
-					digimon.current_energy + amount, max_energy,
-				)
-			else:
-				digimon.current_hp = mini(digimon.current_hp + amount, max_hp)
-			return digimon.current_hp != old_hp or digimon.current_energy != old_energy
+			digimon.current_hp = mini(digimon.current_hp + amount, max_hp)
+			return digimon.current_hp != old_hp
 		"percentage":
-			if target == "energy":
-				var heal: int = floori(max_energy * percent / 100.0)
-				digimon.current_energy = mini(
-					digimon.current_energy + heal, max_energy,
-				)
-			else:
-				var heal: int = floori(max_hp * percent / 100.0)
-				digimon.current_hp = mini(digimon.current_hp + heal, max_hp)
+			var heal: int = floori(max_hp * percent / 100.0)
+			digimon.current_hp = mini(digimon.current_hp + heal, max_hp)
 			_cure_statuses(brick, digimon)
 			return digimon.current_hp != old_hp \
-				or digimon.current_energy != old_energy \
 				or digimon.status_conditions.size() != old_status_count
 		"status":
 			if amount > 0:
@@ -108,7 +95,6 @@ static func _apply_healing(
 					digimon.current_hp = maxi(max_hp / 2, 1)
 				return true
 			return false
-		# Legacy energy subtypes (for backwards compatibility with old test data)
 		"energy_fixed":
 			digimon.current_energy = mini(
 				digimon.current_energy + amount, max_energy,

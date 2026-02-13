@@ -52,6 +52,7 @@ const RECOIL_TYPES: Array[String] = [
 
 const HEALING_TYPES: Array[String] = [
 	"percentage", "fixed", "drain", "weather", "status",
+	"energy_fixed", "energy_percentage", "revive", "full_restore",
 ]
 
 const FIELD_EFFECT_TYPES: Array[String] = [

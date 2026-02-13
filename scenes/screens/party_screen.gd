@@ -326,9 +326,8 @@ func _should_show_energy_bar() -> bool:
 	if item_data == null:
 		return false
 	for brick: Dictionary in item_data.bricks:
-		var target: String = str(brick.get("target", ""))
 		var brick_type: String = str(brick.get("type", ""))
-		if target == "energy" or brick_type == "full_restore":
+		if brick_type in ["energy_fixed", "energy_percentage", "full_restore"]:
 			return true
 	return false
 
