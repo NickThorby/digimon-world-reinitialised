@@ -586,7 +586,9 @@ func _enter_config_stage(existing_state: DigimonState = null) -> void:
 		_pending_state = existing_state
 	else:
 		var level: int = int(_level_slider.value)
-		_pending_state = DigimonFactory.create_digimon(_selected_key, level)
+		_pending_state = DigimonFactory.create_digimon_with_history(
+			_selected_key, level,
+		)
 		if _pending_state == null:
 			return
 
@@ -869,8 +871,10 @@ func _on_confirm() -> void:
 	if data == null:
 		return
 
-	# Recreate state at configured level
-	_pending_state = DigimonFactory.create_digimon(_selected_key, level)
+	# Recreate state at configured level (with evolution history backfill)
+	_pending_state = DigimonFactory.create_digimon_with_history(
+		_selected_key, level,
+	)
 	if _pending_state == null:
 		return
 

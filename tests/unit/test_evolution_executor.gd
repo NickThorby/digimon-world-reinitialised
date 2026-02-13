@@ -597,10 +597,15 @@ func test_de_digivolution_restores_jogress_partners() -> void:
 	assert_true(result["success"] as bool, "De-digivolution should succeed")
 	var restored: Array = result["restored_partners"]
 	assert_eq(restored.size(), 1, "Should restore 1 partner")
-	var restored_partner: DigimonState = restored[0] as DigimonState
+	var restored_entry: Dictionary = restored[0] as Dictionary
+	var restored_partner: DigimonState = restored_entry["digimon"] as DigimonState
 	assert_eq(
 		restored_partner.key, &"test_gabumon",
 		"Restored partner should be the original species",
+	)
+	assert_eq(
+		restored_entry["destination"], "party",
+		"Partner should be restored to party",
 	)
 	assert_eq(
 		party.members.size(), 2,

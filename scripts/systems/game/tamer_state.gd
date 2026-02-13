@@ -21,7 +21,9 @@ static func from_tamer_data(data: TamerData) -> TamerState:
 	for config: Dictionary in data.party_config:
 		var digimon_key: StringName = StringName(config.get("digimon_key", ""))
 		var level: int = config.get("level", 1)
-		var digimon: DigimonState = DigimonFactory.create_digimon(digimon_key, level)
+		var digimon: DigimonState = DigimonFactory.create_digimon_with_history(
+			digimon_key, level,
+		)
 		if digimon == null:
 			continue
 

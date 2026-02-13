@@ -45,6 +45,7 @@ var _active_tween: Tween = null
 var _is_jogress: bool = false
 var _participant_keys: Array[StringName] = []
 var _jogress_sprites: Array[TextureRect] = []
+var _post_messages: Array[String] = []
 
 
 func _ready() -> void:
@@ -75,6 +76,8 @@ func _read_context() -> void:
 	_is_jogress = ctx.get("is_jogress", false) as bool
 	for pk: Variant in ctx.get("participant_keys", []):
 		_participant_keys.append(StringName(str(pk)))
+	for msg: Variant in ctx.get("post_messages", []):
+		_post_messages.append(str(msg))
 
 
 func _setup_sprite() -> void:
@@ -216,7 +219,10 @@ func _run_jogress_animation() -> void:
 	)
 	_message_box.visible = false
 
-	# Phase 7 — Return
+	# Phase 7 — Post-messages (e.g. jogress partner restoration)
+	await _show_post_messages()
+
+	# Phase 8 — Return
 	_navigate_back()
 
 
@@ -256,7 +262,10 @@ func _run_animation() -> void:
 	)
 	_message_box.visible = false
 
-	# Phase 4 — Return to evolution screen
+	# Phase 4 — Post-messages (e.g. jogress partner restoration)
+	await _show_post_messages()
+
+	# Phase 5 — Return to evolution screen
 	_navigate_back()
 
 
@@ -308,8 +317,18 @@ func _skip_transition() -> void:
 	await _message_box.message_completed
 	_message_box.visible = false
 
-	# Phase 4 — Return
+	# Phase 4 — Post-messages (e.g. jogress partner restoration)
+	await _show_post_messages()
+
+	# Phase 5 — Return
 	_navigate_back()
+
+
+func _show_post_messages() -> void:
+	for msg: String in _post_messages:
+		_message_box.visible = true
+		await _message_box.show_message(msg)
+		_message_box.visible = false
 
 
 func _navigate_back() -> void:

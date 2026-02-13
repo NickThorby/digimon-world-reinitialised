@@ -545,6 +545,43 @@ func _execute_de_digivolution(index: int) -> void:
 		_is_busy = false
 		return
 
+	# Build partner restoration messages for the animation screen
+	var partner_messages: Array[String] = []
+	var restored: Array = result.get("restored_partners", [])
+	for entry: Variant in restored:
+		if entry is not Dictionary:
+			continue
+		var partner: DigimonState = (
+			(entry as Dictionary).get("digimon") as DigimonState
+		)
+		var dest: String = (
+			(entry as Dictionary).get("destination", "") as String
+		)
+		if partner == null:
+			continue
+		var partner_data: DigimonData = (
+			Atlas.digimon.get(partner.key) as DigimonData
+		)
+		var partner_name: String = (
+			partner_data.display_name if partner_data
+			else str(partner.key)
+		)
+		match dest:
+			"party":
+				partner_messages.append(
+					"%s was restored to your party!" % partner_name,
+				)
+			"storage":
+				partner_messages.append(
+					"%s was sent to storage (party full)."
+					% partner_name,
+				)
+			"lost":
+				partner_messages.append(
+					"%s could not be restored (party and storage full)!"
+					% partner_name,
+				)
+
 	# Navigate to animation screen (old = evolved form, new = reverted form)
 	var new_data: DigimonData = Atlas.digimon.get(digimon.key) as DigimonData
 	var new_name: String = new_data.display_name if new_data else str(digimon.key)
@@ -558,6 +595,7 @@ func _execute_de_digivolution(index: int) -> void:
 		"storage_box": -1,
 		"storage_slot": -1,
 		"evolution_return_scene": PARTY_SCREEN_PATH,
+		"post_messages": partner_messages,
 	}
 	SceneManager.change_scene(EVOLUTION_ANIMATION_PATH)
 

@@ -203,28 +203,37 @@ static func execute_de_digivolution(
 		digimon.evolution_item_key = &""
 
 	# Restore jogress partners
-	var restored_partners: Array[DigimonState] = []
+	var restored_partners: Array[Dictionary] = []
 	var partner_dicts: Array = entry.get("jogress_partners", [])
+	var balance: GameBalance = load(
+		"res://data/config/game_balance.tres",
+	) as GameBalance
+	var max_party: int = balance.max_party_size if balance else 6
+
 	for partner_dict: Variant in partner_dicts:
 		if partner_dict is not Dictionary:
 			continue
 		var partner: DigimonState = DigimonState.from_dict(
 			partner_dict as Dictionary,
 		)
-		restored_partners.append(partner)
+		var destination: String = ""
 		# Add to party, or storage if party full
-		var balance: GameBalance = load(
-			"res://data/config/game_balance.tres",
-		) as GameBalance
-		var max_party: int = balance.max_party_size if balance else 6
 		if party.members.size() < max_party:
 			party.members.append(partner)
+			destination = "party"
 		else:
 			var slot_info: Dictionary = storage.find_first_empty_slot()
 			if not slot_info.is_empty():
 				storage.set_digimon(
 					slot_info["box"], slot_info["slot"], partner,
 				)
+				destination = "storage"
+			else:
+				destination = "lost"
+		restored_partners.append({
+			"digimon": partner,
+			"destination": destination,
+		})
 
 	return {
 		"success": true,
