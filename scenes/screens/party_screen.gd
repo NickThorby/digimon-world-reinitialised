@@ -271,6 +271,16 @@ func _handle_give_item(index: int, member: DigimonState) -> void:
 			_message_box.visible = false
 			_is_busy = false
 			return
+		ItemGiveHandler.GiveResult.SWAPPED:
+			var old_name: String = _get_item_display_name(result.old_key)
+			_message_box.visible = true
+			await _message_box.show_message(
+				"%s's %s was swapped with a %s!" % [
+					digimon_name, old_name, item_name,
+				],
+			)
+			_message_box.visible = false
+			_navigate_back_to_bag()
 		_:
 			_message_box.visible = true
 			await _message_box.show_message(
