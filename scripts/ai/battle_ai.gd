@@ -32,7 +32,13 @@ func generate_actions(side_index: int) -> Array[BattleAction]:
 
 
 ## Pick a single action for a Digimon.
-func _pick_action(digimon: BattleDigimonState, _side: SideState) -> BattleAction:
+func _pick_action(digimon: BattleDigimonState, side: SideState) -> BattleAction:
+	# Consider evolution before techniques (70% chance if available)
+	if not digimon.evolved_in_battle:
+		var evo_action: BattleAction = _try_evolution(digimon, side)
+		if evo_action != null and _battle.rng.randf() < 0.7:
+			return evo_action
+
 	# Try to use a random technique
 	var usable_techniques: Array[StringName] = _get_usable_techniques(digimon)
 
@@ -154,3 +160,83 @@ func _pick_random_ally(user: BattleDigimonState) -> Dictionary:
 	if allies.size() > 0:
 		return allies[_battle.rng.randi() % allies.size()]
 	return {"side": user.side_index, "slot": user.slot_index}
+
+
+## Try to build an evolution action for this Digimon.
+## Returns null if no evolution is available.
+func _try_evolution(
+	digimon: BattleDigimonState, side: SideState,
+) -> BattleAction:
+	var source: DigimonState = digimon.source_state
+	if source == null:
+		return null
+
+	# Cannot evolve while transformed
+	var transform_backup: Variant = digimon.volatiles.get("transform_backup", {})
+	if transform_backup is Dictionary \
+			and not (transform_backup as Dictionary).is_empty():
+		return null
+
+	var inv := InventoryState.new()
+	var party := PartyState.new()
+	party.members = []
+	for reserve: DigimonState in side.party:
+		party.members.append(reserve)
+
+	# Check standard evolutions first
+	var links: Array[EvolutionLinkData] = EvolutionService.find_available_evolutions(
+		source,
+	)
+	for link: EvolutionLinkData in links:
+		if not EvolutionChecker.can_evolve(link, source, inv, party, null):
+			continue
+
+		var action := BattleAction.new()
+		action.action_type = BattleAction.ActionType.EVOLVE
+		action.user_side = digimon.side_index
+		action.user_slot = digimon.slot_index
+		action.evolution_link_key = link.key
+
+		# Jogress: pick first valid partner combo from reserves
+		if not link.jogress_partner_keys.is_empty():
+			var candidates: Dictionary = EvolutionChecker.find_jogress_candidates(
+				link, source, party, null,
+			)
+			var partner_indices: Array[int] = []
+			var all_found: bool = true
+			for pkey: StringName in link.jogress_partner_keys:
+				var cands: Array = candidates.get(pkey, []) as Array
+				if cands.is_empty():
+					all_found = false
+					break
+				var cand: Dictionary = cands[0]
+				partner_indices.append(int(cand.get("party_index", -1)))
+			if not all_found:
+				continue
+			action.jogress_partner_indices = partner_indices
+
+		return action
+
+	# Check warp evolutions
+	var warps: Array[Dictionary] = EvolutionService.find_warp_evolutions(
+		source, inv, party, null,
+	)
+	if not warps.is_empty():
+		var warp: Dictionary = warps[
+			_battle.rng.randi() % warps.size()
+		]
+		var chain: Array = warp.get("chain", [])
+		var warp_keys: Array[StringName] = []
+		for link_data: Variant in chain:
+			if link_data is EvolutionLinkData:
+				warp_keys.append((link_data as EvolutionLinkData).key)
+		if not warp_keys.is_empty():
+			var action := BattleAction.new()
+			action.action_type = BattleAction.ActionType.EVOLVE
+			action.user_side = digimon.side_index
+			action.user_slot = digimon.slot_index
+			action.is_warp = true
+			action.warp_link_keys = warp_keys
+			return action
+
+	return null

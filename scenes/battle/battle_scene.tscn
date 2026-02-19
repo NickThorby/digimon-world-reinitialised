@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3]
+[gd_scene load_steps=20 format=3]
 
 [ext_resource type="Script" path="res://scenes/battle/battle_scene.gd" id="1"]
 [ext_resource type="PackedScene" path="res://ui/battle_hud/action_menu.tscn" id="2"]
@@ -16,6 +16,9 @@
 [ext_resource type="PackedScene" path="res://ui/battle_hud/field_status_display.tscn" id="14"]
 [ext_resource type="PackedScene" path="res://ui/battle_hud/side_status_display.tscn" id="15"]
 [ext_resource type="Script" path="res://ui/battle_hud/side_status_display.gd" id="16"]
+[ext_resource type="PackedScene" path="res://ui/battle_hud/evolution_sub_menu.tscn" id="17"]
+[ext_resource type="PackedScene" path="res://ui/battle_hud/battle_evolution_menu.tscn" id="18"]
+[ext_resource type="PackedScene" path="res://ui/battle_hud/battle_jogress_menu.tscn" id="19"]
 
 [node name="BattleScene" type="Node2D"]
 script = ExtResource("1")
@@ -195,6 +198,34 @@ offset_top = -180.0
 offset_right = -10.0
 offset_bottom = -140.0
 text = "Back"
+theme = ExtResource("8")
+
+[node name="EvolutionSubMenu" parent="BattleHUD" unique_name_in_owner=true instance=ExtResource("17")]
+visible = false
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -410.0
+offset_top = -250.0
+offset_right = -10.0
+offset_bottom = -10.0
+theme = ExtResource("8")
+
+[node name="BattleEvolutionMenu" parent="BattleHUD" unique_name_in_owner=true instance=ExtResource("18")]
+visible = false
+anchor_left = 0.05
+anchor_top = 0.1
+anchor_right = 0.95
+anchor_bottom = 0.85
+theme = ExtResource("8")
+
+[node name="BattleJogressMenu" parent="BattleHUD" unique_name_in_owner=true instance=ExtResource("19")]
+visible = false
+anchor_left = 0.2
+anchor_top = 0.15
+anchor_right = 0.8
+anchor_bottom = 0.85
 theme = ExtResource("8")
 
 [node name="PostBattleScreen" parent="BattleHUD" unique_name_in_owner=true instance=ExtResource("7")]

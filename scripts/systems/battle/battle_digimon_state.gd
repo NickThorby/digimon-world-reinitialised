@@ -106,6 +106,12 @@ var gear_trigger_counts: Dictionary = {
 ## Whether this Digimon has fainted.
 var is_fainted: bool = false
 
+## Snapshot of DigimonState.to_dict() at battle start, for post-battle reversion.
+var pre_battle_snapshot: Dictionary = {}
+
+## Whether this Digimon evolved (or de-evolved) during this battle.
+var evolved_in_battle: bool = false
+
 ## XP accumulated during battle (applied post-battle).
 var xp_earned: int = 0
 

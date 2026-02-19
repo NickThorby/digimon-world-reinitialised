@@ -27,3 +27,7 @@ var xp_awards: Array[Dictionary] = []
 
 ## All party DigimonState on the winning side, for post-battle display.
 var party_digimon: Array[DigimonState] = []
+
+## Digimon that evolved during battle, for post-battle reversion.
+## Each: { "source_state": DigimonState, "snapshot": Dictionary }
+var battle_evolutions: Array[Dictionary] = []

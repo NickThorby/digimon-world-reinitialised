@@ -23,7 +23,8 @@ static func calculate_action_speed(action: BattleAction, battle: BattleState) ->
 	match action.action_type:
 		BattleAction.ActionType.SWITCH, \
 		BattleAction.ActionType.RUN, \
-		BattleAction.ActionType.ITEM:
+		BattleAction.ActionType.ITEM, \
+		BattleAction.ActionType.EVOLVE:
 			action.priority = Registry.Priority.MAXIMUM
 		BattleAction.ActionType.REST:
 			action.priority = Registry.Priority.NORMAL

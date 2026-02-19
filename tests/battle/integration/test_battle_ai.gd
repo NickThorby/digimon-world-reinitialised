@@ -36,6 +36,8 @@ func test_ai_generates_actions_for_2v2() -> void:
 
 
 func test_ai_picks_from_equipped_techniques() -> void:
+	# Prevent evolution so AI picks a technique
+	_battle.get_digimon_at(1, 0).evolved_in_battle = true
 	var actions: Array[BattleAction] = _ai.generate_actions(1)
 	if actions.size() > 0 and actions[0].action_type == BattleAction.ActionType.TECHNIQUE:
 		var tech_key: StringName = actions[0].technique_key
@@ -51,6 +53,7 @@ func test_ai_picks_from_equipped_techniques() -> void:
 
 func test_ai_respects_encore() -> void:
 	var mon: BattleDigimonState = _battle.get_digimon_at(1, 0)
+	mon.evolved_in_battle = true  # Prevent evolution so AI picks a technique
 	mon.volatiles["encore_technique_key"] = &"test_tackle"
 	var actions: Array[BattleAction] = _ai.generate_actions(1)
 	if actions.size() > 0 and actions[0].action_type == BattleAction.ActionType.TECHNIQUE:
@@ -105,9 +108,10 @@ func test_ai_respects_taunt() -> void:
 
 
 func test_ai_falls_back_to_rest() -> void:
-	# Remove all equipped techniques
+	# Remove all equipped techniques and prevent evolution
 	var mon: BattleDigimonState = _battle.get_digimon_at(1, 0)
 	mon.equipped_technique_keys.clear()
+	mon.evolved_in_battle = true
 	var actions: Array[BattleAction] = _ai.generate_actions(1)
 	assert_eq(actions.size(), 1, "AI should still generate an action")
 	assert_eq(

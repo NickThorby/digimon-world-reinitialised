@@ -27,6 +27,9 @@ var _post_battle_screen: PostBattleScreen = null
 var _field_display: FieldStatusDisplay = null
 var _ally_side_display: SideStatusDisplay = null
 var _foe_side_display: SideStatusDisplay = null
+var _evolution_sub_menu: EvolutionSubMenu = null
+var _battle_evolution_menu: BattleEvolutionMenu = null
+var _battle_jogress_menu: BattleJogressMenu = null
 
 # Input state
 var _pending_actions: Array[BattleAction] = []
@@ -36,6 +39,7 @@ var _player_sides: Array[int] = []
 var _input_queue: Array[Dictionary] = []
 var _selected_technique_key: StringName = &""
 var _selected_item_key: StringName = &""
+var _selected_evolution_link_key: StringName = &""
 
 var _phase_ref: Callable = Callable()
 var _set_phase: Callable = Callable()
@@ -78,6 +82,9 @@ func set_hud_refs(
 	field_display: FieldStatusDisplay = null,
 	ally_side_display: SideStatusDisplay = null,
 	foe_side_display: SideStatusDisplay = null,
+	evolution_sub_menu: EvolutionSubMenu = null,
+	battle_evolution_menu: BattleEvolutionMenu = null,
+	battle_jogress_menu: BattleJogressMenu = null,
 ) -> void:
 	_action_menu = action_menu
 	_technique_menu = technique_menu
@@ -92,6 +99,9 @@ func set_hud_refs(
 	_field_display = field_display
 	_ally_side_display = ally_side_display
 	_foe_side_display = foe_side_display
+	_evolution_sub_menu = evolution_sub_menu
+	_battle_evolution_menu = battle_evolution_menu
+	_battle_jogress_menu = battle_jogress_menu
 
 
 func connect_ui_signals() -> void:
@@ -107,6 +117,16 @@ func connect_ui_signals() -> void:
 	_target_selector.target_chosen.connect(_on_target_chosen)
 	_target_selector.back_pressed.connect(_on_target_back)
 	_target_back_button.pressed.connect(_on_targeting_back)
+	if _evolution_sub_menu != null:
+		_evolution_sub_menu.evolve_chosen.connect(_on_evolve_sub_evolve)
+		_evolution_sub_menu.devolve_chosen.connect(_on_evolve_sub_devolve)
+		_evolution_sub_menu.back_pressed.connect(_on_evolve_sub_back)
+	if _battle_evolution_menu != null:
+		_battle_evolution_menu.evolution_chosen.connect(_on_evolution_chosen)
+		_battle_evolution_menu.back_pressed.connect(_on_evolution_menu_back)
+	if _battle_jogress_menu != null:
+		_battle_jogress_menu.partners_confirmed.connect(_on_jogress_confirmed)
+		_battle_jogress_menu.back_pressed.connect(_on_jogress_back)
 
 
 ## --- Phase Management ---
@@ -154,6 +174,21 @@ func _advance_input() -> void:
 	var side: SideState = _battle.sides[_current_input_side]
 	_action_menu.set_switch_enabled(side.party.size() > 0)
 	_action_menu.set_item_enabled(side.bag != null and not side.bag.is_empty())
+
+	# Check if evolution is available
+	var source: DigimonState = digimon.source_state
+	var can_evolve: bool = false
+	var can_devolve: bool = false
+	if source != null:
+		var inv: InventoryState = InventoryState.new()
+		var party := PartyState.new()
+		party.members = []
+		for reserve: DigimonState in side.party:
+			party.members.append(reserve)
+		can_evolve = EvolutionService.can_evolve_any(source, inv, party, null)
+		can_devolve = EvolutionService.can_de_digivolve(source)
+	_action_menu.set_evolve_enabled(can_evolve or can_devolve)
+	_action_menu.set_evolve_text(Settings.get_evolution_noun())
 
 	_hide_all_menus.call()
 	_action_menu.visible = true
@@ -333,6 +368,29 @@ func _on_action_chosen(action_type: BattleAction.ActionType) -> void:
 			_item_menu.populate(side.bag)
 			_hide_all_menus.call()
 			_item_menu.visible = true
+
+		BattleAction.ActionType.EVOLVE:
+			if _evolution_sub_menu == null:
+				return
+			var evo_digimon: BattleDigimonState = _battle.get_digimon_at(
+				_current_input_side, _current_input_slot,
+			)
+			if evo_digimon == null or evo_digimon.source_state == null:
+				return
+			var evo_source: DigimonState = evo_digimon.source_state
+			var evo_side: SideState = _battle.sides[_current_input_side]
+			var inv: InventoryState = InventoryState.new()
+			var evo_party := PartyState.new()
+			evo_party.members = []
+			for reserve: DigimonState in evo_side.party:
+				evo_party.members.append(reserve)
+			var evo_can: bool = EvolutionService.can_evolve_any(
+				evo_source, inv, evo_party, null,
+			)
+			var devo_can: bool = EvolutionService.can_de_digivolve(evo_source)
+			_evolution_sub_menu.populate(evo_can, devo_can)
+			_hide_all_menus.call()
+			_evolution_sub_menu.visible = true
 
 
 func _on_technique_chosen(technique_key: StringName) -> void:
@@ -601,3 +659,110 @@ func _build_roster(side: SideState) -> Array[Dictionary]:
 			"name": digimon_name,
 		})
 	return roster
+
+
+## --- Evolution Signal Handlers ---
+
+
+## Evolution sub-menu: user chose to evolve.
+func _on_evolve_sub_evolve() -> void:
+	if _battle_evolution_menu == null:
+		return
+	var digimon: BattleDigimonState = _battle.get_digimon_at(
+		_current_input_side, _current_input_slot,
+	)
+	if digimon == null or digimon.source_state == null:
+		return
+	var side: SideState = _battle.sides[_current_input_side]
+	_battle_evolution_menu.populate(
+		digimon.source_state, side, InventoryState.new(),
+	)
+	_hide_all_menus.call()
+	_battle_evolution_menu.visible = true
+
+
+## Evolution sub-menu: user chose to devolve.
+func _on_evolve_sub_devolve() -> void:
+	var action := BattleAction.new()
+	action.action_type = BattleAction.ActionType.EVOLVE
+	action.user_side = _current_input_side
+	action.user_slot = _current_input_slot
+	action.is_de_evolution = true
+	_pending_actions.append(action)
+	_advance_input()
+
+
+## Evolution sub-menu: back pressed.
+func _on_evolve_sub_back() -> void:
+	_hide_all_menus.call()
+	_action_menu.visible = true
+
+
+## Evolution menu: user selected an evolution.
+func _on_evolution_chosen(
+	link_key: StringName,
+	is_jogress: bool,
+	is_warp: bool,
+	warp_link_keys: Array[StringName],
+) -> void:
+	if is_jogress and _battle_jogress_menu != null:
+		var link: EvolutionLinkData = Atlas.evolutions.get(link_key) as EvolutionLinkData
+		if link == null:
+			return
+		var digimon: BattleDigimonState = _battle.get_digimon_at(
+			_current_input_side, _current_input_slot,
+		)
+		if digimon == null or digimon.source_state == null:
+			return
+		var side: SideState = _battle.sides[_current_input_side]
+		_battle_jogress_menu.populate(link, digimon.source_state, side)
+		_hide_all_menus.call()
+		_battle_jogress_menu.visible = true
+		# Store the link key for after partner selection
+		_selected_evolution_link_key = link_key
+		return
+
+	# Standard or warp evolution — queue action directly
+	var action := BattleAction.new()
+	action.action_type = BattleAction.ActionType.EVOLVE
+	action.user_side = _current_input_side
+	action.user_slot = _current_input_slot
+	action.is_warp = is_warp
+	if is_warp:
+		action.warp_link_keys = warp_link_keys
+	else:
+		action.evolution_link_key = link_key
+	_pending_actions.append(action)
+	_advance_input()
+
+
+## Evolution menu: back pressed.
+func _on_evolution_menu_back() -> void:
+	if _evolution_sub_menu != null:
+		_hide_all_menus.call()
+		_evolution_sub_menu.visible = true
+	else:
+		_hide_all_menus.call()
+		_action_menu.visible = true
+
+
+## Jogress menu: partners confirmed.
+func _on_jogress_confirmed(partner_indices: Array[int]) -> void:
+	var action := BattleAction.new()
+	action.action_type = BattleAction.ActionType.EVOLVE
+	action.user_side = _current_input_side
+	action.user_slot = _current_input_slot
+	action.evolution_link_key = _selected_evolution_link_key
+	action.jogress_partner_indices = partner_indices
+	_pending_actions.append(action)
+	_advance_input()
+
+
+## Jogress menu: back pressed.
+func _on_jogress_back() -> void:
+	if _battle_evolution_menu != null:
+		_hide_all_menus.call()
+		_battle_evolution_menu.visible = true
+	else:
+		_hide_all_menus.call()
+		_action_menu.visible = true

@@ -9,10 +9,15 @@ signal replay_finished()
 
 var _battle: BattleState = null
 var _event_queue: Array[Dictionary] = []
+var _evolution_animator: BattleEvolutionAnimator = null
 
 
 func initialise(battle: BattleState) -> void:
 	_battle = battle
+
+
+func set_evolution_animator(animator: BattleEvolutionAnimator) -> void:
+	_evolution_animator = animator
 
 
 ## Connect all engine signals to queue capture handlers.
@@ -40,6 +45,7 @@ func connect_engine_signals(engine: BattleEngine) -> void:
 	engine.turn_ended.connect(_on_turn_ended)
 	engine.battle_ended.connect(_on_battle_ended)
 	engine.action_resolved.connect(_on_action_resolved)
+	engine.digimon_evolved.connect(_on_digimon_evolved)
 
 
 func clear_queue() -> void:
@@ -208,6 +214,42 @@ func replay_events(
 				)
 				if in_dur > 0.0:
 					await scene.get_tree().create_timer(in_dur).timeout
+
+			&"digimon_evolved":
+				var evo_side: int = int(event["side_index"])
+				var evo_slot: int = int(event["slot_index"])
+				var evo_old_key: StringName = event.get("old_key", &"") as StringName
+				var evo_new_key: StringName = event.get("new_key", &"") as StringName
+				var evo_is_jogress: bool = event.get("is_jogress", false)
+				var evo_consumed: Array = event.get("consumed_slots", [])
+				var evo_consumed_typed: Array[int] = []
+				for c: Variant in evo_consumed:
+					evo_consumed_typed.append(int(c))
+				if _evolution_animator != null:
+					if evo_is_jogress:
+						await _evolution_animator.play_jogress_evolution(
+							evo_side, evo_slot,
+							evo_old_key, evo_new_key,
+							evo_consumed_typed,
+						)
+					else:
+						await _evolution_animator.play_evolution(
+							evo_side, evo_slot,
+							evo_old_key, evo_new_key,
+						)
+				else:
+					display.update_placeholder(evo_side, evo_slot)
+				display.update_panel_from_snapshot(
+					evo_side, evo_slot,
+					event.get("snapshot", {}) as Dictionary,
+				)
+				# Update consumed slots (hide their panels)
+				for cs: int in evo_consumed_typed:
+					display.update_placeholder(evo_side, cs)
+					display.update_panel_from_snapshot(
+						evo_side, cs,
+						_snapshot_digimon(evo_side, cs),
+					)
 
 			&"status_applied":
 				var sa_side: int = int(event["side_index"])
@@ -464,6 +506,27 @@ func _on_digimon_switched(
 		"type": &"digimon_switched",
 		"side_index": side_index,
 		"slot_index": slot_index,
+		"snapshot": _snapshot_digimon(side_index, slot_index),
+	})
+
+
+func _on_digimon_evolved(
+	side_index: int,
+	slot_index: int,
+	old_key: StringName,
+	new_key: StringName,
+	is_jogress: bool,
+	_participant_keys: Array[StringName],
+	consumed_slots: Array[int],
+) -> void:
+	_event_queue.append({
+		"type": &"digimon_evolved",
+		"side_index": side_index,
+		"slot_index": slot_index,
+		"old_key": old_key,
+		"new_key": new_key,
+		"is_jogress": is_jogress,
+		"consumed_slots": consumed_slots,
 		"snapshot": _snapshot_digimon(side_index, slot_index),
 	})
 

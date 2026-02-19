@@ -117,7 +117,79 @@ static func create_battle_digimon(
 	for status: Dictionary in state.status_conditions:
 		battle_mon.status_conditions.append(status.duplicate())
 
+	# Snapshot source state for post-battle evolution reversion
+	battle_mon.pre_battle_snapshot = state.to_dict()
+
 	return battle_mon
+
+
+## Rebuild a BattleDigimonState after evolution mutated its source_state.
+## Preserves: stat_stages, status_conditions, volatiles, counters,
+## participated_against_ids, trigger counts, is_fainted, side/slot.
+static func rebuild_after_evolution(battle_mon: BattleDigimonState) -> void:
+	var state: DigimonState = battle_mon.source_state
+	if state == null:
+		return
+
+	# Refresh data reference
+	battle_mon.data = Atlas.digimon.get(state.key) as DigimonData
+
+	# Recalculate base stats with personality
+	if battle_mon.data != null:
+		var all_stats: Dictionary = StatCalculator.calculate_all_stats(
+			battle_mon.data, state,
+		)
+		var personality: PersonalityData = Atlas.personalities.get(
+			state.get_effective_personality_key(),
+		) as PersonalityData
+		for stat_key: StringName in all_stats:
+			all_stats[stat_key] = StatCalculator.apply_personality(
+				all_stats[stat_key], stat_key, personality,
+			)
+		battle_mon.base_stats = all_stats
+
+		# Update max HP/energy and sync current values from source_state
+		var old_max_hp: int = battle_mon.max_hp
+		var old_max_energy: int = battle_mon.max_energy
+		battle_mon.max_hp = all_stats.get(&"hp", 1)
+		battle_mon.max_energy = all_stats.get(&"energy", 1)
+
+		# Scale current HP/energy proportionally
+		if old_max_hp > 0:
+			battle_mon.current_hp = maxi(
+				floori(
+					float(battle_mon.current_hp) / float(old_max_hp)
+					* float(battle_mon.max_hp)
+				), 1,
+			)
+		else:
+			battle_mon.current_hp = battle_mon.max_hp
+		if old_max_energy > 0:
+			battle_mon.current_energy = maxi(
+				floori(
+					float(battle_mon.current_energy) / float(old_max_energy)
+					* float(battle_mon.max_energy)
+				), 1,
+			)
+		else:
+			battle_mon.current_energy = battle_mon.max_energy
+
+		# Sync source state HP/energy
+		state.current_hp = battle_mon.current_hp
+		state.current_energy = battle_mon.current_energy
+
+	# Refresh techniques from source state
+	battle_mon.equipped_technique_keys = state.equipped_technique_keys.duplicate()
+	battle_mon.known_technique_keys = state.known_technique_keys.duplicate()
+
+	# Re-resolve ability from new data's ability slots
+	if battle_mon.data != null:
+		match state.active_ability_slot:
+			1: battle_mon.ability_key = battle_mon.data.ability_slot_1_key
+			2: battle_mon.ability_key = battle_mon.data.ability_slot_2_key
+			3: battle_mon.ability_key = battle_mon.data.ability_slot_3_key
+
+	# Gear stays the same — preserved from before evolution
 
 
 ## Apply preset field effects from config to the battle state.

@@ -29,10 +29,15 @@ enum BattlePhase {
 @onready var _near_side: HBoxContainer = $BattleField/NearSide
 @onready var _far_side: HBoxContainer = $BattleField/FarSide
 @onready var _target_back_button: Button = $BattleHUD/TargetBackButton
+@onready var _evolution_sub_menu: EvolutionSubMenu = $BattleHUD/EvolutionSubMenu
+@onready var _battle_evolution_menu: BattleEvolutionMenu = $BattleHUD/BattleEvolutionMenu
+@onready var _battle_jogress_menu: BattleJogressMenu = $BattleHUD/BattleJogressMenu
 
 @onready var _event_replay: BattleEventReplay = $EventReplay
 @onready var _display: BattlefieldDisplay = $BattlefieldDisplay
 @onready var _input_manager: BattleInputManager = $InputManager
+
+var _evolution_animator: BattleEvolutionAnimator = null
 
 var _battle: BattleState = null
 var _engine: BattleEngine = BattleEngine.new()
@@ -53,6 +58,10 @@ func _ready() -> void:
 	_engine.initialise(_battle)
 	_ai.initialise(_battle)
 
+	# Create evolution animator
+	_evolution_animator = BattleEvolutionAnimator.new()
+	add_child(_evolution_animator)
+
 	# Initialise child subsystems
 	_event_replay.initialise(_battle)
 	_event_replay.connect_engine_signals(_engine)
@@ -61,6 +70,9 @@ func _ready() -> void:
 		_battle, _near_side, _far_side, _ally_panels, _foe_panels,
 	)
 	_display.phase_ref = _get_phase_value
+
+	_evolution_animator.initialise(_display, _battle)
+	_event_replay.set_evolution_animator(_evolution_animator)
 
 	# Determine player-controlled sides
 	for i: int in config.side_count:
@@ -80,6 +92,7 @@ func _ready() -> void:
 		_target_selector,
 		_message_box, _target_back_button, _turn_label, _post_battle_screen,
 		_field_display, _ally_side_display, _foe_side_display,
+		_evolution_sub_menu, _battle_evolution_menu, _battle_jogress_menu,
 	)
 	_input_manager.connect_ui_signals()
 
@@ -139,6 +152,9 @@ func _hide_all_menus() -> void:
 	_item_target_menu.visible = false
 	_target_selector.visible = false
 	_target_back_button.visible = false
+	_evolution_sub_menu.visible = false
+	_battle_evolution_menu.visible = false
+	_battle_jogress_menu.visible = false
 	if _display.is_targeting():
 		_display.exit_targeting_mode()
 
@@ -152,8 +168,51 @@ func _set_phase_value(value: int) -> void:
 
 
 func _on_continue_pressed() -> void:
+	# Revert all battle evolutions before leaving
+	_revert_battle_evolutions()
+
 	var return_path: String = Game.builder_context.get(
 		"return_scene", BUILDER_PATH
 	)
 	Game.battle_config = null
 	SceneManager.change_scene(return_path)
+
+
+## Collect and revert all evolutions that occurred during battle.
+func _revert_battle_evolutions() -> void:
+	if _battle == null or Game.state == null:
+		return
+
+	var evolutions: Array[Dictionary] = []
+
+	# Collect from all sides' active slots and retired Digimon
+	for side: SideState in _battle.sides:
+		for slot: SlotState in side.slots:
+			if slot.digimon != null and slot.digimon.evolved_in_battle:
+				evolutions.append({
+					"source_state": slot.digimon.source_state,
+					"snapshot": slot.digimon.pre_battle_snapshot,
+				})
+		for retired: BattleDigimonState in side.retired_battle_digimon:
+			if retired.evolved_in_battle:
+				# Avoid duplicates (source_state identity check)
+				var already_added: bool = false
+				for existing: Dictionary in evolutions:
+					if existing.get("source_state") == retired.source_state:
+						already_added = true
+						break
+				if not already_added:
+					evolutions.append({
+						"source_state": retired.source_state,
+						"snapshot": retired.pre_battle_snapshot,
+					})
+
+	if evolutions.is_empty():
+		return
+
+	BattleEvolutionReverter.revert_battle_evolutions(
+		evolutions,
+		Game.state.party,
+		Game.state.storage,
+		Game.state.inventory,
+	)

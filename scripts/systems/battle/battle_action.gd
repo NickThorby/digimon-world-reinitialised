@@ -9,6 +9,7 @@ enum ActionType {
 	REST,
 	RUN,
 	ITEM,
+	EVOLVE,
 }
 
 ## What kind of action this is.
@@ -31,6 +32,13 @@ var item_key: StringName = &""
 var item_target_side: int = -1
 var item_target_slot: int = -1
 var item_target_party_index: int = -1
+
+## For EVOLVE actions.
+var evolution_link_key: StringName = &""
+var jogress_partner_indices: Array[int] = []
+var is_warp: bool = false
+var warp_link_keys: Array[StringName] = []
+var is_de_evolution: bool = false
 
 ## Resolved priority tier (derived from technique or action type).
 var priority: int = Registry.Priority.NORMAL

@@ -1837,6 +1837,13 @@ static func _inject_evolutions() -> void:
 		Registry.EvolutionType.SLIDE,
 		[],
 	)
+	# Warp chain: test_tank → test_wall (standard, level 20)
+	# This enables warp: test_agumon → test_tank → test_wall
+	Atlas.evolutions[&"test_evo_tank_wall"] = _make_evolution(
+		&"test_evo_tank_wall", &"test_tank", &"test_wall",
+		Registry.EvolutionType.STANDARD,
+		[{"type": "level", "level": 20}],
+	)
 
 
 static func _make_evolution(
@@ -2288,3 +2295,56 @@ static func create_engine(battle: BattleState) -> BattleEngine:
 	var engine := BattleEngine.new()
 	engine.initialise(battle)
 	return engine
+
+
+## Create a standard EVOLVE action.
+static func make_evolve_action(
+	user_side: int, user_slot: int, link_key: StringName,
+) -> BattleAction:
+	var action := BattleAction.new()
+	action.action_type = BattleAction.ActionType.EVOLVE
+	action.user_side = user_side
+	action.user_slot = user_slot
+	action.evolution_link_key = link_key
+	return action
+
+
+## Create a warp EVOLVE action.
+static func make_warp_evolve_action(
+	user_side: int, user_slot: int, warp_keys: Array[StringName],
+) -> BattleAction:
+	var action := BattleAction.new()
+	action.action_type = BattleAction.ActionType.EVOLVE
+	action.user_side = user_side
+	action.user_slot = user_slot
+	action.is_warp = true
+	action.warp_link_keys = warp_keys
+	return action
+
+
+## Create a jogress EVOLVE action.
+static func make_jogress_evolve_action(
+	user_side: int,
+	user_slot: int,
+	link_key: StringName,
+	partner_indices: Array[int],
+) -> BattleAction:
+	var action := BattleAction.new()
+	action.action_type = BattleAction.ActionType.EVOLVE
+	action.user_side = user_side
+	action.user_slot = user_slot
+	action.evolution_link_key = link_key
+	action.jogress_partner_indices = partner_indices
+	return action
+
+
+## Create a de-evolution EVOLVE action.
+static func make_de_evolve_action(
+	user_side: int, user_slot: int,
+) -> BattleAction:
+	var action := BattleAction.new()
+	action.action_type = BattleAction.ActionType.EVOLVE
+	action.user_side = user_side
+	action.user_slot = user_slot
+	action.is_de_evolution = true
+	return action

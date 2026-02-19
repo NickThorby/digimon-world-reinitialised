@@ -1,0 +1,92 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/battle_hud/battle_evolution_menu.gd" id="1"]
+
+[node name="BattleEvolutionMenu" type="PanelContainer"]
+custom_minimum_size = Vector2(700, 400)
+script = ExtResource("1")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="HeaderHBox" type="HBoxContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="MarginContainer/VBox/HeaderHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 18
+text = "Evolution"
+
+[node name="WarpToggle" type="CheckButton" parent="MarginContainer/VBox/HeaderHBox"]
+layout_mode = 2
+text = "Warp"
+
+[node name="BackButton" type="Button" parent="MarginContainer/VBox/HeaderHBox"]
+layout_mode = 2
+text = "Back"
+
+[node name="ContentHBox" type="HBoxContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="CurrentPanel" type="VBoxContainer" parent="MarginContainer/VBox/ContentHBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(150, 0)
+theme_override_constants/separation = 4
+
+[node name="CurrentSprite" type="TextureRect" parent="MarginContainer/VBox/ContentHBox/CurrentPanel"]
+layout_mode = 2
+custom_minimum_size = Vector2(64, 64)
+expand_mode = 1
+stretch_mode = 5
+
+[node name="CurrentName" type="Label" parent="MarginContainer/VBox/ContentHBox/CurrentPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+
+[node name="CurrentLevel" type="Label" parent="MarginContainer/VBox/ContentHBox/CurrentPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+
+[node name="EvolutionScroll" type="ScrollContainer" parent="MarginContainer/VBox/ContentHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="EvolutionCards" type="VBoxContainer" parent="MarginContainer/VBox/ContentHBox/EvolutionScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="PreviewPanel" type="VBoxContainer" parent="MarginContainer/VBox/ContentHBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(150, 0)
+theme_override_constants/separation = 4
+
+[node name="PreviewSprite" type="TextureRect" parent="MarginContainer/VBox/ContentHBox/PreviewPanel"]
+layout_mode = 2
+custom_minimum_size = Vector2(64, 64)
+expand_mode = 1
+stretch_mode = 5
+
+[node name="PreviewName" type="Label" parent="MarginContainer/VBox/ContentHBox/PreviewPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+
+[node name="PreviewStatsVBox" type="VBoxContainer" parent="MarginContainer/VBox/ContentHBox/PreviewPanel"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="EvolveButton" type="Button" parent="MarginContainer/VBox/ContentHBox/PreviewPanel"]
+layout_mode = 2
+text = "Evolve!"

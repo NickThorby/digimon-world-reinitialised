@@ -145,7 +145,7 @@ static func can_evolve(
 			return false
 	# Jogress partner check
 	if not link.jogress_partner_keys.is_empty():
-		if party == null or storage == null:
+		if party == null:
 			return false
 		var partner_results: Array[Dictionary] = check_jogress_partners(
 			link, digimon, party, storage,
@@ -162,7 +162,7 @@ static func check_jogress_partners(
 	link: EvolutionLinkData,
 	digimon: DigimonState,
 	party: PartyState,
-	storage: StorageState,
+	storage: StorageState = null,
 ) -> Array[Dictionary]:
 	var results: Array[Dictionary] = []
 	var level_req: int = _get_level_requirement(link)
@@ -192,7 +192,7 @@ static func find_jogress_candidates(
 	link: EvolutionLinkData,
 	digimon: DigimonState,
 	party: PartyState,
-	storage: StorageState,
+	storage: StorageState = null,
 ) -> Dictionary:
 	var result: Dictionary = {}
 	var level_req: int = _get_level_requirement(link)
@@ -240,7 +240,9 @@ static func _find_candidates_for_key(
 			"digimon": member,
 		})
 
-	# Scan storage
+	# Scan storage (skip if null — party-only mode for battle jogress)
+	if storage == null:
+		return candidates
 	for box_idx: int in storage.boxes.size():
 		var slots: Array = storage.boxes[box_idx]["slots"]
 		for slot_idx: int in slots.size():

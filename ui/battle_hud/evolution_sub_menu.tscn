@@ -1,0 +1,23 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/battle_hud/evolution_sub_menu.gd" id="1"]
+
+[node name="EvolutionSubMenu" type="PanelContainer"]
+custom_minimum_size = Vector2(300, 0)
+script = ExtResource("1")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="EvolveButton" type="Button" parent="VBox"]
+layout_mode = 2
+text = "Evolve"
+
+[node name="DevolveButton" type="Button" parent="VBox"]
+layout_mode = 2
+text = "Devolve"
+
+[node name="BackButton" type="Button" parent="VBox"]
+layout_mode = 2
+text = "Back"

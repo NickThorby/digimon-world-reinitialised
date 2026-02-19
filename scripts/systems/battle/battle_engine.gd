@@ -32,6 +32,11 @@ signal global_effect_removed(effect_key: StringName)
 signal turn_started(turn_number: int)
 signal turn_ended(turn_number: int)
 signal battle_ended(result: BattleResult)
+signal digimon_evolved(
+	side_index: int, slot_index: int, old_key: StringName,
+	new_key: StringName, is_jogress: bool,
+	participant_keys: Array[StringName], consumed_slots: Array[int],
+)
 
 var _battle: BattleState = null
 var _balance: GameBalance = null
@@ -163,6 +168,8 @@ func _resolve_action(action: BattleAction) -> Array[Dictionary]:
 			return _resolve_run(action)
 		BattleAction.ActionType.ITEM:
 			return _resolve_item(action)
+		BattleAction.ActionType.EVOLVE:
+			return _resolve_evolve(action)
 	return []
 
 
@@ -1495,6 +1502,255 @@ func _resolve_rest(action: BattleAction) -> Array[Dictionary]:
 	])
 
 	return [{"rested": true, "energy_restored": amount}]
+
+
+## Resolve an evolution action (standard, warp, jogress, or de-evolution).
+func _resolve_evolve(action: BattleAction) -> Array[Dictionary]:
+	var user: BattleDigimonState = _battle.get_digimon_at(
+		action.user_side, action.user_slot,
+	)
+	if user == null or user.is_fainted:
+		return []
+
+	# Cannot evolve while transformed
+	var transform_backup: Variant = user.volatiles.get("transform_backup", {})
+	if transform_backup is Dictionary and not (transform_backup as Dictionary).is_empty():
+		battle_message.emit(
+			"%s cannot evolve while transformed!" % _get_digimon_name(user),
+		)
+		return [{"evolved": false, "reason": "transformed"}]
+
+	var source: DigimonState = user.source_state
+	if source == null:
+		return []
+
+	var side: SideState = _battle.sides[action.user_side]
+
+	# --- De-evolution ---
+	if action.is_de_evolution:
+		return _resolve_de_evolve(action, user, source, side)
+
+	# --- Jogress ---
+	if not action.jogress_partner_indices.is_empty():
+		return _resolve_jogress_evolve(action, user, source, side)
+
+	# --- Standard / Warp ---
+	var link_keys: Array[StringName] = []
+	if action.is_warp and not action.warp_link_keys.is_empty():
+		link_keys = action.warp_link_keys
+	else:
+		link_keys = [action.evolution_link_key]
+
+	var old_key: StringName = source.key
+	var inventory := InventoryState.new()  # Battle evolutions don't consume items
+
+	for link_key: StringName in link_keys:
+		var link: EvolutionLinkData = Atlas.evolutions.get(link_key) as EvolutionLinkData
+		if link == null:
+			continue
+		# Execute evolution on source state (mutates in place)
+		var result: Dictionary
+		if link.evolution_type == Registry.EvolutionType.SLIDE \
+				or link.evolution_type == Registry.EvolutionType.MODE_CHANGE:
+			result = EvolutionExecutor.execute_slide_or_mode_change(
+				source, link, inventory,
+			)
+		else:
+			result = EvolutionExecutor.execute_evolution(source, link, inventory)
+		if not result.get("success", false):
+			battle_message.emit("Evolution failed!")
+			return [{"evolved": false, "reason": "execution_failed"}]
+
+	# Rebuild battle stats from mutated source state
+	BattleFactory.rebuild_after_evolution(user)
+	user.evolved_in_battle = true
+
+	var new_name: String = _get_digimon_name(user)
+	battle_message.emit("%s evolved into %s!" % [
+		_get_old_name(old_key), new_name,
+	])
+	digimon_evolved.emit(
+		action.user_side, action.user_slot, old_key, source.key,
+		false, [] as Array[StringName], [] as Array[int],
+	)
+	return [{"evolved": true, "old_key": old_key, "new_key": source.key}]
+
+
+## Resolve a de-evolution action.
+func _resolve_de_evolve(
+	action: BattleAction,
+	user: BattleDigimonState,
+	source: DigimonState,
+	_side: SideState,
+) -> Array[Dictionary]:
+	if source.evolution_history.is_empty():
+		battle_message.emit(
+			"%s has no previous form to revert to!" % _get_digimon_name(user),
+		)
+		return [{"evolved": false, "reason": "no_history"}]
+
+	var old_key: StringName = source.key
+	var inventory := InventoryState.new()  # Don't restore items in battle
+	var dummy_party := PartyState.new()
+	var dummy_storage := StorageState.new()
+
+	var result: Dictionary = EvolutionExecutor.execute_de_digivolution(
+		source, inventory, dummy_party, dummy_storage,
+	)
+	if not result.get("success", false):
+		battle_message.emit("Devolution failed!")
+		return [{"evolved": false, "reason": "execution_failed"}]
+
+	BattleFactory.rebuild_after_evolution(user)
+	user.evolved_in_battle = true
+
+	var new_name: String = _get_digimon_name(user)
+	battle_message.emit("%s reverted to %s!" % [
+		_get_old_name(old_key), new_name,
+	])
+	digimon_evolved.emit(
+		action.user_side, action.user_slot, old_key, source.key,
+		false, [] as Array[StringName], [] as Array[int],
+	)
+	return [{"evolved": true, "de_evolved": true, "old_key": old_key, "new_key": source.key}]
+
+
+## Resolve a jogress evolution action.
+func _resolve_jogress_evolve(
+	action: BattleAction,
+	user: BattleDigimonState,
+	source: DigimonState,
+	side: SideState,
+) -> Array[Dictionary]:
+	var link: EvolutionLinkData = Atlas.evolutions.get(
+		action.evolution_link_key,
+	) as EvolutionLinkData
+	if link == null:
+		return [{"evolved": false, "reason": "missing_link"}]
+
+	var old_key: StringName = source.key
+	var inventory := InventoryState.new()
+
+	# Build selected_partners dict from party indices
+	var selected_partners: Dictionary = {}
+	var partner_party: PartyState = PartyState.new()
+	partner_party.members = []
+	for reserve: DigimonState in side.party:
+		partner_party.members.append(reserve)
+	# Also include active slot Digimon (except user) as potential partners
+	var active_states: Array[DigimonState] = []
+	for slot: SlotState in side.slots:
+		if slot.digimon != null and slot.digimon != user \
+				and not slot.digimon.is_fainted:
+			active_states.append(slot.digimon.source_state)
+
+	var consumed_slots: Array[int] = []
+	var participant_keys: Array[StringName] = []
+	var partner_idx: int = 0
+
+	for i: int in action.jogress_partner_indices.size():
+		if partner_idx >= link.jogress_partner_keys.size():
+			break
+		var pkey: StringName = link.jogress_partner_keys[partner_idx]
+		var pidx: int = action.jogress_partner_indices[i]
+
+		# Check if partner is an active slot Digimon
+		var found_active: bool = false
+		for slot: SlotState in side.slots:
+			if slot.digimon != null and slot.digimon != user \
+					and not slot.digimon.is_fainted \
+					and slot.slot_index == pidx \
+					and slot.digimon.source_state.key == pkey:
+				# On-field partner — fire ON_EXIT, write back, consume
+				_fire_ability_trigger(
+					Registry.AbilityTrigger.ON_EXIT, {"subject": slot.digimon},
+				)
+				_fire_gear_trigger(
+					Registry.AbilityTrigger.ON_EXIT, {"subject": slot.digimon},
+				)
+				# Merge statuses from consumed partner
+				for status: Dictionary in slot.digimon.status_conditions:
+					var skey: StringName = status.get("key", &"") as StringName
+					if not user.has_status(skey):
+						user.add_status(skey, int(status.get("duration", -1)))
+
+				slot.digimon.write_back()
+				participant_keys.append(pkey)
+				selected_partners[pkey] = {
+					"source": "party",
+					"party_index": -1,  # Will be found in party after write-back
+					"digimon": slot.digimon.source_state,
+				}
+				# Retire consumed partner
+				side.retired_battle_digimon.append(slot.digimon)
+				slot.digimon = null
+				consumed_slots.append(slot.slot_index)
+				found_active = true
+				break
+
+		if not found_active:
+			# Reserve partner
+			if pidx >= 0 and pidx < side.party.size():
+				var partner: DigimonState = side.party[pidx]
+				if partner.key == pkey:
+					participant_keys.append(pkey)
+					selected_partners[pkey] = {
+						"source": "party",
+						"party_index": pidx,
+						"digimon": partner,
+					}
+
+		partner_idx += 1
+
+	# Execute jogress on source state
+	var dummy_storage := StorageState.new()
+	var result: Dictionary = EvolutionExecutor.execute_jogress(
+		source, link, selected_partners, inventory,
+		partner_party, dummy_storage,
+	)
+	if not result.get("success", false):
+		battle_message.emit("Jogress evolution failed!")
+		return [{"evolved": false, "reason": "execution_failed"}]
+
+	# Remove consumed reserve partners from side.party
+	var reserve_removals: Array[int] = []
+	for pkey: StringName in selected_partners:
+		var candidate: Dictionary = selected_partners[pkey]
+		if candidate.get("source") == "party":
+			var pi: int = int(candidate.get("party_index", -1))
+			if pi >= 0:
+				reserve_removals.append(pi)
+	reserve_removals.sort()
+	reserve_removals.reverse()
+	for idx: int in reserve_removals:
+		if idx < side.party.size():
+			side.party.remove_at(idx)
+
+	# Rebuild battle stats
+	BattleFactory.rebuild_after_evolution(user)
+	user.evolved_in_battle = true
+
+	var new_name: String = _get_digimon_name(user)
+	battle_message.emit("%s jogress-evolved into %s!" % [
+		_get_old_name(old_key), new_name,
+	])
+	digimon_evolved.emit(
+		action.user_side, action.user_slot, old_key, source.key,
+		true, participant_keys, consumed_slots,
+	)
+	return [{
+		"evolved": true, "jogress": true,
+		"old_key": old_key, "new_key": source.key,
+		"consumed_slots": consumed_slots,
+	}]
+
+
+## Get display name from a DigimonData key.
+func _get_old_name(key: StringName) -> String:
+	var data: DigimonData = Atlas.digimon.get(key) as DigimonData
+	if data != null:
+		return data.display_name
+	return str(key)
 
 
 ## Resolve a run action.

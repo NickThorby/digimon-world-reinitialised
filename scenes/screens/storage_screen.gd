@@ -14,6 +14,7 @@ extends Control
 const SUMMARY_SCREEN_PATH := "res://scenes/screens/summary_screen.tscn"
 const STORAGE_SCREEN_PATH := "res://scenes/screens/storage_screen.tscn"
 const EVOLUTION_SCREEN_PATH := "res://scenes/screens/evolution_screen.tscn"
+const EVOLUTION_ANIMATION_PATH := "res://scenes/screens/evolution_animation_screen.tscn"
 const BAG_SCREEN_PATH := "res://scenes/screens/bag_screen.tscn"
 const PICKER_SCENE_PATH := "res://scenes/battle/digimon_picker.tscn"
 const SLOT_PANEL_SCENE := preload("res://ui/components/digimon_slot_panel.tscn")
@@ -187,6 +188,11 @@ func _show_party_context_menu(index: int) -> void:
 	popup.add_separator()
 	popup.add_item("Move", 1)
 	popup.add_separator()
+	popup.add_item(Settings.get_evolution_noun(), 3)
+	var member: DigimonState = Game.state.party.members[index]
+	if member.evolution_history.size() > 0:
+		popup.add_item(Settings.get_de_evolution_noun(), 4)
+	popup.add_separator()
 	popup.add_item("Release", 2)
 	# Guard: cannot release last party member
 	if Game.state.party.members.size() <= 1:
@@ -199,6 +205,8 @@ func _show_party_context_menu(index: int) -> void:
 			0: _navigate_to_summary_party(index)
 			1: _start_move_from_party(index)
 			2: _confirm_release_party(index)
+			3: _navigate_to_evolution_party(index)
+			4: _execute_de_evolution_party(index)
 		popup.queue_free()
 	)
 	popup.position = Vector2i(
@@ -209,12 +217,16 @@ func _show_party_context_menu(index: int) -> void:
 
 
 func _show_box_context_menu(
-	box_index: int, slot_index: int, _digimon: DigimonState,
+	box_index: int, slot_index: int, digimon: DigimonState,
 ) -> void:
 	var popup := PopupMenu.new()
 	popup.add_item("Summary", 0)
 	popup.add_separator()
 	popup.add_item("Move", 1)
+	popup.add_separator()
+	popup.add_item(Settings.get_evolution_noun(), 3)
+	if digimon.evolution_history.size() > 0:
+		popup.add_item(Settings.get_de_evolution_noun(), 4)
 	popup.add_separator()
 	popup.add_item("Release", 2)
 
@@ -224,6 +236,8 @@ func _show_box_context_menu(
 			0: _navigate_to_summary_box(box_index, slot_index)
 			1: _start_move_from_box(box_index, slot_index)
 			2: _confirm_release_box(box_index, slot_index)
+			3: _navigate_to_evolution_box(box_index, slot_index)
+			4: _execute_de_evolution_box(box_index, slot_index)
 		popup.queue_free()
 	)
 	popup.position = Vector2i(
@@ -381,6 +395,159 @@ func _navigate_to_summary_box(box_index: int, slot_index: int) -> void:
 		"mode": _mode,
 	}
 	SceneManager.change_scene(SUMMARY_SCREEN_PATH)
+
+
+func _navigate_to_evolution_party(index: int) -> void:
+	if Game.state == null:
+		return
+	if index < 0 or index >= Game.state.party.members.size():
+		return
+	Game.screen_context = {
+		"party_index": index,
+		"storage_box": -1,
+		"storage_slot": -1,
+		"mode": _mode,
+		"return_scene": STORAGE_SCREEN_PATH,
+	}
+	SceneManager.change_scene(EVOLUTION_SCREEN_PATH)
+
+
+func _navigate_to_evolution_box(box_index: int, slot_index: int) -> void:
+	if Game.state == null:
+		return
+	var digimon: DigimonState = Game.state.storage.get_digimon(
+		box_index, slot_index,
+	)
+	if digimon == null:
+		return
+	Game.screen_context = {
+		"party_index": -1,
+		"storage_box": box_index,
+		"storage_slot": slot_index,
+		"mode": _mode,
+		"return_scene": STORAGE_SCREEN_PATH,
+	}
+	SceneManager.change_scene(EVOLUTION_SCREEN_PATH)
+
+
+func _execute_de_evolution_party(index: int) -> void:
+	if Game.state == null:
+		return
+	if index < 0 or index >= Game.state.party.members.size():
+		return
+
+	var digimon: DigimonState = Game.state.party.members[index]
+	if digimon.evolution_history.is_empty():
+		return
+
+	var old_key: StringName = digimon.key
+	var old_name: String = _get_digimon_display_name(digimon)
+
+	var result: Dictionary = EvolutionExecutor.execute_de_digivolution(
+		digimon, Game.state.inventory, Game.state.party, Game.state.storage,
+	)
+
+	if not result.get("success", false):
+		_status_label.text = result.get("error", "De-evolution failed!")
+		return
+
+	var partner_messages: Array[String] = _build_partner_messages(result)
+	var new_name: String = _get_digimon_display_name(digimon)
+
+	Game.screen_context = {
+		"old_digimon_key": old_key,
+		"new_digimon_key": digimon.key,
+		"old_name": old_name,
+		"new_name": new_name,
+		"mode": _mode,
+		"party_index": index,
+		"storage_box": -1,
+		"storage_slot": -1,
+		"evolution_return_scene": STORAGE_SCREEN_PATH,
+		"post_messages": partner_messages,
+	}
+	SceneManager.change_scene(EVOLUTION_ANIMATION_PATH)
+
+
+func _execute_de_evolution_box(box_index: int, slot_index: int) -> void:
+	if Game.state == null:
+		return
+
+	var digimon: DigimonState = Game.state.storage.get_digimon(
+		box_index, slot_index,
+	)
+	if digimon == null or digimon.evolution_history.is_empty():
+		return
+
+	var old_key: StringName = digimon.key
+	var old_name: String = _get_digimon_display_name(digimon)
+
+	var result: Dictionary = EvolutionExecutor.execute_de_digivolution(
+		digimon, Game.state.inventory, Game.state.party, Game.state.storage,
+	)
+
+	if not result.get("success", false):
+		_status_label.text = result.get("error", "De-evolution failed!")
+		return
+
+	var partner_messages: Array[String] = _build_partner_messages(result)
+	var new_name: String = _get_digimon_display_name(digimon)
+
+	Game.screen_context = {
+		"old_digimon_key": old_key,
+		"new_digimon_key": digimon.key,
+		"old_name": old_name,
+		"new_name": new_name,
+		"mode": _mode,
+		"party_index": -1,
+		"storage_box": box_index,
+		"storage_slot": slot_index,
+		"evolution_return_scene": STORAGE_SCREEN_PATH,
+		"post_messages": partner_messages,
+	}
+	SceneManager.change_scene(EVOLUTION_ANIMATION_PATH)
+
+
+func _get_digimon_display_name(digimon: DigimonState) -> String:
+	if digimon.nickname != "":
+		return digimon.nickname
+	var data: DigimonData = Atlas.digimon.get(digimon.key) as DigimonData
+	if data and data.display_name != "":
+		return data.display_name
+	return str(digimon.key)
+
+
+func _build_partner_messages(result: Dictionary) -> Array[String]:
+	var messages: Array[String] = []
+	var restored: Array = result.get("restored_partners", [])
+	for entry: Variant in restored:
+		if entry is not Dictionary:
+			continue
+		var partner: DigimonState = (
+			(entry as Dictionary).get("digimon") as DigimonState
+		)
+		var dest: String = (
+			(entry as Dictionary).get("destination", "") as String
+		)
+		if partner == null:
+			continue
+		var partner_name: String = _get_digimon_display_name(partner)
+		match dest:
+			"party":
+				messages.append(
+					"%s was restored to your party!" % partner_name,
+				)
+			"storage":
+				messages.append(
+					"%s was sent to storage (party full)."
+					% partner_name,
+				)
+			"lost":
+				messages.append(
+					"%s could not be restored (party and storage full)!"
+					% partner_name,
+				)
+	return messages
 
 
 func _handle_picker_return() -> void:
