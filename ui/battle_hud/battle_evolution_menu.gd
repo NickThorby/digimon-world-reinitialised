@@ -205,6 +205,24 @@ func _create_standard_card(
 		)
 		card.add_child(req_label)
 
+	# Jogress partner requirements
+	if not link.jogress_partner_keys.is_empty():
+		var party: PartyState = _build_party_state()
+		var partner_reqs: Array[Dictionary] = EvolutionChecker.check_jogress_partners(
+			link, _digimon, party, null,
+		)
+		for pr: Dictionary in partner_reqs:
+			var pr_label := Label.new()
+			var pr_met: bool = pr.get("met", false)
+			var pr_icon: String = "[OK]" if pr_met else "[X]"
+			pr_label.text = "%s %s" % [pr_icon, pr.get("description", "")]
+			pr_label.add_theme_font_size_override("font_size", 12)
+			pr_label.add_theme_color_override(
+				"font_color",
+				Color(0.3, 0.85, 0.3, 1) if pr_met else Color(0.85, 0.3, 0.3, 1),
+			)
+			card.add_child(pr_label)
+
 	if not can_evolve:
 		card.modulate = Color(1, 1, 1, 0.6)
 

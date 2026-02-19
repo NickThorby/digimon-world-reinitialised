@@ -218,19 +218,30 @@ func replay_events(
 			&"digimon_evolved":
 				var evo_side: int = int(event["side_index"])
 				var evo_slot: int = int(event["slot_index"])
-				var evo_old_key: StringName = event.get("old_key", &"") as StringName
-				var evo_new_key: StringName = event.get("new_key", &"") as StringName
+				var evo_old_key: StringName = event.get(
+					"old_key", &"",
+				) as StringName
+				var evo_new_key: StringName = event.get(
+					"new_key", &"",
+				) as StringName
 				var evo_is_jogress: bool = event.get("is_jogress", false)
 				var evo_consumed: Array = event.get("consumed_slots", [])
 				var evo_consumed_typed: Array[int] = []
 				for c: Variant in evo_consumed:
 					evo_consumed_typed.append(int(c))
+				var evo_reserve_raw: Array = event.get(
+					"reserve_partner_keys", [],
+				)
+				var evo_reserve_keys: Array[StringName] = []
+				for rk: Variant in evo_reserve_raw:
+					evo_reserve_keys.append(StringName(str(rk)))
 				if _evolution_animator != null:
 					if evo_is_jogress:
 						await _evolution_animator.play_jogress_evolution(
 							evo_side, evo_slot,
 							evo_old_key, evo_new_key,
 							evo_consumed_typed,
+							evo_reserve_keys,
 						)
 					else:
 						await _evolution_animator.play_evolution(
@@ -518,6 +529,7 @@ func _on_digimon_evolved(
 	is_jogress: bool,
 	_participant_keys: Array[StringName],
 	consumed_slots: Array[int],
+	reserve_partner_keys: Array[StringName],
 ) -> void:
 	_event_queue.append({
 		"type": &"digimon_evolved",
@@ -527,6 +539,7 @@ func _on_digimon_evolved(
 		"new_key": new_key,
 		"is_jogress": is_jogress,
 		"consumed_slots": consumed_slots,
+		"reserve_partner_keys": reserve_partner_keys,
 		"snapshot": _snapshot_digimon(side_index, slot_index),
 	})
 

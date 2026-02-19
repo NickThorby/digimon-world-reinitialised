@@ -180,7 +180,7 @@ func _advance_input() -> void:
 	var can_evolve: bool = false
 	var can_devolve: bool = false
 	if source != null:
-		var inv: InventoryState = InventoryState.new()
+		var inv: InventoryState = _bag_to_inventory(side)
 		var party := PartyState.new()
 		party.members = []
 		for reserve: DigimonState in side.party:
@@ -235,8 +235,11 @@ func _execute_turn() -> void:
 func _needs_forced_switch() -> bool:
 	for side: SideState in _battle.sides:
 		for slot: SlotState in side.slots:
-			if slot.digimon != null and slot.digimon.is_fainted \
-					and _has_alive_reserve(side):
+			var needs_replacement: bool = (
+				slot.digimon == null
+				or (slot.digimon != null and slot.digimon.is_fainted)
+			)
+			if needs_replacement and _has_alive_reserve(side):
 				return true
 	return false
 
@@ -259,8 +262,11 @@ func _prompt_forced_switch() -> void:
 	for side_idx: int in _player_sides:
 		var side: SideState = _battle.sides[side_idx]
 		for slot: SlotState in side.slots:
-			if slot.digimon != null and slot.digimon.is_fainted \
-					and _has_alive_reserve(side):
+			var needs_switch: bool = (
+				slot.digimon == null
+				or (slot.digimon != null and slot.digimon.is_fainted)
+			)
+			if needs_switch and _has_alive_reserve(side):
 				_current_input_side = side_idx
 				_current_input_slot = slot.slot_index
 				_message_box.show_prompt("Choose a replacement!")
@@ -274,8 +280,11 @@ func _prompt_forced_switch() -> void:
 		if side.side_index in _player_sides:
 			continue
 		for slot: SlotState in side.slots:
-			if slot.digimon != null and slot.digimon.is_fainted \
-					and _has_alive_reserve(side):
+			var ai_needs_switch: bool = (
+				slot.digimon == null
+				or (slot.digimon != null and slot.digimon.is_fainted)
+			)
+			if ai_needs_switch and _has_alive_reserve(side):
 				var out_dur: float = _display.anim_switch_out(
 					side.side_index, slot.slot_index,
 				)
@@ -379,7 +388,7 @@ func _on_action_chosen(action_type: BattleAction.ActionType) -> void:
 				return
 			var evo_source: DigimonState = evo_digimon.source_state
 			var evo_side: SideState = _battle.sides[_current_input_side]
-			var inv: InventoryState = InventoryState.new()
+			var inv: InventoryState = _bag_to_inventory(evo_side)
 			var evo_party := PartyState.new()
 			evo_party.members = []
 			for reserve: DigimonState in evo_side.party:
@@ -675,7 +684,7 @@ func _on_evolve_sub_evolve() -> void:
 		return
 	var side: SideState = _battle.sides[_current_input_side]
 	_battle_evolution_menu.populate(
-		digimon.source_state, side, InventoryState.new(),
+		digimon.source_state, side, _bag_to_inventory(side),
 	)
 	_hide_all_menus.call()
 	_battle_evolution_menu.visible = true
@@ -766,3 +775,11 @@ func _on_jogress_back() -> void:
 	else:
 		_hide_all_menus.call()
 		_action_menu.visible = true
+
+
+## Build an InventoryState from a side's BagState for evolution checks.
+func _bag_to_inventory(side: SideState) -> InventoryState:
+	var inv := InventoryState.new()
+	if side.bag != null:
+		inv.items = side.bag.get_items_dict()
+	return inv

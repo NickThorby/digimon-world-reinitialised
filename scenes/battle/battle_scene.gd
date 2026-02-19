@@ -71,7 +71,7 @@ func _ready() -> void:
 	)
 	_display.phase_ref = _get_phase_value
 
-	_evolution_animator.initialise(_display, _battle)
+	_evolution_animator.initialise(_display, _battle, $BattleHUD)
 	_event_replay.set_evolution_animator(_evolution_animator)
 
 	# Determine player-controlled sides

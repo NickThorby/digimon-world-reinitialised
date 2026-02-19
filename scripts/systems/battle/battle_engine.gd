@@ -36,6 +36,7 @@ signal digimon_evolved(
 	side_index: int, slot_index: int, old_key: StringName,
 	new_key: StringName, is_jogress: bool,
 	participant_keys: Array[StringName], consumed_slots: Array[int],
+	reserve_partner_keys: Array[StringName],
 )
 
 var _battle: BattleState = null
@@ -1572,6 +1573,7 @@ func _resolve_evolve(action: BattleAction) -> Array[Dictionary]:
 	digimon_evolved.emit(
 		action.user_side, action.user_slot, old_key, source.key,
 		false, [] as Array[StringName], [] as Array[int],
+		[] as Array[StringName],
 	)
 	return [{"evolved": true, "old_key": old_key, "new_key": source.key}]
 
@@ -1611,6 +1613,7 @@ func _resolve_de_evolve(
 	digimon_evolved.emit(
 		action.user_side, action.user_slot, old_key, source.key,
 		false, [] as Array[StringName], [] as Array[int],
+		[] as Array[StringName],
 	)
 	return [{"evolved": true, "de_evolved": true, "old_key": old_key, "new_key": source.key}]
 
@@ -1631,21 +1634,24 @@ func _resolve_jogress_evolve(
 	var old_key: StringName = source.key
 	var inventory := InventoryState.new()
 
-	# Build selected_partners dict from party indices
+	# Build combined party (reserves first, then active source states)
+	# matching the same order as BattleJogressMenu and BattleAI
 	var selected_partners: Dictionary = {}
 	var partner_party: PartyState = PartyState.new()
 	partner_party.members = []
 	for reserve: DigimonState in side.party:
 		partner_party.members.append(reserve)
-	# Also include active slot Digimon (except user) as potential partners
-	var active_states: Array[DigimonState] = []
+	var reserve_count: int = side.party.size()
+	var active_partner_slots: Array[SlotState] = []
 	for slot: SlotState in side.slots:
 		if slot.digimon != null and slot.digimon != user \
 				and not slot.digimon.is_fainted:
-			active_states.append(slot.digimon.source_state)
+			partner_party.members.append(slot.digimon.source_state)
+			active_partner_slots.append(slot)
 
 	var consumed_slots: Array[int] = []
 	var participant_keys: Array[StringName] = []
+	var reserve_partner_keys: Array[StringName] = []
 	var partner_idx: int = 0
 
 	for i: int in action.jogress_partner_indices.size():
@@ -1654,51 +1660,50 @@ func _resolve_jogress_evolve(
 		var pkey: StringName = link.jogress_partner_keys[partner_idx]
 		var pidx: int = action.jogress_partner_indices[i]
 
-		# Check if partner is an active slot Digimon
-		var found_active: bool = false
-		for slot: SlotState in side.slots:
-			if slot.digimon != null and slot.digimon != user \
-					and not slot.digimon.is_fainted \
-					and slot.slot_index == pidx \
-					and slot.digimon.source_state.key == pkey:
-				# On-field partner — fire ON_EXIT, write back, consume
-				_fire_ability_trigger(
-					Registry.AbilityTrigger.ON_EXIT, {"subject": slot.digimon},
-				)
-				_fire_gear_trigger(
-					Registry.AbilityTrigger.ON_EXIT, {"subject": slot.digimon},
-				)
-				# Merge statuses from consumed partner
-				for status: Dictionary in slot.digimon.status_conditions:
-					var skey: StringName = status.get("key", &"") as StringName
-					if not user.has_status(skey):
-						user.add_status(skey, int(status.get("duration", -1)))
-
-				slot.digimon.write_back()
+		if pidx >= 0 and pidx < reserve_count:
+			# Reserve partner
+			var partner: DigimonState = side.party[pidx]
+			if partner.key == pkey:
 				participant_keys.append(pkey)
+				reserve_partner_keys.append(pkey)
 				selected_partners[pkey] = {
 					"source": "party",
-					"party_index": -1,  # Will be found in party after write-back
-					"digimon": slot.digimon.source_state,
+					"party_index": pidx,
+					"digimon": partner,
 				}
-				# Retire consumed partner
-				side.retired_battle_digimon.append(slot.digimon)
-				slot.digimon = null
-				consumed_slots.append(slot.slot_index)
-				found_active = true
-				break
-
-		if not found_active:
-			# Reserve partner
-			if pidx >= 0 and pidx < side.party.size():
-				var partner: DigimonState = side.party[pidx]
-				if partner.key == pkey:
+		elif pidx >= reserve_count:
+			# Active slot partner (combined index)
+			var active_idx: int = pidx - reserve_count
+			if active_idx < active_partner_slots.size():
+				var slot: SlotState = active_partner_slots[active_idx]
+				if slot.digimon != null \
+						and slot.digimon.source_state.key == pkey:
+					_fire_ability_trigger(
+						Registry.AbilityTrigger.ON_EXIT,
+						{"subject": slot.digimon},
+					)
+					_fire_gear_trigger(
+						Registry.AbilityTrigger.ON_EXIT,
+						{"subject": slot.digimon},
+					)
+					for status: Dictionary in slot.digimon.status_conditions:
+						var skey: StringName = status.get(
+							"key", &"",
+						) as StringName
+						if not user.has_status(skey):
+							user.add_status(
+								skey, int(status.get("duration", -1)),
+							)
+					slot.digimon.write_back()
 					participant_keys.append(pkey)
 					selected_partners[pkey] = {
 						"source": "party",
-						"party_index": pidx,
-						"digimon": partner,
+						"party_index": -1,
+						"digimon": slot.digimon.source_state,
 					}
+					side.retired_battle_digimon.append(slot.digimon)
+					slot.digimon = null
+					consumed_slots.append(slot.slot_index)
 
 		partner_idx += 1
 
@@ -1736,7 +1741,7 @@ func _resolve_jogress_evolve(
 	])
 	digimon_evolved.emit(
 		action.user_side, action.user_slot, old_key, source.key,
-		true, participant_keys, consumed_slots,
+		true, participant_keys, consumed_slots, reserve_partner_keys,
 	)
 	return [{
 		"evolved": true, "jogress": true,

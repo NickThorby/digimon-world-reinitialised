@@ -33,10 +33,10 @@ func generate_actions(side_index: int) -> Array[BattleAction]:
 
 ## Pick a single action for a Digimon.
 func _pick_action(digimon: BattleDigimonState, side: SideState) -> BattleAction:
-	# Consider evolution before techniques (70% chance if available)
+	# Consider evolution before techniques (30% chance if available)
 	if not digimon.evolved_in_battle:
 		var evo_action: BattleAction = _try_evolution(digimon, side)
-		if evo_action != null and _battle.rng.randf() < 0.7:
+		if evo_action != null and _battle.rng.randf() < 0.3:
 			return evo_action
 
 	# Try to use a random technique
@@ -178,6 +178,8 @@ func _try_evolution(
 		return null
 
 	var inv := InventoryState.new()
+	if side.bag != null:
+		inv.items = side.bag.get_items_dict()
 	var party := PartyState.new()
 	party.members = []
 	for reserve: DigimonState in side.party:

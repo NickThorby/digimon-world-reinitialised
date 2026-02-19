@@ -74,6 +74,10 @@ static func revert_battle_evolutions(
 				var partner: DigimonState = DigimonState.from_dict(
 					partner_dict as Dictionary,
 				)
+				# Skip if partner already exists (battle jogress doesn't
+				# remove from game state party, only from battle reserves)
+				if _partner_already_exists(partner, party, storage):
+					continue
 				if party.members.size() < max_party:
 					party.members.append(partner)
 				else:
@@ -97,6 +101,27 @@ static func revert_battle_evolutions(
 			for tech_key: StringName in innate:
 				if tech_key not in source.known_technique_keys:
 					source.known_technique_keys.append(tech_key)
+
+
+## Check if a partner with the same identity already exists in party or storage.
+static func _partner_already_exists(
+	partner: DigimonState,
+	party: PartyState,
+	storage: StorageState,
+) -> bool:
+	for member: DigimonState in party.members:
+		if member.display_id == partner.display_id \
+				and member.secret_id == partner.secret_id:
+			return true
+	for box: Dictionary in storage.boxes:
+		var slots: Array = box.get("slots", [])
+		for slot: Variant in slots:
+			if slot is DigimonState:
+				var stored: DigimonState = slot as DigimonState
+				if stored.display_id == partner.display_id \
+						and stored.secret_id == partner.secret_id:
+					return true
+	return false
 
 
 ## Find history entries in current that don't exist in snapshot (added during battle).
